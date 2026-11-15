@@ -27,3 +27,9 @@ export function loadExample(name) {
   if (stored) return Promise.resolve(stored);
   return fetch('../examples/' + name).then((r) => r.json());
 }
+
+// The list the gallery shows: [{ file, name, about }].
+export function listExamples() {
+  if (window.SPINE_EXAMPLE_LIST) return Promise.resolve(window.SPINE_EXAMPLE_LIST);
+  return fetch('../examples/index.json').then((r) => r.json());
+}

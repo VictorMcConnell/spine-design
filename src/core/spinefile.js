@@ -65,5 +65,6 @@ export function validateSpine(spine) {
   for (const s of hw.screws || []) if (!isPoint(s.head) || !isPoint(s.tip)) problems.push('A screw at ' + (s.level || '?') + ' has no usable position.');
   for (const h of hw.hooks || []) if (!isPoint(h.at) || !isPoint(h.tip)) problems.push('A hook at ' + (h.level || '?') + ' has no usable position.');
   for (const c of hw.crosslinks || []) if (!isPoint(c.from) || !isPoint(c.to)) problems.push('A cross-link has no usable position.');
+  if (hw.splits !== undefined && (!Array.isArray(hw.splits) || hw.splits.some((id) => !LEVEL_ORDER.includes(id)))) problems.push('The list of places where the rods end names a vertebra that does not exist.');
   return problems;
 }

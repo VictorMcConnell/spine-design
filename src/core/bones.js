@@ -1,13 +1,17 @@
-// Vertebrae and discs drawn from plain measurements (see anatomy.js). Each vertebra is built
-// as one solid: a body, two pedicles, the arch round the canal, the side processes, the
-// spinous process and the small joints, blended into each other. Nothing here comes from an
-// existing 3D model.
+// The shapes of the vertebrae and the discs. There are two sets of bones:
+//   real    shapes from the BodyParts3D anatomy models (src/shapes/bodyparts3d.js), resized
+//           to the body size of each level. This is what the app shows.
+//   drawn   simple shapes worked out here from plain measurements (see anatomy.js): a body,
+//           two pedicles, the arch round the canal, the side processes, the spinous process
+//           and the small joints, blended into one solid. Nothing in this set comes from an
+//           existing 3D model. It stands in for any level the real set does not have.
 
 import { frameFromTilt, toWorld, vLerp } from './vec.js';
 import { loft } from './mesh.js';
 import { softMin, softMax, capsule, ellipsoid, meshFromDistance } from './solid.js';
 import { regionOf } from './spinefile.js';
 import { ANATOMY } from './anatomy.js';
+import { SHAPES } from '../shapes/bodyparts3d.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -116,13 +120,50 @@ function boundsFor(a) {
 
 const cache = new Map();
 
+// Which set of bones is in use: 'real' or 'drawn'.
+let style = 'real';
+export function setBoneStyle(name) { style = name === 'drawn' ? 'drawn' : 'real'; }
+export function boneStyle() { return style; }
+
+// A real shape as stored: its points in millimetres and its triangles.
+const stored = new Map();
+function storedShape(id) {
+  if (!stored.has(id)) {
+    const bytes = (text) => { const raw = atob(text), view = new DataView(new ArrayBuffer(raw.length)); for (let i = 0; i < raw.length; i++) view.setUint8(i, raw.charCodeAt(i)); return view; };
+    const p = bytes(SHAPES[id].points), f = bytes(SHAPES[id].faces);
+    const positions = new Float32Array(p.byteLength / 2), indices = new Uint16Array(f.byteLength / 2);
+    for (let i = 0; i < positions.length; i++) positions[i] = p.getInt16(i * 2, true) / 100;
+    for (let i = 0; i < indices.length; i++) indices[i] = f.getUint16(i * 2, true);
+    stored.set(id, { positions, indices });
+  }
+  return stored.get(id);
+}
+// How much a real shape is stretched each way to give its body the size asked for.
+const stretchOf = (id, size) => (size ? size.map((v, i) => v / SHAPES[id].size[i]) : [1, 1, 1]);
+const hasReal = (id) => style === 'real' && !!SHAPES[id];
+
 // The mesh of a vertebra in its own axes. Built once for each set of measurements and kept.
-//   detail: size of the sampling grid in millimetres. Smaller is smoother and slower.
+//   detail: for the drawn bones, the size of the sampling grid in millimetres. Smaller is
+//           smoother and slower.
 export function vertebraShape(id, size, detail = 1.4) {
+  if (hasReal(id)) {
+    const base = storedShape(id), k = stretchOf(id, size);
+    if (k.every((v) => Math.abs(v - 1) < 1e-6)) return base;
+    const key = id + '|real|' + size.join(',');
+    if (!cache.has(key)) {
+      const positions = new Float32Array(base.positions.length);
+      for (let i = 0; i < positions.length; i++) positions[i] = base.positions[i] * k[i % 3];
+      cache.set(key, { positions, indices: base.indices });
+      if (cache.size > 150) cache.delete(cache.keys().next().value);
+    }
+    return cache.get(key);
+  }
   const key = id + '|' + (size ? size.join(',') : '') + '|' + detail;
   if (!cache.has(key)) {
     const a = anatomyFor(id, size), [lo, hi] = boundsFor(a);
     cache.set(key, meshFromDistance(id === 'S1' ? sacrumDistance(a) : vertebraDistance(a), lo, hi, id === 'S1' ? detail * 1.5 : detail));
+    // sizes tried while a slider moves pile up: let go of the oldest shapes
+    if (cache.size > 150) cache.delete(cache.keys().next().value);
   }
   return cache.get(key);
 }
@@ -143,9 +184,24 @@ export function vertebraMesh(level, detail) {
   return { positions, indices: shape.indices };
 }
 
+// Where a screw enters the bone, on the left side and in the axes of the vertebra, when the
+// real bones are in use and the spot was found on them. Otherwise null.
+//   returns { entry: [x, y, z], lean: degrees toward the middle, or null for the usual angle }
+export function screwEntryFor(id, size) {
+  if (!hasReal(id) || !SHAPES[id].pedicle) return null;
+  const k = stretchOf(id, size), spot = SHAPES[id].pedicle;
+  return { entry: spot.entry.map((v, i) => v * k[i]), lean: typeof spot.lean === 'number' ? spot.lean : null };
+}
+
 // The outline of the top or the underside of a body, in the world.
 function endplateRing(level, top) {
-  const a = anatomyFor(level.id, level.size), frame = levelFrame(level), ring = [];
+  const frame = levelFrame(level), ring = [];
+  const real = hasReal(level.id) ? SHAPES[level.id][top ? 'top' : 'bottom'] : null;
+  if (real) {
+    const k = stretchOf(level.id, level.size);
+    return real.map((p) => toWorld([p[0] * k[0], p[1] * k[1], p[2] * k[2]], level.centre, frame));
+  }
+  const a = anatomyFor(level.id, level.size);
   for (let k = 0; k < 28; k++) {
     const t = (k / 28) * 2 * Math.PI, x = (a.w / 2) * 0.93 * Math.cos(t), y = (a.d / 2) * 0.93 * Math.sin(t);
     ring.push(toWorld([x, y, (top ? 1 : -1) * (halfHeight(a, y) - 0.6)], level.centre, frame));

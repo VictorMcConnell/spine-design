@@ -28,11 +28,11 @@ export const ANATOMY = {
   T10: { w: 35, d: 30.5, hf: 23.2, hb: 25.2, cw: 18, cd: 15, sp: 31, drop: 40, tp: 56, pw: 7, ph: 12.7 },
   T11: { w: 38, d: 31.5, hf: 24, hb: 26, cw: 18, cd: 15, sp: 29, drop: 25, tp: 50, pw: 8.5, ph: 13 },
   T12: { w: 41, d: 32.5, hf: 24.8, hb: 26.8, cw: 18, cd: 15, sp: 27, drop: 15, tp: 46, pw: 8.5, ph: 13.3 },
-  L1: { w: 43, d: 33, hf: 26, hb: 25, cw: 22, cd: 16, sp: 30, drop: 5, tp: 70, pw: 8, ph: 15 },
+  L1: { w: 43, d: 33, hf: 24.4, hb: 26.6, cw: 22, cd: 16, sp: 30, drop: 5, tp: 70, pw: 8, ph: 15 },
   L2: { w: 45, d: 34, hf: 27.2, hb: 26, cw: 22.5, cd: 16.2, sp: 30, drop: 5, tp: 76, pw: 8.5, ph: 15.5 },
   L3: { w: 47, d: 35, hf: 28.4, hb: 27, cw: 23, cd: 16.4, sp: 30, drop: 5, tp: 84, pw: 10, ph: 16 },
   L4: { w: 49, d: 35.5, hf: 29.6, hb: 28, cw: 23.5, cd: 16.6, sp: 30, drop: 5, tp: 82, pw: 12.5, ph: 16.5 },
-  L5: { w: 51, d: 35.5, hf: 30.8, hb: 29, cw: 24, cd: 16.8, sp: 30, drop: 5, tp: 86, pw: 16, ph: 17 },
+  L5: { w: 51, d: 35.5, hf: 32.2, hb: 27.6, cw: 24, cd: 16.8, sp: 30, drop: 5, tp: 86, pw: 16, ph: 17 },
   S1: { w: 50, d: 33, hf: 30, hb: 27, cw: 26, cd: 15, sp: 0, drop: 0, tp: 105, pw: 18, ph: 18 },
 };
 

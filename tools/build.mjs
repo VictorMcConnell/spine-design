@@ -40,7 +40,7 @@ let html = fs.readFileSync(path.join(src, 'index.html'), 'utf8');
 const swap = (from, to) => { if (!html.includes(from)) throw new Error('index.html no longer contains ' + from); html = html.replace(from, () => to); };
 swap('<link rel="stylesheet" href="style.css">', '<style>\n' + fs.readFileSync(path.join(src, 'style.css'), 'utf8') + '</style>');
 swap('<script type="module" src="ui/app.js"></script>',
-  '<script>\nwindow.SPINE_EXAMPLES = ' + JSON.stringify(examples).replace(/</g, '\\u003c') + ';\n</script>\n<script>\n(() => {\n"use strict";\nconst M = {};\n' + parts.join('\n').replace(/<\/script/g, '<\\/script') + '})();\n</script>');
+  '<script>\nwindow.SPINE_EXAMPLES = ' + JSON.stringify(examples).replace(/</g, '\\u003c') + ';\nwindow.SPINE_EXAMPLE_LIST = ' + fs.readFileSync(path.join(root, 'examples', 'index.json'), 'utf8').replace(/</g, '\\u003c') + ';\n</script>\n<script>\n(() => {\n"use strict";\nconst M = {};\n' + parts.join('\n').replace(/<\/script/g, '<\\/script') + '})();\n</script>');
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist', 'index.html'), html);
 console.log('dist/index.html written,', Math.round(html.length / 1024), 'KB,', order.length, 'modules,', Object.keys(examples).length, 'example(s)');

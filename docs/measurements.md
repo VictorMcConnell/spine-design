@@ -13,7 +13,7 @@ screws, rods, hooks and cross-links. The numbers the app uses are in `src/core/a
 Some values in the spreadsheet did not follow well known anatomy. They were replaced with
 typical figures. Everything else is used as it came.
 
-**Body width.** Body width. The sheet rises in a straight line and runs 10 to 25% wide in the chest. Real widths dip around T3 to T5.
+**Body width.** The sheet rises in a straight line and runs 10 to 25% wide in the chest. Real widths dip around T3 to T5.
 
 | Level | Sheet | Used |
 |---|---|---|
@@ -41,7 +41,7 @@ typical figures. Everything else is used as it came.
 | L4 | 51 | 49 |
 | L5 | 53 | 51 |
 
-**Body depth.** Body depth. The sheet runs about 10 to 15% deep.
+**Body depth.** The sheet runs about 10 to 15% deep.
 
 | Level | Sheet | Used |
 |---|---|---|
@@ -68,7 +68,21 @@ typical figures. Everything else is used as it came.
 | L4 | 39.5 | 35.5 |
 | L5 | 41 | 35.5 |
 
-**Side process span.** Span across the side processes. In the chest it shrinks from T1 down to T12, the sheet had it growing. The atlas is the widest in the neck.
+**Front height of the body.** L1 is slightly taller at the back (about 4 degrees) and L5 clearly taller at the front (about 7.5 degrees). The sheet had every lumbar body a little taller at the front. The average height of each body is unchanged.
+
+| Level | Sheet | Used |
+|---|---|---|
+| L1 | 26 | 24.4 |
+| L5 | 30.8 | 32.2 |
+
+**Back height of the body.** See front height.
+
+| Level | Sheet | Used |
+|---|---|---|
+| L1 | 25 | 26.6 |
+| L5 | 29 | 27.6 |
+
+**Side process span.** In the chest it shrinks from T1 down to T12, the sheet had it growing. The atlas is the widest in the neck.
 
 | Level | Sheet | Used |
 |---|---|---|
@@ -97,7 +111,7 @@ typical figures. Everything else is used as it came.
 | L4 | 69 | 82 |
 | L5 | 67 | 86 |
 
-**Pedicle width.** Pedicle width. The narrowest pedicles are at T4 to T6, the sheet had them growing steadily from T1.
+**Pedicle width.** The narrowest pedicles are at T4 to T6, the sheet had them growing steadily from T1.
 
 | Level | Sheet | Used |
 |---|---|---|
@@ -119,7 +133,7 @@ typical figures. Everything else is used as it came.
 | L4 | 12.6 | 12.5 |
 | L5 | 13.8 | 16 |
 
-**Spinous length.** Spinous process length. C7 is the long one in the neck, C3 to C5 are short.
+**Spinous length.** C7 is the long one in the neck, C3 to C5 are short.
 
 | Level | Sheet | Used |
 |---|---|---|
@@ -138,8 +152,38 @@ typical figures. Everything else is used as it came.
 
 ## Used as it came
 
-Body heights, canal width and depth, pedicle heights, disc heights, the side curves
+Body heights (except the wedge of L1 and L5), canal width and depth, pedicle heights, disc heights, the side curves
 (neck 30, chest 40, lower back 50 degrees, sacral slope 40 degrees) and the hardware sizes.
+
+## A second reference
+
+A longer written report on open spine data was checked against this table on 14 November 2026.
+
+- Its vertebra table is the same spreadsheet again, so it does not confirm the sizes, and the
+  corrections above still apply.
+- Its text gives pedicle widths of 8.1 mm at T1 and 6.5 mm at T2 from a published study. That
+  matches the corrected values used here (8 and 6.5), not the sheet (6.0 and 6.2).
+- Its text gives the wedge of the lumbar bodies. L1 and L5 were changed to follow it (above).
+- Its hardware figures by region are now in `src/core/hardware.js` as the sizes the builder
+  starts from when a piece is added.
+- Its list of open data sets, with the licences as checked on that day, is in `docs/sources.md`.
+
+## A third reference: one real skeleton
+
+The real bone shapes come from BodyParts3D, the model of one adult. `tools/make-shapes.mjs`
+measures the body of each of those bones before it resizes them to this table, so the two can
+be compared (run it with `--table` to see every number):
+
+- **Height.** In the chest the table's bodies are 5 to 17 percent taller than the model's
+  (T8: 22.6 mm here, 19.5 in the model). In the lower back L1 to L3 agree within 2 percent.
+  L4 and L5 are about 10 and 18 percent taller here, and C5 to C7 are 11 to 20 percent taller.
+- **Width.** In the lower back the table is 9 to 17 percent wider (L3: 47 mm here, 40 in the
+  model). In the chest it is within about 11 percent either way.
+- **Depth.** Within 8 percent from T1 to L5. The neck is 7 to 18 percent deeper here.
+
+One person is not an average, so the table was left as it is. The heights in the chest and
+the widths in the lower back are the first things to check when a larger data set is
+measured (see [sources.md](sources.md)).
 
 ## A check against a real spine
 

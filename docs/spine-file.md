@@ -48,6 +48,7 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
     "hooks":      [{ "level": "T4", "side": "left", "rod": "left", "kind": "transverse process",
                      "at": [x, y, z], "mid": [x, y, z], "tip": [x, y, z] }]
     "crosslinks": [{ "level": "T8", "from": [x, y, z], "to": [x, y, z] }]
+    "splits":     ["T10"]
 
 - A rod is a path of points along its middle.
 - A screw has the point where it grips the rod (`head`), where its thread starts (`entry`) and
@@ -57,13 +58,24 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
 - Every piece can carry a `source`, the same way a vertebra does.
 - Every piece can carry a `color`: `titanium`, `steel`, `blue`, `green`, `purple` or `gold`.
 - A hook's `kind` is `pedicle`, `lamina` or `transverse process`. It sets the width of the blade.
+- A rod or a cross-link drawn by the builder carries `"auto": true`. The builder redraws such a
+  rod whenever a screw or hook on its side is added or removed. A rod without it (traced from a
+  scan, say) is left alone until the person asks for the rods to be redrawn.
+- A cross-link put in from the hardware sheet carries `"below": "T6"`: it sits in the gap
+  under that vertebra and is set again there when the rods are redrawn.
+- `splits` is optional. It lists the vertebrae below which the rods end. The screws and hooks
+  further down get rods of their own, with the ids `left-2` and `right-2` and so on. This is
+  how a file holds two separate constructs.
 
 ## Marks
 
-    { "kind": "pain", "text": "Sharp pain", "at": [x, y, z], "radius": 17 }
+    { "kind": "pain", "text": "Sharp pain", "at": [x, y, z], "radius": 17, "strength": 8 }
     { "kind": "pain", "text": "Ache", "from": [x, y, z], "to": [x, y, z], "radius": 30 }
+    { "kind": "note", "text": "Ask about this", "at": [x, y, z] }
 
-A mark is either a spot (`at`) or a stretch (`from` and `to`).
+A pain mark is either a spot (`at`) or a stretch (`from` and `to`). Its `strength` runs from 1
+(mild) to 10 (the worst) and sets its colour, from yellow to red. Without it the mark counts
+as 5. A note is a pin with a few words.
 
 ## Checking a file
 

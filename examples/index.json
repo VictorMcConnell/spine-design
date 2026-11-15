@@ -1,0 +1,32 @@
+[
+ {
+  "file": "average.spine.json",
+  "name": "Average spine",
+  "about": "A typical adult spine with no sideways curve, stacked from general measurements. Start here and shape it into your own."
+ },
+ {
+  "file": "curve-chest-45.spine.json",
+  "name": "One curve in the chest",
+  "about": "A single sideways curve of 45° from T5 to T12, bowing to the right, with the bodies turned. A place to start if your curve is in the upper back."
+ },
+ {
+  "file": "curve-lower-back-35.spine.json",
+  "name": "One curve in the lower back",
+  "about": "A single sideways curve of 35° from T11 to L4, bowing to the left."
+ },
+ {
+  "file": "curve-double.spine.json",
+  "name": "Two curves, an S shape",
+  "about": "A curve of 50° to the right in the chest and one of 40° to the left in the lower back."
+ },
+ {
+  "file": "fusion-rods-t4-l4.spine.json",
+  "name": "Fusion with rods and screws",
+  "about": "What is left of an S shape after surgery: fused from T4 to L4, with hooks on the top two levels, screws below, two rods and two cross-links. Made up, not a real person."
+ },
+ {
+  "file": "fusion-t4-l2.spine.json",
+  "name": "A real spine: scoliosis fusion, T4 to L2, rods to L4",
+  "about": "Made from the CT, MRI and X-rays of the person who started this project, shared by him as an example. Positions are his real ones. The bone shapes are drawn by the app."
+ }
+]
