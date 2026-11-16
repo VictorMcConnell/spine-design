@@ -32,6 +32,7 @@ const SPOT = ball([0, 0, 0], 3.2);
 //     picked: { kind: 'level', id, mates } | { kind: 'stretch', top, bottom } | { kind: 'screws' ..., index }
 //             (mates: the vertebrae that move with the picked one, drawn paler)
 //     also:   more parts that are selected along with the picked one: [{ kind, index }]
+//     locked: ids of the vertebrae that are locked in place while the curve is shaped, drawn darker
 //     stiff:  ids of the vertebrae that are held stiff in a fused block, drawn in a cooler colour
 //             the selected piece is drawn in a warm colour (a stretch: its two ends, and paler between)
 //     spots:  [points] the usual spots for a new part, drawn as small dots
@@ -50,8 +51,9 @@ export function buildScene(spine, detail, extras = {}) {
   };
   const a = order.indexOf(picked.top), b = order.indexOf(picked.bottom);
   // (stiff vertebrae: the bone colour pulled toward a cool steel blue, so a fused block reads as one piece)
+  const locked = extras.locked || [], dim = (c) => c.map((v) => v * 0.55 + 0.06);
   const stiff = extras.stiff || [], cool = (c) => c.map((v, k) => v * 0.5 + [0.5, 0.66, 0.86][k] * 0.5);
-  const boneColor = (id, i) => ((picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : stiff.includes(id) ? cool(look.bone || COLORS.bone) : look.bone || COLORS.bone);
+  const boneColor = (id, i) => ((picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : locked.includes(id) ? dim(look.bone || COLORS.bone) : stiff.includes(id) ? cool(look.bone || COLORS.bone) : look.bone || COLORS.bone);
   // a vertebra is drawn once in its own axes and then placed, so bending the spine only moves it
   levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level), name: level.id }));
   for (let i = 0; i < levels.length - 1; i++) {
@@ -60,7 +62,8 @@ export function buildScene(spine, detail, extras = {}) {
     add('discs', discMesh(levels[i], levels[i + 1]), fused ? COLORS.fusedDisc : look.disc || COLORS.disc, 1, { name: 'disc_' + levels[i].id + '_' + levels[i + 1].id });
   }
   const rodSize = (id) => ((hw.rods || []).find((r) => r.id === id) || {}).diameter || HARDWARE.rodDiameter;
-  (hw.rods || []).forEach((rod, i) => add('rods', rodMesh(rod), finish('rods', rod, i), 1, { name: 'rod_' + (rod.id || i + 1) }));
+  // (rods that have not been put on yet, at the Easy level, are in the file but are not drawn)
+  (hw.norods ? [] : hw.rods || []).forEach((rod, i) => add('rods', rodMesh(rod), finish('rods', rod, i), 1, { name: 'rod_' + (rod.id || i + 1) }));
   // the head of a screw or hook is one shape drawn once and placed, like a vertebra
   (hw.screws || []).forEach((screw, i) => {
     const parts = screwParts(screw, rodDirectionNear(hw.rods, screw.head), rodSize(screw.rod)), color = finish('screws', screw, i), opacity = 1;

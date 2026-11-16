@@ -61,6 +61,8 @@ Milestone 2 of 5, the builder, is done. What works today:
   frozen in place. You can break the model there, and that is the point of it.
 - A **ribbon** along the top holds what is needed all the time: new, presets, open, save,
   share, export, undo and redo, the four views, level names, what is shown and how it looks.
+  **New** is a full reset: the average spine, and the look, what is shown and the print
+  choices back to how they start.
 - **Real bone shapes.** The vertebrae and the sacrum are real anatomy, from the open
   BodyParts3D models, resized to the body size of each level. The simple bones drawn from
   measurements are still there, one tick away under Appearance, and stand in for any level
@@ -68,6 +70,15 @@ Milestone 2 of 5, the builder, is done. What works today:
 - **Draw the curve.** The quick way to shape a spine: press "Draw it from the back" or "from
   the side", drag a line over the model with the mouse or a finger, and the spine takes the
   shape of the line.
+- **A line with points.** A line that stays on the model. Drag its points and the spine
+  follows, click the line to add a point, remove one you do not need.
+- **Blocks.** Every vertebra as a block in a column, seen from the back or from the side.
+  Slide a block sideways and its neighbours follow in a smooth bulge, while the rest of the
+  spine stays where it is. Good for small, plain curves. Twists and sharp bends are done on
+  the model.
+- **Locks.** Lock vertebrae so they stay where they are while you draw, move the line or
+  slide blocks: tap a block, click a vertebra on the model, or lock everything outside the
+  part you are working on. That way one section can be worked on without losing the rest.
 - **One vertebra:** click it, then move it, turn it or resize it with handles on the model,
   the way 3D programs do it (arrows to move, rings to turn, knobs to resize), or with sliders
   and number boxes. Moving it can bend the spine around it or slide it on its own. Turning it
@@ -81,10 +92,14 @@ Milestone 2 of 5, the builder, is done. What works today:
   is any hardware. That stretch is drawn in a cooler colour, keeps its shape and moves as one
   block. Bend the spine and the bend goes into the joints that are still free, which shows
   what a fusion leaves to move. One tick frees the stretch again for reshaping.
-- **Hardware on a flat map.** The Hardware tab shows the spine from the back as a simple map
-  with a tray of parts: screw, hook down, hook up, cross-link, fused and an eraser. Pick a
-  part and tap the spots on the map, drag over several to fill them, or drag the part from
-  the tray onto the map or straight onto the model. The model follows every tap.
+- **Hardware in steps.** At the Easy level the hardware goes on one kind at a time: screws,
+  then hooks, then cross-links, and the rods last. In each step you tap the spots, on a flat
+  map of the spine seen from the back or on the model itself. The rods are put on with one
+  button at the end, and the part they span can be marked as fused in the same step.
+- **Hardware on a flat map.** From Standard up the map comes with a tray of all parts at
+  once: screw, hook down, hook up, cross-link, fused and an eraser. Pick a part and tap the
+  spots on the map, drag over several to fill them, or drag the part from the tray onto the
+  map or straight onto the model. The model follows every tap.
 - **Or have it filled in:** three questions. Where is the fusion, what holds it (screws,
   hooks on top, screws on every other vertebra or hooks) and how many cross-links. One button
   puts it all on.
@@ -107,7 +122,9 @@ Milestone 2 of 5, the builder, is done. What works today:
 - On the real bones the usual spot for a screw is the way through the pedicle that was found
   on that bone, so screws start out inside bone.
 - **Pain points and notes:** click the spot, then set a label, how strong it is from 1 to 10
-  and its size, and move it with arrows. Notes are pins with a few words.
+  and its size, and move it with arrows. Notes are pins with a few words. A label sits above
+  its spot, and can be dragged further away: a line then joins the two, so the words never
+  cover the spot.
 - **Look:** five shadings (soft light, clay, drawing with ink lines, X-ray and a plain quick
   one), background, colours for bone and discs, a colour for each level of hardware,
   see-through bone. Kept on the device between visits.
@@ -116,7 +133,8 @@ Milestone 2 of 5, the builder, is done. What works today:
 - **Share:** a link that holds the whole sketch.
 - **Export:** the view as a picture (PNG), an STL file for 3D printing at full size, a half,
   a third or a quarter, and an OBJ file with colours for other 3D programs, in which every
-  vertebra and every part is its own named object.
+  vertebra and every part is its own named object. For the print the bones and discs can be
+  made smoother: each step cuts every triangle into four and rounds the facets off.
 - **A stand for the print.** Choose a round base with a post, or a tall hanger. The stand is
   shown with the spine and saved as a part of its own: the spine gets a peg that plugs into
   the post, or a ring that hangs from the arm of the hanger.
@@ -171,7 +189,8 @@ those scripts. [CONTRIBUTING.md](CONTRIBUTING.md) has the few house rules.
                  and the handles drawn on the model (gizmo.js)
     src/io/      opening and saving spine files, share links, the STL and OBJ files, the zip
                  they are saved in
-    src/ui/      the page (app.js), the builder panel (build.js) and its easy ways in (easy.js)
+    src/ui/      the page (app.js), the builder panel (build.js), its easy ways in (easy.js)
+                 and the flat ways to shape the spine (chart.js)
     src/page.html, src/style.css   the page and its looks, as written
     examples/    the presets: spine files that ship with the app
     docs/        the spine file format, the measurements, the open data sets and hosting
@@ -197,9 +216,10 @@ still drawn.
 ## Roadmap
 
 1. **Done:** spine file, example, viewer.
-2. **Done:** the builder. Three levels of control, drawing the curve, handles, sliders and
-   number boxes for one vertebra and for a stretch, stiff fused parts, hardware on a flat
-   map, in three questions and by hand, rods that can be bent and stay believable, real
+2. **Done:** the builder. Three levels of control, drawing the curve freely or as a line
+   with points, sliding blocks, locks, handles, sliders and number boxes for one vertebra and
+   for a stretch, stiff fused parts, hardware in steps, on a flat map, in three questions and
+   by hand, rods that can be bent and stay believable, real
    bones, pain points and notes, shadings and looks, presets, undo, share link, picture, STL
    with a stand and OBJ.
 3. **X-ray:** put your own X-ray behind the model, set its scale, find the metal on it

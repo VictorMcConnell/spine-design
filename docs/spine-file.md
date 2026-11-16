@@ -67,6 +67,10 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
   `green`, `lime`, `gold`, `orange`, `red`, `pink` or `purple`, or a colour written as `#rrggbb`.
 - `colors` is optional. It gives a colour to each kind of part. A piece's own `color` wins
   over it.
+- `"norods": true` in the hardware says that the rods have not been put on yet. The builder
+  sets it at the Easy level, where rods are the last step. The rods are still worked out and
+  kept in the file, so that cross-links have something to sit on, but they are not drawn,
+  printed or exported until the person puts them on.
 - A screw, a hook or a cross-link can carry `"locked": true`. The builder calls that frozen:
   it does not move, change or remove such a piece until the person unfreezes it.
 - A hook's `kind` is `pedicle`, `lamina` or `transverse process`. It sets the width of the blade.
@@ -83,11 +87,12 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
 
     { "kind": "pain", "text": "Sharp pain", "at": [x, y, z], "radius": 17, "strength": 8 }
     { "kind": "pain", "text": "Ache", "from": [x, y, z], "to": [x, y, z], "radius": 30 }
-    { "kind": "note", "text": "Ask about this", "at": [x, y, z] }
+    { "kind": "note", "text": "Ask about this", "at": [x, y, z], "label": [x, y, z] }
 
 A pain mark is either a spot (`at`) or a stretch (`from` and `to`). Its `strength` runs from 1
 (mild) to 10 (the worst) and sets its colour, from yellow to red. Without it the mark counts
-as 5. A note is a pin with a few words.
+as 5. A note is a pin with a few words. Either can carry a `label`: the place its words were
+moved to, away from the mark. The app joins the two with a line.
 
 ## A spine in a link
 

@@ -31,12 +31,14 @@ export function slot(level, side, faces = 'down') {
   };
 }
 
-// The blade of a hook whose head is at a point: it leaves the head down or up along the
-// bone, where it can be seen, and then curls forward to catch under the edge of the bone.
+// The foot of a hook whose head is at a point. The hook stands straight on the bone: its
+// foot comes down from under the head to the bone ("mid", the heel) and reaches along the
+// bone, down or up, to its toe ("tip"), which dips into the bone. The foot lies on the bone
+// where it can be seen, so the picture shows which way the hook grips.
 function bladeFrom(level, at, sg, faces) {
   const frame = levelFrame(level), k = faces === 'up' ? 1 : -1;
   const off = (x, y, z) => vAdd(at, vAdd(vScale(frame.left, x), vAdd(vScale(frame.back, y), vScale(frame.up, z)))).map(round1);
-  return { mid: off(-sg * 2.5, -3, 11 * k), tip: off(-sg * 4, -12, 15 * k) };
+  return { mid: off(0, -7, 3.5 * k), tip: off(0, -9, 11 * k) };
 }
 
 // Point the blade of a hook down or up, where the hook is.
@@ -66,7 +68,7 @@ export const screwLength = (screw) => Math.round(vLen(vSub(screw.tip, screw.entr
 // past both ends. The curve passes through every point and does not swing out beyond them
 // the way a simpler curve does when the points are unevenly spread (a centripetal
 // Catmull-Rom curve). Points that all but sit on each other are taken as one.
-function pathThrough(points) {
+export function pathThrough(points) {
   const list = [];
   for (const p of points) if (!list.length || vDist(p, list[list.length - 1]) > 3) list.push(p);
   if (list.length < 2) return list.map((p) => p.map(round1));

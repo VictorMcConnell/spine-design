@@ -1,6 +1,6 @@
 {
   "name": "spine-builder",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Sketch a spine in 3D and shape it to look like your own: curves, fusion, rods, screws and pain points. Runs in the browser, keeps nothing on a server.",
   "license": "MIT",
   "private": true,

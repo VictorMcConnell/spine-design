@@ -13,7 +13,7 @@ import { meshFromDistance } from '../src/core/solid.js';
 import { ANATOMY } from '../src/core/anatomy.js';
 import { LEVEL_ORDER } from '../src/core/spinefile.js';
 import { measureSpine } from '../src/core/measures.js';
-import { JOINT_MOST, rigOf, restack, carry, readShape, applyShape, pullLevel, toLocal, frameOf, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, gapUnder, straighten, stiffen, blockOf, pivotAt, followLine } from '../src/core/shape.js';
+import { JOINT_MOST, lineOf, slideLevel, rigOf, restack, carry, readShape, applyShape, pullLevel, toLocal, frameOf, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, gapUnder, straighten, stiffen, blockOf, pivotAt, followLine } from '../src/core/shape.js';
 import { slot, planFor, buildHardware, fitRods, crosslinkAt, freeScrew, resizeScrew, screwLength, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, ROD_RULES, strainAt, moveInLine, settleInLine, bendRod, unbendRod, faceHook } from '../src/core/place.js';
 import { rayMesh } from '../src/core/pick.js';
 import { ball } from '../src/core/mesh.js';
@@ -21,6 +21,7 @@ import { packSpine, unpackSpine, linkFor, packedIn } from '../src/io/share.js';
 import { stlOf, objOf } from '../src/io/print.js';
 import { zipOf, crc32 } from '../src/io/zip.js';
 import { standFor } from '../src/core/stand.js';
+import { smoother } from '../src/core/smooth.js';
 import zlib from 'node:zlib';
 import { buildScene } from '../src/view/scene.js';
 
@@ -530,6 +531,35 @@ ok('the spine takes the shape of a line drawn over it', () => {
   for (let i = 1; i < order.length; i++) assert.ok(Math.abs(order[i] - order[i - 1]) <= JOINT_MOST[0] + 0.01, 'a joint bends ' + (order[i] - order[i - 1]).toFixed(1));
   assert.ok(Math.max(...order.map(Math.abs)) > 10);
 });
+ok('locked vertebrae stay put while a line is drawn, and a block can be slid with its neighbours', () => {
+  const s = copy(average), rig = rigOf(s), at = (t, id) => t.levels.find((l) => l.id === id), before = copy(s);
+  const z0 = at(s, 'L5').centre[2] - 10, z1 = at(s, 'T1').centre[2], line = [];
+  for (let z = z0; z <= z1; z += 3) line.push([30 * Math.sin((Math.PI * (z - z0)) / (z1 - z0)), z]);
+  // everything outside T5 to L2 is locked: only that part takes the curve, the rest does not move sideways or lean
+  const held = s.levels.map((l) => l.id).filter((id) => LEVEL_ORDER.indexOf(id) < LEVEL_ORDER.indexOf('T5') || LEVEL_ORDER.indexOf(id) > LEVEL_ORDER.indexOf('L2'));
+  assert.equal(followLine(s, rig, 0, line, { held }), true);
+  for (const id of held) assert.ok(Math.abs(at(s, id).centre[0] - at(before, id).centre[0]) < 0.8 && at(s, id).tilt[0] === at(before, id).tilt[0], id + ' moved by ' + (at(s, id).centre[0] - at(before, id).centre[0]).toFixed(2));
+  assert.ok(Math.abs(at(s, 'T10').centre[0]) > 6, 'the free part did not bend: T10 at ' + at(s, 'T10').centre[0]);
+  // a second line over the whole spine with that part locked leaves the part as it is
+  const part = ['T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'], shape = part.map((id) => at(s, id).tilt[0] - at(s, 'T12').tilt[0]);
+  followLine(s, rig, 0, line.map(([x, z]) => [-x, z]), { held: part });
+  part.forEach((id, k) => assert.ok(Math.abs(at(s, id).tilt[0] - at(s, 'T12').tilt[0] - shape[k]) < 0.01, id + ' changed its lean'));
+  // the line a spine runs along gives the same spine back: following it changes nothing
+  const t = copy(s), same = rigOf(t);
+  followLine(t, same, 0, lineOf(t, same, 0), { smooth: 0 });
+  for (const l of t.levels) assert.ok(Math.abs(l.tilt[0] - at(s, l.id).tilt[0]) < 0.6 && Math.abs(l.centre[0] - at(s, l.id).centre[0]) < 0.8, l.id + ' drifted by ' + (l.tilt[0] - at(s, l.id).tilt[0]).toFixed(2) + ' degrees');
+  // sliding one block: it moves by about what was asked, its neighbours less, and far away nothing moves
+  const u = copy(average), r2 = rigOf(u), was = copy(u);
+  assert.equal(slideLevel(u, r2, 0, 'T8', 12), true);
+  const moved = (id) => at(u, id).centre[0] - at(was, id).centre[0];
+  assert.ok(Math.abs(moved('T8') - 12) < 2.5 && moved('T6') > 3 && moved('T6') < moved('T8') && Math.abs(moved('T2')) < 0.8 && Math.abs(moved('L3')) < 0.8 && Math.abs(moved('C3')) < 0.8, ['T8', 'T6', 'T2', 'L3', 'C3'].map((id) => id + ' ' + moved(id).toFixed(1)).join(', '));
+  // front to back works the same way, and a locked neighbour holds its ground
+  assert.equal(slideLevel(u, r2, 1, 'L3', -8, ['L1']), true);
+  // (with L1 locked two levels up, L3 can only go part of the way)
+  const back = at(u, 'L3').centre[1] - at(was, 'L3').centre[1];
+  assert.ok(back < -2 && back > -8 && Math.abs(at(u, 'L1').centre[1] - at(was, 'L1').centre[1]) < 0.8 && Math.abs(at(u, 'T10').centre[1] - at(was, 'T10').centre[1]) < 0.8, 'L3 went ' + back.toFixed(1));
+  assert.equal(slideLevel(u, r2, 0, 'S1', 5), false); assert.equal(slideLevel(u, r2, 0, 'T8', 5, ['T8']), false);
+});
 ok('the sheet: cells, separate fusions, cross-links in gaps and rods that end part way', () => {
   const s = copy(average), hw = () => s.hardware;
   s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
@@ -662,6 +692,42 @@ ok('a stand for printing: a base with a post the spine plugs onto, or a hanger',
     assert.ok(span(hang.stand[0], 2)[1] < span(sacrum && buildScene(s, 2.2, {}).find((it) => it.name === 'S1').mesh, 2)[0] + sacrum.centre[2] + 40);
   }
   assert.equal(standFor('', s, 1), null); assert.ok(/peg/.test(standFor('post', s, 1, 2.2).says) && /ring/.test(standFor('hanger', s, 1, 2.2).says));
+});
+ok('a shape is made smoother for a print without changing its size', () => {
+  const volume = (m) => { let v = 0; for (let f = 0; f < m.indices.length; f += 3) { const a = m.indices[f] * 3, b = m.indices[f + 1] * 3, c = m.indices[f + 2] * 3, p = m.positions; v += p[a] * (p[b + 1] * p[c + 2] - p[b + 2] * p[c + 1]) - p[a + 1] * (p[b] * p[c + 2] - p[b + 2] * p[c]) + p[a + 2] * (p[b] * p[c + 1] - p[b + 1] * p[c]); } return Math.abs(v) / 6; };
+  // every edge of a closed shape is shared by two triangles, before and after
+  const closed = (m) => { const count = new Map(), n = m.positions.length / 3; for (let f = 0; f < m.indices.length; f += 3) for (let k = 0; k < 3; k++) { const a = m.indices[f + k], b = m.indices[f + (k + 1) % 3], key = a < b ? a * n + b : b * n + a; count.set(key, (count.get(key) || 0) + 1); } return [...count.values()].every((c) => c === 2); };
+  const round = ball([0, 0, 0], 10), once = smoother(round), twice = smoother(once);
+  assert.ok(once.indices.length === round.indices.length * 4 && twice.indices.length === round.indices.length * 16 && closed(once) && closed(twice));
+  // (rounding off the corners of a coarse ball takes a little off it: a few percent, no more)
+  assert.ok(volume(twice) <= volume(round) && volume(twice) > 0.94 * volume(round), 'a ball of ' + volume(round).toFixed(0) + ' mm3 came out as ' + volume(twice).toFixed(0));
+  // a real bone: four times the triangles, the same shape to within a few percent, and no corner moves far
+  const bone = vertebraShape('T8', average.levels.find((l) => l.id === 'T8').size, 1.4), fine = smoother(bone);
+  let far = 0;
+  for (let i = 0; i < bone.positions.length; i++) far = Math.max(far, Math.abs(fine.positions[i] - bone.positions[i]));
+  assert.ok(fine.indices.length === bone.indices.length * 4 && Math.abs(volume(fine) / volume(bone) - 1) < 0.05 && far < 2.5, 'volume ' + (volume(fine) / volume(bone)).toFixed(3) + ', a corner moved ' + far.toFixed(2) + ' mm');
+});
+ok('rods that are not on yet are kept out of the picture, and a label rides with its mark', () => {
+  const s = copy(average);
+  buildHardware(s, planFor(s.levels.map((l) => l.id), 'T4', 'T8', 'screws'), 1);
+  assert.ok(buildScene(s, 2.2, {}).some((it) => it.group === 'rods'));
+  s.hardware.norods = true;
+  const items = buildScene(s, 2.2, {});
+  assert.ok(!items.some((it) => it.group === 'rods') && items.some((it) => it.group === 'crosslinks') && items.some((it) => it.group === 'screws'));
+  assert.deepEqual(validateSpine(s), []);
+  s.hardware.norods = 'no'; assert.ok(validateSpine(s).length === 1); delete s.hardware.norods;
+  // a label pulled off its pain point keeps its place beside the vertebra when the spine is bent
+  const t8 = () => s.levels.find((l) => l.id === 'T8'), rig = rigOf(s);
+  s.marks = [{ kind: 'pain', text: 'Ache', at: [t8().centre[0] + 5, t8().centre[1] + 20, t8().centre[2]], radius: 12, strength: 6, label: [t8().centre[0] + 70, t8().centre[1] + 20, t8().centre[2] + 30] }];
+  const before = toLocal(s.marks[0].label, t8().centre, frameOf(t8()));
+  carry(s, () => setBow(s, rig, 'T4', 'T12', 0, 35));
+  const after = toLocal(s.marks[0].label, t8().centre, frameOf(t8()));
+  assert.ok(after.every((v, j) => Math.abs(v - before[j]) < 0.4), 'the label did not ride along');
+  assert.deepEqual(validateSpine(s), []);
+  s.marks[0].label = [1, 2]; assert.ok(validateSpine(s).some((line) => /label/.test(line)));
+  // locked vertebrae are drawn darker while the curve is shaped
+  const dark = buildScene(copy(average), 2.2, { locked: ['T6'] }).filter((it) => it.group === 'vertebrae');
+  assert.ok(dark.find((it) => it.name === 'T6').color[0] < dark.find((it) => it.name === 'T7').color[0] - 0.1);
 });
 ok('a ray finds the front of a ball', () => {
   const t = rayMesh([0, -100, 0], [0, 1, 0], ball([0, 0, 0], 10));

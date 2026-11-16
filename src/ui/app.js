@@ -12,6 +12,7 @@ import { packSpine, unpackSpine, linkFor, packedIn } from '../io/share.js';
 import { stlOf, objOf } from '../io/print.js';
 import { zipOf } from '../io/zip.js';
 import { standFor } from '../core/stand.js';
+import { smoother } from '../core/smooth.js';
 import { rigOf, carry, stiffen, blockOf } from '../core/shape.js';
 import { fitRods } from '../core/place.js';
 import { setBoneStyle } from '../core/bones.js';
@@ -37,6 +38,8 @@ try { look = { ...USUAL, ...JSON.parse(localStorage.getItem('spineBuilderLook') 
 // what is selected, "spots" the dots shown while a part is being placed.
 const app = {
   $, renderer, DETAIL, rig: null, picked: null, also: [], spots: [],
+  frames: [],                          // things to do after every drawn frame (lines over the picture follow the view)
+  held: new Set(),                     // the vertebrae locked in place while the curve is drawn or the blocks are slid
   // how much control the panel offers: 'easy', 'standard' or 'full' (kept with the look, on this device)
   get level() { return ['easy', 'standard', 'full'].includes(look.level) ? look.level : 'easy'; },
   set level(name) { if (look.level !== name) { look.level = name; try { localStorage.setItem('spineBuilderLook', JSON.stringify(look)); } catch (e) { /* not kept, that is all */ } } },
@@ -54,7 +57,7 @@ const app = {
     // while the spine is being shaped, the stretches that are held stiff are drawn in a cooler colour
     const order = sortedLevels(spine).map((l) => l.id), stiff = [];
     if (app.showStiff && app.stiff && app.rig) for (const b of app.rig.blocks || []) stiff.push(...order.slice(b.from, b.to + 1));
-    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, also: app.also, stiff, spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
+    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, also: app.also, stiff, locked: app.showStiff ? [...app.held] : [], spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
     // the stand chosen for printing is shown with the spine, so that what is saved is what is seen
     const stand = standNow();
     if (stand) for (const [list, name] of [[stand.onSpine, 'stand_fitting_on_spine'], [stand.stand, 'stand']]) for (const mesh of list) items.push({ group: 'stand', mesh, color: STAND_COLOR, opacity: 1, baseOpacity: 1, visible: true, name });
@@ -160,6 +163,7 @@ function applyToggles() {
     it.opacity = it.group === 'vertebrae' || it.group === 'discs' ? it.baseOpacity * boneOpacity : it.baseOpacity;
   }
   $('labels').hidden = !$('labelsOn').checked;
+  $('tagLines').style.display = on.marks === false ? 'none' : '';
   $('tags').hidden = on.marks === false;
   renderer.requestDraw();
 }
@@ -176,26 +180,41 @@ function buildLabels() {
 
 // The words that go with the pain points and the notes, shown next to them on the model.
 function buildTags() {
-  $('tags').textContent = '';
+  $('tags').textContent = ''; $('tagLines').textContent = '';
   tags = [];
-  for (const m of spine.marks) {
-    if (!m.text) continue;
+  spine.marks.forEach((m, index) => {
+    if (!m.text) return;
     const el = document.createElement('span');
     el.textContent = m.text + (m.kind === 'pain' && m.strength ? ' ' + m.strength + '/10' : '');
+    el.dataset.mark = index;
     $('tags').appendChild(el);
-    tags.push({ el, at: m.at || [0, 1, 2].map((j) => (m.from[j] + m.to[j]) / 2), lift: m.kind === 'pain' ? 0 : 16 });
-  }
+    // a label sits just above its mark, clear of the glow. One that was pulled away sits where it was put, joined by a line.
+    const tag = { el, at: m.at || [0, 1, 2].map((j) => (m.from[j] + m.to[j]) / 2), to: m.label || null, clear: m.kind === 'pain' ? Math.min(m.radius || 14, 22) : 3.2, line: null };
+    if (tag.to) { tag.line = document.createElementNS('http://www.w3.org/2000/svg', 'line'); $('tagLines').appendChild(tag.line); }
+    tags.push(tag);
+  });
+}
+// Where the label of a mark is drawn, in the picture: [x, y] of the label and of the mark, or null when it is out of sight.
+function tagSpots(t) {
+  const p = renderer.project(t.at);
+  if (!p) return null;
+  if (t.to) { const q = renderer.project(t.to); return q ? { label: q, mark: p } : null; }
+  return { label: [p[0], p[1] - t.clear / renderer.screenScale(t.at).perPixel - 13], mark: p };
 }
 
 // Keep the level names and the mark labels on their spots as the view turns.
 function placeLabels() {
-  const put = (l, dy) => {
-    const p = renderer.project(l.at);
-    l.el.style.display = p ? '' : 'none';
-    if (p) l.el.style.transform = 'translate(' + p[0].toFixed(1) + 'px,' + (p[1] - dy).toFixed(1) + 'px) translate(-50%,-50%)';
+  const put = (el, p) => {
+    el.style.display = p ? '' : 'none';
+    if (p) el.style.transform = 'translate(' + p[0].toFixed(1) + 'px,' + p[1].toFixed(1) + 'px) translate(-50%,-50%)';
   };
-  if (!$('labels').hidden) for (const l of labels) put(l, 0);
-  if (!$('tags').hidden) for (const t of tags) put(t, t.lift);
+  if (!$('labels').hidden) for (const l of labels) put(l.el, renderer.project(l.at));
+  if (!$('tags').hidden) for (const t of tags) {
+    const spots = tagSpots(t);
+    put(t.el, spots && spots.label);
+    if (t.line) { t.line.style.display = spots ? '' : 'none'; if (spots) { t.line.setAttribute('x1', spots.label[0]); t.line.setAttribute('y1', spots.label[1]); t.line.setAttribute('x2', spots.mark[0]); t.line.setAttribute('y2', spots.mark[1]); } }
+  }
+  for (const fn of app.frames) fn();
 }
 
 // The curves of the spine as a list. Clicking one selects that stretch in the Shape tab.
@@ -225,7 +244,7 @@ function sketch(s, side = false) {
   const across = (p) => (side ? p[1] : -p[0]), j = side ? 1 : 0;
   const xs = s.levels.map((l) => across(l.centre)), zs = s.levels.map((l) => l.centre[2]), lowX = Math.min(...xs) - 30, highX = Math.max(...xs) + 30, lowZ = Math.min(...zs) - 25, highZ = Math.max(...zs) + 15;
   let body = '';
-  for (const l of s.levels) body += '<rect x="' + (across(l.centre) - l.size[j] / 2).toFixed(1) + '" y="' + (-l.centre[2] - l.size[2] / 2).toFixed(1) + '" width="' + l.size[j] + '" height="' + l.size[2] + '" rx="3" transform="rotate(' + l.tilt[j].toFixed(1) + ' ' + across(l.centre).toFixed(1) + ' ' + (-l.centre[2]).toFixed(1) + ')" fill="#c7ad85"/>';
+  for (const l of s.levels) body += '<rect x="' + (across(l.centre) - l.size[j] / 2).toFixed(1) + '" y="' + (-l.centre[2] - l.size[2] / 2).toFixed(1) + '" width="' + l.size[j] + '" height="' + l.size[2] + '" rx="3" transform="rotate(' + ((side ? 1 : -1) * l.tilt[j]).toFixed(1) + ' ' + across(l.centre).toFixed(1) + ' ' + (-l.centre[2]).toFixed(1) + ')" fill="#c7ad85"/>';
   for (const r of (s.hardware || {}).rods || []) body += '<polyline points="' + r.points.map((p) => across(p).toFixed(1) + ',' + (-p[2]).toFixed(1)).join(' ') + '" fill="none" stroke="#6f8fe0" stroke-width="5" stroke-linecap="round"/>';
   return '<svg viewBox="' + [lowX, -highZ, highX - lowX, highZ - lowZ].map((v) => v.toFixed(0)).join(' ') + '" aria-hidden="true">' + body + '</svg>';
 }
@@ -315,16 +334,21 @@ function pictureOf() {
   const g = out.getContext('2d'), pale = $('stage').classList.contains('pale');
   g.drawImage(gl, 0, 0);
   g.textBaseline = 'middle'; g.textAlign = 'center';
-  const pill = (text, at, lift, size, bold) => {
-    const p = renderer.project(at);
-    if (!p) return;
+  const pillAt = (text, p, size, bold) => {
+    g.textBaseline = 'middle'; g.textAlign = 'center';
     g.font = (bold ? '650 ' : '') + size * k + 'px system-ui, sans-serif';
-    const w = g.measureText(text).width + 12 * k, h = (size + 6) * k, x = p[0] * k - w / 2, y = (p[1] - lift) * k - h / 2;
+    const w = g.measureText(text).width + 12 * k, h = (size + 6) * k, x = p[0] * k - w / 2, y = p[1] * k - h / 2;
     g.fillStyle = 'rgba(19, 20, 24, 0.8)'; g.beginPath(); g.roundRect(x, y, w, h, h / 2); g.fill();
-    g.fillStyle = '#eceae5'; g.fillText(text, p[0] * k, (p[1] - lift) * k + k * 0.5);
+    g.fillStyle = '#eceae5'; g.fillText(text, p[0] * k, p[1] * k + k * 0.5);
   };
+  const pill = (text, at, lift, size, bold) => { const p = renderer.project(at); if (p) pillAt(text, [p[0], p[1] - lift], size, bold); };
   if (!$('labels').hidden) for (const l of labels) pill(l.el.textContent, l.at, 0, 11, true);
-  if (!$('tags').hidden) for (const t of tags) pill(t.el.textContent, t.at, t.lift, 12, false);
+  if (!$('tags').hidden) for (const t of tags) {
+    const spots = tagSpots(t);
+    if (!spots) continue;
+    if (t.to) { g.strokeStyle = pale ? 'rgba(30, 31, 36, 0.75)' : 'rgba(236, 234, 229, 0.8)'; g.lineWidth = 1.5 * k; g.beginPath(); g.moveTo(spots.label[0] * k, spots.label[1] * k); g.lineTo(spots.mark[0] * k, spots.mark[1] * k); g.stroke(); }
+    pillAt(t.el.textContent, spots.label, 12, false);
+  }
   g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = 11 * k + 'px system-ui, sans-serif'; g.fillStyle = pale ? 'rgba(30, 31, 36, 0.75)' : 'rgba(236, 234, 229, 0.7)';
   const lines = ['A sketch made with Spine Builder. Not a medical image.'].concat(look.simple ? [] : ['Bone shapes: ' + SHAPE_CREDIT]);
   lines.forEach((text, i) => g.fillText(text, 10 * k, out.height - (10 + (lines.length - 1 - i) * 15) * k));
@@ -361,9 +385,22 @@ function showStand() {
 const READ_ME = (lines) => ['Made with Spine Builder. A sketch of a spine, not a medical image and not a measurement.', ''].concat(lines, look.simple ? [] : ['', 'The bone shapes are from BodyParts3D, (c) The Database Center for Life Science, licensed under CC Attribution 4.0 International.', 'Pass this credit on with the files.']).join('\r\n') + '\r\n';
 const shownParts = () => renderer.items().filter((it) => PRINTED.includes(it.group) && it.visible !== false);
 
+// The bones and discs made smoother for a print: each round cuts every triangle into four. Kept, so a second save is quick.
+const smoothed = new WeakMap();
+function finer(mesh, rounds) {
+  let out = mesh;
+  for (let r = 1; r <= rounds; r++) {
+    const known = smoothed.get(out);
+    if (known) { out = known; continue; }
+    const next = smoother(out);
+    smoothed.set(out, next); out = next;
+  }
+  return out;
+}
 async function saveStl() {
   if (!spine) return;
-  const scale = printScale(), items = shownParts(), stand = standNow();
+  const scale = printScale(), rounds = parseInt($('stlFinish').value, 10) || 0, stand = standNow();
+  const items = shownParts().map((it) => (rounds && (it.group === 'vertebrae' || it.group === 'discs') ? { ...it, mesh: finer(it.mesh, rounds) } : it));
   if (!items.length) { $('stlSay').textContent = 'Nothing is shown, so there is nothing to print. Tick some parts under Show.'; return; }
   const bytes = stlOf(items.concat(stand ? stand.onSpine.map((mesh) => ({ mesh })) : []), scale, 'Spine Builder sketch. ' + (look.simple ? '' : CREDIT)), view = new DataView(bytes.buffer);
   // how tall the print will be: the highest and the lowest corner in the file
@@ -428,7 +465,16 @@ if (!renderer) {
   $('objBtn').addEventListener('click', saveObj);
   $('standKind').addEventListener('change', showStand); $('stlScale').addEventListener('change', showStand);
   window.addEventListener('hashchange', openLink);
-  $('newBtn').addEventListener('click', () => openExample(START));
+  // New is a full reset: the average spine, and the look, what is shown and the print choices back to how they start.
+  // (The level of control stays: it is how a person works, not how the model looks.)
+  $('newBtn').addEventListener('click', () => {
+    look = { ...USUAL, level: look.level };
+    $('boneOpacity').value = 100; $('labelsOn').checked = false; $('standKind').value = ''; $('stlScale').value = '0.5'; $('stlFinish').value = '1'; $('standSay').textContent = '';
+    document.querySelectorAll('#showMenu [data-group]').forEach((c) => { c.checked = true; });
+    app.held.clear();
+    applyLook();
+    openExample(START);
+  });
   $('galleryBtn').addEventListener('click', openGallery);
   $('galleryClose').addEventListener('click', () => $('gallery').close());
   $('fitBtn').addEventListener('click', fitView);

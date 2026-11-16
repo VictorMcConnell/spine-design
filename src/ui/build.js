@@ -13,6 +13,7 @@ import { rayMesh, rayPoint } from '../core/pick.js';
 import { gizmoHit, dragAlong, dragAround } from '../view/gizmo.js';
 import { vAdd, vSub, vScale, vLerp, vDist, vDot } from '../core/vec.js';
 import { setupEasy, swatches } from './easy.js';
+import { setupChart } from './chart.js';
 
 const PART_NAMES = { screws: 'Screw', hooks: 'Hook', crosslinks: 'Cross-link', rods: 'Rod' };
 const AXES = { left: [1, 0, 0], back: [0, 1, 0], up: [0, 0, 1] };
@@ -44,7 +45,7 @@ export function setupBuilder(app) {
     for (const name of ['easy', 'standard', 'full']) document.body.classList.toggle('level-' + name, name === next);
     pressed('[data-level]', 'level', next); $('levelSay').textContent = LEVEL_SAYS[next];
     stopPlacing();
-    if (next === 'easy' && mode !== 'draw') { mode = 'draw'; if (app.spine && tab === 'shape') app.picked = null; }
+    if (next === 'easy' && mode !== 'draw' && mode !== 'blocks') { mode = 'draw'; if (app.spine && tab === 'shape') app.picked = null; }
     if (next === 'easy') app.also = [];
     guard();
     if (app.spine) { app.redraw(); sync(); }
@@ -66,8 +67,9 @@ export function setupBuilder(app) {
     tab = name;
     each('[data-tab]', (b) => b.setAttribute('aria-selected', b.dataset.tab === name ? 'true' : 'false'));
     each('[data-pane]', (p) => { p.hidden = p.dataset.pane !== name; });
-    stopPlacing(); easy.stopDrawing(); easy.stopPicking();
+    stopPlacing(); easy.stopDrawing(); easy.stopPicking(); chart.stopLine(); chart.stopPicking();
     app.showStiff = name === 'shape';
+    $('stage').classList.toggle('tagsLive', name === 'marks');
     const fits = !app.picked || (name === 'shape' && app.level !== 'easy' && (app.picked.kind === 'level' || app.picked.kind === 'stretch')) || (name === 'parts' && (PART_NAMES[app.picked.kind] || app.picked.kind === 'level')) || (name === 'marks' && app.picked.kind === 'marks');
     if (app.spine) app.pick(fits ? app.picked : null);
     hint();
@@ -75,8 +77,8 @@ export function setupBuilder(app) {
   // The line under the picture: what the mouse or a finger does there right now.
   function hint() {
     const turn = ' Drag the background to turn. Scroll or pinch to zoom.';
-    $('hint').textContent = tab === 'shape' ? (easy.draw.on() ? 'Drag a line along the spine. Scroll or pinch to zoom. Press "Done drawing" to turn the model again.' : mode === 'draw' ? 'Press a Draw button, or click a vertebra to work on it alone.' + turn : mode === 'one' ? 'Click a vertebra, then drag its handles.' + turn : 'Click the two ends of a stretch, then drag its handles.' + turn)
-      : tab === 'parts' ? (app.level === 'easy' ? 'Click a part to select it, or a vertebra to change what it carries.' + turn : 'Click a part or a vertebra. Drag a screw or a hook to move it. Drag a rod to bend it.' + turn)
+    $('hint').textContent = tab === 'shape' ? (easy.draw.on() ? 'Drag a line along the spine. Scroll or pinch to zoom. Press "Done drawing" to turn the model again.' : chart.picking() ? 'Click vertebrae to lock or unlock them.' + turn : chart.lineOn() ? 'Drag a point of the line. Click the line to add a point.' + turn : mode === 'blocks' ? 'Slide the blocks in the panel. The model follows.' + turn : mode === 'draw' ? 'Press one of the buttons in the panel.' + turn : mode === 'one' ? 'Click a vertebra, then drag its handles.' + turn : 'Click the two ends of a stretch, then drag its handles.' + turn)
+      : tab === 'parts' ? (app.level === 'easy' ? 'Click a vertebra to put the part of this step on it, or click a part to select it.' + turn : 'Click a part or a vertebra. Drag a screw or a hook to move it. Drag a rod to bend it.' + turn)
         : 'Drag to turn. Scroll or pinch to zoom. Right-drag or two fingers to move.';
   }
   each('[data-tab]', (b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
@@ -86,10 +88,10 @@ export function setupBuilder(app) {
   function setMode(next) {
     if (mode === next) return;
     const was = one(), p = app.picked;
-    easy.stopDrawing();
+    easy.stopDrawing(); chart.stopLine(); chart.stopPicking();
     mode = next;
     // carry the selection over: the vertebra becomes the top of a stretch, or the other way round
-    app.pick(next === 'draw' ? null : next === 'stretch' ? (was ? { kind: 'stretch', top: was.id, bottom: null } : null) : p && p.kind === 'stretch' && p.top ? { kind: 'level', id: p.top } : null);
+    app.pick(next === 'draw' || next === 'blocks' ? null : next === 'stretch' ? (was ? { kind: 'stretch', top: was.id, bottom: null } : null) : p && p.kind === 'stretch' && p.top ? { kind: 'level', id: p.top } : null);
   }
   each('[data-mode]', (b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
   each('[data-tool]', (b) => b.addEventListener('click', () => { tool[b.dataset.tool === 'bow' || b.dataset.tool === 'offset' ? 'stretch' : 'one'] = b.dataset.tool; app.pick(app.picked); }));
@@ -509,6 +511,28 @@ export function setupBuilder(app) {
   const strong = dial('markStrong', 'markStrongN', (v) => { const m = markOf(); if (m) { m.strength = Math.max(1, Math.min(10, Math.round(v))); again(false); } });
   const wide = dial('markSize', 'markSizeN', (v) => { const m = markOf(); if (m) { m.radius = v; again(false); } });
   $('markRemove').addEventListener('click', () => { if (markOf()) removePicked(); });
+  $('markLabelBack').addEventListener('click', () => { const m = markOf(); if (m && m.label) { delete m.label; again(true); } });
+  // The label of a mark can be dragged off its spot, so the words do not cover it. It keeps
+  // its new place in space and a line joins it to the mark.
+  let tagDrag = null;
+  $('tags').addEventListener('pointerdown', (e) => {
+    const el = e.target.closest ? e.target.closest('span[data-mark]') : null, index = el ? Number(el.dataset.mark) : -1, m = el && app.spine.marks[index];
+    if (!m || tab !== 'marks') return;
+    e.preventDefault();
+    const spot = markSpot(m), scale = renderer.screenScale(spot), box = $('view').getBoundingClientRect(), r = el.getBoundingClientRect(), p = renderer.project(spot);
+    // where the label is now, as a point in space: its own, or the place above the mark where it is drawn
+    const from = m.label || [0, 1, 2].map((j) => spot[j] + (scale.right[j] * (r.left + r.width / 2 - box.left - p[0]) - scale.up[j] * (r.top + r.height / 2 - box.top - p[1])) * scale.perPixel);
+    tagDrag = { index, from, x: e.clientX, y: e.clientY, scale, moved: false };
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!tagDrag) return;
+    const dx = e.clientX - tagDrag.x, dy = e.clientY - tagDrag.y, m = app.spine.marks[tagDrag.index], sc = tagDrag.scale;
+    if (!m || (!tagDrag.moved && Math.hypot(dx, dy) < 4)) return;
+    tagDrag.moved = true;
+    live(() => { m.label = tagDrag.from.map((v, j) => round1(v + (sc.right[j] * dx - sc.up[j] * dy) * sc.perPixel)); }, false);
+  });
+  const dropTag = () => { if (!tagDrag) return; const was = tagDrag; tagDrag = null; if (was.moved) app.settle(); app.pick({ kind: 'marks', index: was.index }); };
+  window.addEventListener('pointerup', dropTag); window.addEventListener('pointercancel', dropTag);
 
   function markBox() {
     const list = $('markList'), m = markOf();
@@ -521,6 +545,7 @@ export function setupBuilder(app) {
     });
     $('markBox').hidden = !m;
     if (!m) return;
+    $('markLabelBack').hidden = !m.label;
     if (document.activeElement !== $('markText')) $('markText').value = m.text || '';
     $('markStrongRow').hidden = $('markSizeRow').hidden = m.kind !== 'pain';
     if (m.kind === 'pain') { strong(m.strength || 5); wide(m.radius || 15); }
@@ -608,7 +633,7 @@ export function setupBuilder(app) {
       hw().hooks.forEach((h, index) => at.push({ kind: 'hooks', index, p: h.at, r: 9 }));
       hw().crosslinks.forEach((c, index) => { for (const t of [0.25, 0.5, 0.75]) at.push({ kind: 'crosslinks', index, p: vLerp(c.from, c.to, t), r: 6 }); });
       // a rod is thin and runs behind its screws: it is only taken when nothing else is under the pointer
-      hw().rods.forEach((rod, index) => rod.points.forEach((p) => at.push({ kind: 'rods', index, p, r: 4.2, behind: 14 })));
+      if (!hw().norods) hw().rods.forEach((rod, index) => rod.points.forEach((p) => at.push({ kind: 'rods', index, p, r: 4.2, behind: 14 })));
     }
     let best = null;
     for (const c of at) { const near = rayPoint(ray.origin, ray.direction, c.p), rank = near.along + (c.behind || 0); if (near.off <= c.r && near.along > 0 && (!best || rank < best.rank)) best = { ...c, rank }; }
@@ -624,6 +649,8 @@ export function setupBuilder(app) {
       // a click on a part selects it (with Shift, or "select several", along with the others). A click on bone picks that vertebra.
       const what = hitThing(e, false), hit = what ? null : hitLevel(e);
       if (what) { pickPart(what, app.level !== 'easy' && (e.shiftKey || $('multiOn').checked)); return; }
+      // at the Easy level a click on bone puts the part of the current step there
+      if (app.level === 'easy') { app.pick(null); if (hit && easy.putOnModel(hit)) app.settle(); return; }
       app.pick(hit ? { kind: 'level', id: hit.level.id } : null);
       const row = hit && full() && $('sheetFold').open && document.querySelector('#sheet tr[data-level="' + hit.level.id + '"]');
       if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -632,8 +659,9 @@ export function setupBuilder(app) {
     if (tab === 'marks') { const m = hitThing(e, true); app.pick(m && { kind: m.kind, index: m.index }); return; }
     if (tab !== 'shape') return;
     const hit = hitLevel(e), id = hit && hit.level.id, list = ids(), p = app.picked || {};
-    // while the curve is being drawn in broad strokes, a click on a vertebra opens the fine work on it
-    if (mode === 'draw') { if (id && app.level !== 'easy') { mode = 'one'; app.pick({ kind: 'level', id }); } return; }
+    if (chart.picking()) { if (id) chart.tapLock(id); return; }
+    // while the curve is shaped in broad strokes, a click on a vertebra opens the fine work on it
+    if (mode === 'draw' || mode === 'blocks') { if (id && app.level !== 'easy' && !chart.lineOn()) { mode = 'one'; app.pick({ kind: 'level', id }); } return; }
     if (!id) { app.pick(null); return; }
     if (mode === 'one' && e.shiftKey && p.kind === 'level' && p.id !== id) { mode = 'stretch'; app.pick({ kind: 'stretch', top: list.indexOf(p.id) < list.indexOf(id) ? p.id : id, bottom: list.indexOf(p.id) < list.indexOf(id) ? id : p.id }); return; }
     if (mode === 'one') { app.pick({ kind: 'level', id }); return; }
@@ -721,11 +749,13 @@ export function setupBuilder(app) {
   function sync() {
     if (!app.spine) return;
     pressed('[data-mode]', 'mode', mode);
-    $('drawBox').hidden = mode !== 'draw'; $('oneBox').hidden = mode !== 'one'; $('stretchBox').hidden = mode !== 'stretch';
-    oneBox(); stretchBox(); fusedBox(); sheet(); pieceBox(); markBox(); easy.sync(); hint();
+    $('drawBox').hidden = mode !== 'draw'; $('blocksBox').hidden = mode !== 'blocks'; $('oneBox').hidden = mode !== 'one'; $('stretchBox').hidden = mode !== 'stretch';
+    $('lockBox').hidden = mode !== 'draw' && mode !== 'blocks';
+    oneBox(); stretchBox(); fusedBox(); sheet(); pieceBox(); markBox(); easy.sync(); chart.sync(); hint();
   }
 
-  const easy = setupEasy(app, { $, each, pressed, options, ids, levelOf, hitLevel, hint, chosen, pickPart });
+  const easy = setupEasy(app, { $, each, pressed, options, ids, levelOf, hitLevel, hint, chosen, pickPart, held: () => chart.held(), stopLine: () => { chart.stopLine(); chart.stopPicking(); }, lineOn: () => chart.lineOn() });
+  const chart = setupChart(app, { $, each, pressed, options, ids, levelOf, hint, stopOthers: () => easy.stopDrawing(), drawing: () => easy.draw.on() });
   $('presetBtn').addEventListener('click', () => $('galleryBtn').click());
   setLevel(app.level);
   showTab('shape');
@@ -733,7 +763,7 @@ export function setupBuilder(app) {
     sync, handles,
     // a new spine was opened, or Undo went back: drop whatever was being placed
     setLevel,
-    reset() { easy.stopDrawing(); easy.stopPicking(); placing = marking = null; hot = null; pressed('[data-part]', 'part', null); pressed('[data-mark]', 'mark', null); $('stage').classList.remove('placing'); },
+    reset() { easy.stopDrawing(); easy.stopPicking(); chart.stopLine(); chart.stopPicking(); placing = marking = null; hot = null; pressed('[data-part]', 'part', null); pressed('[data-mark]', 'mark', null); $('stage').classList.remove('placing'); },
     // select a stretch and open the Shape tab on it (the list of curves does this)
     // the vertebra under a point of the page, if there is one (the checks in a browser use this)
     levelAt(clientX, clientY) { const hit = hitLevel({ clientX, clientY }); return hit ? hit.level.id : null; },

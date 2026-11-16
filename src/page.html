@@ -42,6 +42,7 @@
   <h3>For 3D printing</h3>
   <label class="pair">Size<select id="stlScale"><option value="1">full size</option><option value="0.5" selected>half size</option><option value="0.3333">a third</option><option value="0.25">a quarter</option></select></label>
   <label class="pair">Stand<select id="standKind"><option value="">none</option><option value="post">round base with a post</option><option value="hanger">tall hanger</option></select></label>
+  <label class="pair">Surface<select id="stlFinish"><option value="0">as on screen</option><option value="1" selected>smoother</option><option value="2">smoothest (a large file)</option></select></label>
   <p class="small" id="standSay"></p>
   <div class="row"><button id="stlBtn">Save for printing (STL)</button></div>
   <p class="small" id="stlSay">The file holds what is shown now. Its parts are separate shapes that overlap, and slicers join them on their own.</p>
@@ -73,8 +74,9 @@
   <section id="stage">
     <canvas id="view" aria-label="3D view of the spine"></canvas>
     <div id="labels" aria-hidden="true"></div>
+    <svg id="tagLines" aria-hidden="true"></svg>
     <div id="tags" aria-hidden="true"></div>
-    <div id="drawPad" hidden aria-hidden="true"><svg id="drawSvg"><polyline id="drawLine" fill="none"></polyline></svg></div>
+    <div id="drawPad" hidden><svg id="drawSvg"><polyline id="drawLine" fill="none"></polyline><polyline id="anchorPath"></polyline><polyline id="anchorHit"></polyline><g id="anchorDots"></g></svg></div>
     <p id="hint">Drag to turn. Scroll or pinch to zoom. Right-drag or two fingers to move.</p>
   </section>
   <aside id="panel">
@@ -94,15 +96,30 @@
 
     <section data-pane="shape">
       <div class="row" data-for="easy"><button id="presetBtn">Start from a ready-made shape</button></div>
-      <div class="seg" role="group" aria-label="How to shape it" data-for="standard full">
-        <button data-mode="draw" aria-pressed="true">Draw it</button><button data-mode="one" aria-pressed="false">One vertebra</button><button data-mode="stretch" aria-pressed="false">A stretch</button>
+      <div class="seg" role="group" aria-label="How to shape it">
+        <button data-mode="draw" aria-pressed="true">Draw</button><button data-mode="blocks" aria-pressed="false">Blocks</button><button data-mode="one" aria-pressed="false" data-for="standard full">One vertebra</button><button data-mode="stretch" aria-pressed="false" data-for="standard full">A stretch</button>
       </div>
 
       <div id="drawBox">
-        <p class="small">The quick way. Draw the curve of your spine with the mouse or a finger, and the spine takes that shape.</p>
+        <p class="small"><strong>Free draw.</strong> Drag a line over the spine and it takes that shape.</p>
         <div class="row"><button data-draw="0" aria-pressed="false">Draw it from the back</button><button data-draw="1" aria-pressed="false">Draw it from the side</button></div>
-        <p class="say" id="drawSay">Press one of the two buttons. Then drag a line over the spine, from the pelvis up or from the neck down.</p>
-        <div class="row"><button id="drawDone" hidden>Done drawing</button></div>
+        <p class="small"><strong>A line with points.</strong> The line stays. Drag its points, and click the line to add one.</p>
+        <div class="row"><button data-points="0" aria-pressed="false">Points, from the back</button><button data-points="1" aria-pressed="false">Points, from the side</button></div>
+        <p class="say" id="drawSay">Press one of the buttons. Then drag a line over the spine, from the pelvis up or from the neck down.</p>
+        <div class="row"><button id="drawDone" hidden>Done drawing</button><button id="pointGone" hidden>Remove the picked point</button></div>
+      </div>
+
+      <div id="blocksBox" hidden>
+        <p class="small">Each block is a vertebra. Drag one sideways and its neighbours follow. Tap one to lock it in place. Twists and sharp bends are done on the model.</p>
+        <div class="seg" role="group" aria-label="Seen from"><button data-chart="0" aria-pressed="true">From the back</button><button data-chart="1" aria-pressed="false">From the side</button></div>
+        <div id="blocksWrap"><svg id="blocks" role="group" aria-label="The vertebrae as blocks"></svg></div>
+      </div>
+
+      <div class="box" id="lockBox">
+        <h3>Locked vertebrae</h3>
+        <p class="small" id="lockSay"></p>
+        <label class="pair">Work only from<select id="lockTop"></select>to<select id="lockBottom"></select></label>
+        <div class="row"><button id="lockRest">Lock the rest</button><button id="lockPick" aria-pressed="false">Lock by clicking the model</button><button id="lockNone">Unlock all</button></div>
       </div>
 
       <div id="oneBox" hidden>
@@ -166,7 +183,7 @@
     </section>
 
     <section data-pane="parts" hidden>
-      <p class="small" id="pickHint">Click a part on the model to select it, or a vertebra to change what it carries.</p>
+      <p class="small" id="pickHint" data-for="standard full">Click a part on the model to select it, or a vertebra to change what it carries.</p>
       <div id="pieceBox" class="box" hidden>
         <h3 id="pieceName"></h3>
         <p class="small" id="pieceHow">Drag it over the bone to move it.</p>
@@ -203,13 +220,26 @@
       <label class="check" data-for="standard full"><input type="checkbox" id="multiOn">Select several parts at once (or hold Shift)</label>
 
       <h3>Put parts on</h3>
-      <p class="small">Pick a part, then tap the map, or drag the part onto the map or the model. The map is the spine seen from the back.</p>
-      <div class="tray" id="tray" role="group" aria-label="Parts">
-        <button data-tray="screw" aria-pressed="true"><i class="ic screw"></i>Screw</button><button data-tray="hook-down" aria-pressed="false"><i class="ic down"></i>Hook down</button><button data-tray="hook-up" aria-pressed="false"><i class="ic up"></i>Hook up</button><button data-tray="link" aria-pressed="false"><i class="ic link"></i>Link</button><button data-tray="fused" aria-pressed="false"><i class="ic fused"></i>Fused</button><button data-tray="erase" aria-pressed="false"><i class="ic erase"></i>Eraser</button>
+      <div id="steps" data-for="easy">
+        <div class="seg steps" role="group" aria-label="Steps"><button data-step="1" aria-pressed="true">1 Screws</button><button data-step="2" aria-pressed="false">2 Hooks</button><button data-step="3" aria-pressed="false">3 Links</button><button data-step="4" aria-pressed="false">4 Rods</button></div>
+        <p class="say" id="stepSay"></p>
+        <div class="row" id="stepTools"><button data-steptool="hook-down" aria-pressed="false">Hook down</button><button data-steptool="hook-up" aria-pressed="false">Hook up</button><button data-steptool="erase" aria-pressed="false">Eraser</button></div>
+        <div id="rodStep" hidden>
+          <div class="row"><button id="rodsPut" class="main">Put the rods on</button><button id="rodsOff">Take the rods off</button></div>
+          <label class="check" id="stepFusedRow"><input type="checkbox" id="stepFused">The part the rods span is fused, so it keeps its shape</label>
+        </div>
+        <div class="row between"><button id="stepBack">Back</button><button id="stepNext" class="main">Next</button></div>
+      </div>
+      <div data-for="standard full">
+        <p class="small">Pick a part, then tap the map, or drag the part onto the map or the model. The map is the spine seen from the back.</p>
+        <div class="tray" id="tray" role="group" aria-label="Parts">
+          <button data-tray="screw" aria-pressed="true"><i class="ic screw"></i>Screw</button><button data-tray="hook-down" aria-pressed="false"><i class="ic down"></i>Hook down</button><button data-tray="hook-up" aria-pressed="false"><i class="ic up"></i>Hook up</button><button data-tray="link" aria-pressed="false"><i class="ic link"></i>Link</button><button data-tray="fused" aria-pressed="false"><i class="ic fused"></i>Fused</button><button data-tray="erase" aria-pressed="false"><i class="ic erase"></i>Eraser</button>
+        </div>
       </div>
       <p class="say" id="traySay"></p>
       <div id="mapWrap"><svg id="map" role="group" aria-label="Map of the spine from the back"></svg></div>
       <label class="check"><input type="checkbox" id="mapNeck">Show the neck on the map</label>
+      <label class="check" data-for="standard full"><input type="checkbox" id="rodsOn" checked>The rods are on</label>
 
       <details id="guideFold" class="fold">
         <summary>Or have it filled in for you</summary>
@@ -274,8 +304,8 @@
         <label class="pair">Label<input type="text" id="markText" maxlength="60"></label>
         <label class="dial" id="markStrongRow">How strong, from 1 to 10<span><input type="range" id="markStrong" min="1" max="10"><input type="number" id="markStrongN" min="1" max="10"></span></label>
         <label class="dial" id="markSizeRow">Size<span><input type="range" id="markSize" min="4" max="60"><input type="number" id="markSizeN" min="4" max="60"> mm</span></label>
-        <p class="small">Drag the arrows on the model to move it.</p>
-        <div class="row"><button id="markRemove">Remove this mark</button></div>
+        <p class="small">Drag the arrows on the model to move it. Drag its label to pull the words off the spot: a line keeps the two joined.</p>
+        <div class="row"><button id="markLabelBack" hidden>Put the label back</button><button id="markRemove">Remove this mark</button></div>
       </div>
     </section>
 

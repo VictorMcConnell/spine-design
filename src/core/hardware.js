@@ -184,11 +184,11 @@ export function hookParts(hook, rodDirection = [0, 0, 1], rodDiameter = HARDWARE
 
 function hookBlade(hook, rodDirection) {
   const mid = hook.mid || vLerp(hook.at, hook.tip, 0.5), kind = HARDWARE.hooks[hook.kind] || HARDWARE.hooks.lamina;
-  const foot = vAdd(hook.at, vScale(vUnit(vSub(mid, hook.at)), 6));
-  // the blade is wide across the plane it curves in
+  // the foot starts under the head, turns at the heel and runs to the toe: a flat shoe, as wide as the head
+  const start = vAdd(hook.at, vScale(vUnit(vSub(mid, hook.at)), 2.5));
   let across = vCross(vSub(mid, hook.at), vSub(hook.tip, hook.at));
   across = vLen(across) > 1e-6 ? vUnit(across) : rodDirection;
-  return tube(arcThrough(foot, mid, hook.tip, 14), (t) => [kind.width / 2, kind.thick * (1.25 - 0.45 * t)], across, 12);
+  return tube(arcThrough(start, mid, hook.tip, 16), (t) => [kind.width / 2 + 0.6, kind.thick * (1.5 - 0.5 * t)], across, 14);
 }
 
 // A cross-link: a clamp on each rod, closed by a small set screw, and a bar between the two

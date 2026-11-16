@@ -74,6 +74,8 @@ export function validateSpine(spine) {
     if (h.faces !== undefined && h.faces !== 'up' && h.faces !== 'down') problems.push('A hook at ' + (h.level || '?') + ' faces neither up nor down.');
   }
   for (const c of hw.crosslinks || []) if (!isPoint(c.from) || !isPoint(c.to)) problems.push('A cross-link has no usable position.');
+  if (hw.norods !== undefined && typeof hw.norods !== 'boolean') problems.push('The file says whether the rods are on in a way the app cannot read.');
+  for (const m of spine.marks || []) if (m && m.label !== undefined && !isPoint(m.label)) problems.push('A label of a pain point or a note has no usable position.');
   for (const kind of ['screws', 'hooks', 'crosslinks']) for (const piece of hw[kind] || []) if (piece.locked !== undefined && typeof piece.locked !== 'boolean') problems.push('A part says it is frozen in a way the app cannot read.');
   for (const [kind, color] of Object.entries(hw.colors || {})) if (!['rods', 'screws', 'hooks', 'crosslinks'].includes(kind) || !/^([a-z]+|#[0-9a-f]{6})$/i.test(color) || (color[0] !== '#' && !COLOR_NAMES.includes(color))) problems.push('The colour given for the ' + kind + ' is not one this app knows.');
   if (hw.splits !== undefined && (!Array.isArray(hw.splits) || hw.splits.some((id) => !LEVEL_ORDER.includes(id)))) problems.push('The list of places where the rods end names a vertebra that does not exist.');
