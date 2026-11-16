@@ -8,13 +8,13 @@ import { frameFromTilt, tiltFromFrame, vDot, vLen } from '../src/core/vec.js';
 import { validateSpine, sortedLevels, isFused, isHeld } from '../src/core/spinefile.js';
 import { vertebraMesh, discMesh, vertebraShape, setBoneStyle, boneStyle, screwEntryFor } from '../src/core/bones.js';
 import { SHAPES, SHAPE_CREDIT } from '../src/shapes/bodyparts3d.js';
-import { rodMesh, screwMesh, hookMesh, crosslinkMesh, rodDirectionNear, TYPICAL, screwRegion, typicalScrew } from '../src/core/hardware.js';
+import { rodMesh, screwMesh, hookMesh, crosslinkMesh, rodDirectionNear, TYPICAL, screwRegion, typicalScrew, FINISHES, PALETTES, USUAL_FINISH, colorOf } from '../src/core/hardware.js';
 import { meshFromDistance } from '../src/core/solid.js';
 import { ANATOMY } from '../src/core/anatomy.js';
 import { LEVEL_ORDER } from '../src/core/spinefile.js';
 import { measureSpine } from '../src/core/measures.js';
-import { rigOf, restack, carry, readShape, applyShape, pullLevel, toLocal, frameOf, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, gapUnder, straighten, stiffen, blockOf } from '../src/core/shape.js';
-import { slot, planFor, buildHardware, fitRods, crosslinkAt, freeScrew, resizeScrew, screwLength, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow } from '../src/core/place.js';
+import { JOINT_MOST, rigOf, restack, carry, readShape, applyShape, pullLevel, toLocal, frameOf, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, gapUnder, straighten, stiffen, blockOf, pivotAt, followLine } from '../src/core/shape.js';
+import { slot, planFor, buildHardware, fitRods, crosslinkAt, freeScrew, resizeScrew, screwLength, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, ROD_RULES, strainAt, moveInLine, settleInLine, bendRod, unbendRod, faceHook } from '../src/core/place.js';
 import { rayMesh } from '../src/core/pick.js';
 import { ball } from '../src/core/mesh.js';
 import { packSpine, unpackSpine, linkFor, packedIn } from '../src/io/share.js';
@@ -361,6 +361,171 @@ ok('on the real bones a screw from the usual spot runs through bone from its ent
       assert.ok(!inside(sc.head, mesh), 'the head of the ' + l.id + ' ' + side + ' screw is buried in bone');
     }
   }
+});
+// how far a point is from a line drawn through a list of points
+const offLine = (p, line) => {
+  let best = Infinity;
+  for (let i = 0; i < line.length - 1; i++) {
+    const a = line[i], ab = line[i + 1].map((v, j) => v - a[j]), t = Math.max(0, Math.min(1, ab.reduce((x, v, j) => x + v * (p[j] - a[j]), 0) / ab.reduce((x, v) => x + v * v, 0)));
+    best = Math.min(best, Math.hypot(...p.map((v, j) => v - a[j] - ab[j] * t)));
+  }
+  return best;
+};
+ok('a rod runs through its screws in the order they sit along the spine and never spikes', () => {
+  const s = copy(average), list = s.levels.map((l) => l.id);
+  buildHardware(s, planFor(list, 'T4', 'L2', 'screws'), 0);
+  const left = s.hardware.screws.filter((x) => x.side === 'left');
+  // a zigzag: every second screw pushed 14 mm outward, one named after the wrong vertebra and two crowded together
+  left.forEach((sc, i) => { if (i % 2) for (const k of ['head', 'entry', 'tip']) sc[k] = [sc[k][0] + 14, sc[k][1], sc[k][2]]; });
+  left[3].level = 'T11'; left[6].level = 'T5';
+  for (const k of ['head', 'entry', 'tip']) left[8][k] = left[7][k].map((v, j) => v - (j === 2 ? 5 : 0));
+  fitRods(s);
+  const rod = s.hardware.rods.find((r) => r.side === 'left'), heads = left.map((x) => x.head).sort((p, q) => q[2] - p[2]);
+  assert.ok(rod.points.every((p) => p.every(Number.isFinite)));
+  for (const h of heads) assert.ok(offLine(h, rod.points) < 1.2, 'the rod misses a head by ' + offLine(h, rod.points).toFixed(1) + ' mm');
+  // it keeps to the straight lines from head to head and never doubles back
+  const ends = [rod.points[0], ...heads, rod.points[rod.points.length - 1]], worst = Math.max(...rod.points.map((p) => offLine(p, ends)));
+  assert.ok(worst < 4, 'the rod swings ' + worst.toFixed(1) + ' mm away from the line through its screws');
+  for (let i = 1; i < rod.points.length; i++) assert.ok(rod.points[i][2] < rod.points[i - 1][2] + 0.6, 'the rod doubles back at point ' + i);
+  sound(rodMesh(rod), 'the rod');
+});
+ok('moving a screw or hook stops where its rod could no longer follow, and a stray one is brought into line', () => {
+  const s = copy(average), list = s.levels.map((l) => l.id);
+  buildHardware(s, planFor(list, 'T4', 'L2', 'hooksTop'), 0);
+  const sc = s.hardware.screws.find((x) => x.level === 'T9' && x.side === 'left'), calm = strainAt(s, sc);
+  assert.ok(calm.corner < 20 && calm.gap > 18, 'at rest: ' + JSON.stringify(calm));
+  // 60 mm sideways is asked for, in steps: the screw stops where the rod would turn too sharp a corner
+  let gone = 0;
+  for (let i = 0; i < 30; i++) gone += 2 * moveInLine(s, sc, [2, 0, 0]);
+  assert.ok(gone > 6 && gone < 30 && strainAt(s, sc).corner <= ROD_RULES.sharpest + 0.3, 'moved ' + gone.toFixed(1) + ' mm, corner ' + strainAt(s, sc).corner.toFixed(1));
+  assert.equal(moveInLine(s, sc, [-2, 0, 0]), 1);                 // back toward the line is always free
+  // and it cannot be pushed into its neighbour
+  let down = 0;
+  for (let i = 0; i < 30; i++) down += 2 * moveInLine(s, sc, [0, 0, -2]);
+  assert.ok(strainAt(s, sc).gap >= ROD_RULES.closest - 0.3 && down < 30, 'gap ' + strainAt(s, sc).gap.toFixed(1));
+  // a hook rides the same rules, with its blade
+  const hook = s.hardware.hooks.find((x) => x.side === 'right' && x.level === 'T5'), blade = hook.tip.map((v, j) => v - hook.at[j]);
+  for (let i = 0; i < 30; i++) moveInLine(s, hook, [-2, 0, 0]);
+  assert.ok(strainAt(s, hook).corner <= ROD_RULES.sharpest + 0.3 && hook.tip.every((v, j) => Math.abs(v - hook.at[j] - blade[j]) < 0.25));
+  // a screw dropped far out of line slides in, a well placed one is left alone
+  const far = s.hardware.screws.find((x) => x.level === 'T12' && x.side === 'right'), fine = s.hardware.screws.find((x) => x.level === 'L1' && x.side === 'left'), kept = [...fine.head];
+  for (const k of ['head', 'entry', 'tip']) far[k] = [far[k][0] - 45, far[k][1] + 10, far[k][2]];
+  assert.ok(strainAt(s, far).corner > 60);
+  assert.equal(settleInLine(s, far), true);
+  assert.ok(strainAt(s, far).corner <= ROD_RULES.sharpest + 0.3 && strainAt(s, far).gap >= ROD_RULES.closest - 0.3, JSON.stringify(strainAt(s, far)));
+  assert.equal(settleInLine(s, fine), false); assert.deepEqual(fine.head, kept);
+});
+ok('a rod can be bent by hand between two screws, keeps the bend and can lose it again', () => {
+  const s = copy(average), list = s.levels.map((l) => l.id), at = (id) => s.levels.find((l) => l.id === id);
+  buildHardware(s, planFor(list, 'T4', 'L2', 'alternate'), 0);
+  const rod = () => s.hardware.rods.find((r) => r.side === 'left'), a = s.hardware.screws.find((x) => x.level === 'T8' && x.side === 'left').head, b = s.hardware.screws.find((x) => x.level === 'T10' && x.side === 'left').head;
+  const straight = rod().points.map((p) => [...p]), want = [(a[0] + b[0]) / 2 + 9, (a[1] + b[1]) / 2 + 6, (a[2] + b[2]) / 2];
+  // a bend that asks too much of the rod is taken only as far as a rod could go
+  const corner = (p) => { const u = p.map((v, j) => v - a[j]), w = b.map((v, j) => v - p[j]); return (Math.acos((u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) / Math.hypot(...u) / Math.hypot(...w)) * 180) / Math.PI; };
+  const wild = [(a[0] + b[0]) / 2 + 40, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+  assert.equal(bendRod(s, rod(), wild), 0);
+  assert.ok(corner(rod().via[0]) <= ROD_RULES.bend + 0.5 && corner(rod().via[0]) > ROD_RULES.bend - 6 && rod().via[0][0] > (a[0] + b[0]) / 2 + 4 && offLine(rod().via[0], rod().points) < 0.8, 'corner ' + corner(rod().via[0]).toFixed(1));
+  assert.ok(strainAt(s, s.hardware.screws.find((x) => x.level === 'T8' && x.side === 'left')).corner <= ROD_RULES.sharpest + 0.5);
+  unbendRod(s, rod());
+  // with the rule off the rod goes exactly where it is asked to
+  const n = bendRod(s, rod(), want, -1, false);
+  assert.ok(n === 0 && rod().via.length === 1 && offLine(want, rod().points) < 0.8 && offLine(a, rod().points) < 0.8 && offLine(b, rod().points) < 0.8, 'the rod misses the bend by ' + offLine(want, rod().points).toFixed(1));
+  // moving the bend, and it stays through a redraw of the rods and rides along when the spine is bent
+  const moved = want.map((v, j) => v + (j === 0 ? 4 : 0));
+  assert.equal(bendRod(s, rod(), moved, 0, false), 0);
+  fitRods(s);
+  assert.ok(rod().via.length === 1 && offLine(moved, rod().points) < 0.8);
+  const rig = rigOf(s), before = toLocal(rod().via[0], at('T9').centre, frameOf(at('T9')));
+  carry(s, () => setBow(s, rig, 'T6', 'T12', 0, 25)); fitRods(s);
+  const after = toLocal(rod().via[0], at('T9').centre, frameOf(at('T9')));
+  assert.ok(after.every((v, j) => Math.abs(v - before[j]) < 0.4) && offLine(rod().via[0], rod().points) < 0.8, 'the bend did not ride along');
+  // a bend outside the ends of the rod is dropped, and a rod traced from a scan is not bent
+  assert.equal(bendRod(s, rod(), [a[0], a[1], at('T1').centre[2]]), -1);
+  unbendRod(s, rod());
+  assert.ok(!rod().via);
+  const real = JSON.parse(fs.readFileSync(path.join(root, 'examples', 'fusion-t4-l2.spine.json'), 'utf8'));
+  assert.equal(bendRod(real, real.hardware.rods[0], real.hardware.rods[0].points[5]), -1);
+});
+ok('a hook can point down or up', () => {
+  const s = copy(average), level = s.levels.find((l) => l.id === 'T5'), f = frameOf(level);
+  const reach = (h) => vDot(h.tip.map((v, j) => v - h.at[j]), f.up);
+  const down = slot(level, 'left').hook, up = slot(level, 'left', 'up').hook;
+  assert.ok(down.faces === 'down' && reach(down) < -9 && up.faces === 'up' && reach(up) > 9 && down.at.every((v, j) => v === up.at[j]));
+  const hook = { level: 'T5', side: 'right', ...slot(level, 'right').hook };
+  faceHook(s, hook, 'up'); assert.ok(hook.faces === 'up' && reach(hook) > 9);
+  faceHook(s, hook, 'down'); assert.ok(hook.faces === 'down' && reach(hook) < -9);
+  for (const h of [down, up]) sound(hookMesh(h, [0, 0, 1]), 'hook');
+});
+ok('colours: a wider choice, sets that go together, and any colour by its code', () => {
+  assert.ok(Object.keys(FINISHES).length >= 14);
+  for (const set of Object.values(PALETTES)) for (const kind of ['rods', 'screws', 'hooks', 'crosslinks']) assert.ok(FINISHES[set[kind]], 'a set names a colour that does not exist: ' + set[kind]);
+  assert.deepEqual(colorOf('#ff8000').map((v) => Math.round(v * 100)), [100, 50, 0]);
+  assert.ok(colorOf('gold') === FINISHES.gold && colorOf('nonsense') === null && colorOf('') === null);
+  // the file's colour for a kind of part shows, and a piece's own colour wins over it
+  const s = copy(average), list = s.levels.map((l) => l.id);
+  buildHardware(s, planFor(list, 'T4', 'T8', 'screws'), 1);
+  const shown = (group) => buildScene(s, 2, {}).find((it) => it.group === group).color;
+  assert.deepEqual(shown('rods'), FINISHES[USUAL_FINISH.rods]);
+  s.hardware.colors = { rods: 'red', screws: '#00ff00' };
+  assert.deepEqual(shown('rods'), FINISHES.red); assert.deepEqual(shown('screws'), [0, 1, 0]);
+  s.hardware.screws[0].color = 'pink';
+  assert.deepEqual(shown('screws'), FINISHES.pink);
+  s.hardware.colors = { rods: 'no such colour' };
+  assert.equal(validateSpine(s).length, 1);
+});
+ok('a cross-link has clamps and a bar that arches away from the spine', () => {
+  const link = { from: [-20, 30, 100], to: [22, 31, 101] }, mesh = crosslinkMesh(link, [0, 0.1, 1], [0, 0.1, 1], [0, 1, 0]);
+  sound(mesh, 'cross-link');
+  let back = -Infinity, front = Infinity;
+  for (let i = 0; i < mesh.positions.length; i += 3) { back = Math.max(back, mesh.positions[i + 1]); front = Math.min(front, mesh.positions[i + 1]); }
+  assert.ok(back > 38 && front > 23, 'it reaches from ' + front.toFixed(1) + ' to ' + back.toFixed(1) + ' front to back');
+  sound(crosslinkMesh({ from: [-8, 0, 0], to: [8, 0, 0] }), 'short cross-link');
+});
+ok('turning one vertebra can take everything above it along', () => {
+  const s = copy(average), rig = rigOf(s), at = (id) => s.levels.find((l) => l.id === id);
+  setBow(s, rig, 'T5', 'T11', 0, 20);
+  const inner = () => at('T5').tilt[0] - at('T10').tilt[0], i0 = inner(), below = JSON.stringify(s.levels.filter((l) => ['L4', 'L5', 'S1'].includes(l.id))), top = [...at('C2').centre], t0 = at('T8').tilt[0];
+  pivotAt(s, rig, 'L3', (l) => { l.tilt[0] += 12; });
+  assert.ok(Math.abs(at('L3').tilt[0] - 12) < 0.3 && Math.abs(at('T8').tilt[0] - t0 - 12) < 1.2 && Math.abs(inner() - i0) < 0.6, 'T8 went from ' + t0 + ' to ' + at('T8').tilt[0]);
+  assert.equal(JSON.stringify(s.levels.filter((l) => ['L4', 'L5', 'S1'].includes(l.id))), below);
+  assert.ok(at('C2').centre[0] - top[0] > 60, 'the top moved ' + (at('C2').centre[0] - top[0]).toFixed(0) + ' mm');
+  // a turn about its own axis turns the fronts of everything above the same way
+  const face = at('T3').turn;
+  pivotAt(s, rig, 'L3', (l) => { l.turn += 15; });
+  assert.ok(Math.abs(at('T3').turn - face) > 8);
+});
+ok('the spine takes the shape of a line drawn over it', () => {
+  const s = copy(average), rig = rigOf(s), at = (id) => s.levels.find((l) => l.id === id);
+  // an S drawn from just above the pelvis to the top of the chest, as seen from the back
+  const z0 = at('L5').centre[2] - 10, z1 = at('T2').centre[2], want = (z) => 26 * Math.sin((2 * Math.PI * (z - z0)) / (z1 - z0)), line = [];
+  for (let z = z1; z >= z0; z -= 3) line.push([want(z) + (Math.round(z) % 2 ? 0.8 : -0.8), z]);      // drawn from the top down, a little shaky
+  assert.equal(followLine(s, rig, 0, line), true);
+  for (const l of s.levels) {
+    if (l.centre[2] < z0 + 15 || l.centre[2] > z1 - 15) continue;
+    assert.ok(Math.abs(l.centre[0] - want(l.centre[2])) < 7, l.id + ' sits ' + (l.centre[0] - want(l.centre[2])).toFixed(1) + ' mm off the line');
+  }
+  assert.ok(at('S1').tilt[0] === 0 && Math.abs(at('T9').centre[0]) > 12);
+  // the vertebrae lean the way the line runs, each a little more or less than the last: no leaning to and fro
+  const leans = s.levels.filter((l) => l.centre[2] > z0 + 25 && l.centre[2] < z1 - 25).map((l) => l.tilt[0]);
+  for (let i = 1; i < leans.length; i++) assert.ok(Math.abs(leans[i] - leans[i - 1]) < 12, 'two neighbours lean ' + leans[i - 1] + ' and ' + leans[i]);
+  // from the side, and a line too short to mean anything
+  assert.equal(followLine(s, rig, 1, [[20, z0], [60, z0 + 150], [40, z1]]), true);
+  assert.equal(followLine(s, rig, 0, [[0, 100], [3, 110]]), false);
+  // a stiff fused part keeps its shape while the rest follows the line
+  const f = copy(average); f.fused = [['T6', 'T12']];
+  const stiff = rigOf(f, true), a6 = () => f.levels.find((l) => l.id === 'T6'), a12 = () => f.levels.find((l) => l.id === 'T12'), span = () => Math.hypot(...a6().centre.map((v, j) => v - a12().centre[j])), kept = span();
+  followLine(f, stiff, 0, line);
+  // (the block is turned as a whole, so seen from the front its two ends still lean alike, give or take the roundness of the chest)
+  assert.ok(Math.abs(span() - kept) < 0.4 && Math.abs(a6().tilt[0] - a12().tilt[0]) < 2 && Math.abs(f.levels.find((l) => l.id === 'L3').centre[0]) > 12, 'span ' + kept.toFixed(1) + ' to ' + span().toFixed(1) + ', leans ' + a6().tilt[0] + ' and ' + a12().tilt[0] + ', L3 ' + f.levels.find((l) => l.id === 'L3').tilt[0]);
+  // the block is laid on the line like a ruler: both its ends are near the line, and so is the free spine above it
+  for (const id of ['L1', 'T5', 'T4', 'T3']) { const l = f.levels.find((x) => x.id === id); assert.ok(Math.abs(l.centre[0] - want(l.centre[2])) < 8, id + ' sits ' + (l.centre[0] - want(l.centre[2])).toFixed(1) + ' mm off the line'); }
+  // a wild zigzag still gives a spine: no vertebra leans more against the one below than a joint could
+  const w = copy(average), wild = [];
+  for (let z = z0; z <= z1; z += 3) wild.push([(Math.floor((z - z0) / 45) % 2 ? 40 : -40), z]);
+  followLine(w, rigOf(w), 0, wild);
+  const order = w.levels.map((l) => l.tilt[0]);
+  for (let i = 1; i < order.length; i++) assert.ok(Math.abs(order[i] - order[i - 1]) <= JOINT_MOST[0] + 0.01, 'a joint bends ' + (order[i] - order[i - 1]).toFixed(1));
+  assert.ok(Math.max(...order.map(Math.abs)) > 10);
 });
 ok('the sheet: cells, separate fusions, cross-links in gaps and rods that end part way', () => {
   const s = copy(average), hw = () => s.hardware;

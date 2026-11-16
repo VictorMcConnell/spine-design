@@ -2,7 +2,7 @@
 
 import { sortedLevels, isFused } from '../core/spinefile.js';
 import { vertebraShape, levelFrame, discMesh } from '../core/bones.js';
-import { rodMesh, screwParts, hookParts, crosslinkMesh, rodDirectionNear, FINISHES, HARDWARE } from '../core/hardware.js';
+import { rodMesh, screwParts, hookParts, crosslinkMesh, rodDirectionNear, colorOf, USUAL_FINISH, HARDWARE } from '../core/hardware.js';
 import { tube, ball } from '../core/mesh.js';
 
 const COLORS = { bone: [0.78, 0.68, 0.52], disc: [0.33, 0.52, 0.74], fusedDisc: [0.6, 0.56, 0.48], picked: [1, 0.78, 0.3], between: [0.93, 0.8, 0.55], spot: [0.45, 0.75, 1], note: [0.55, 0.8, 1] };
@@ -14,7 +14,6 @@ const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[
 export function painColor(strength) {
   return mix([1, 0.82, 0.25], [0.95, 0.16, 0.14], (Math.max(1, Math.min(10, strength || 5)) - 1) / 9);
 }
-const DEFAULT_FINISH = { rods: 'blue', screws: 'titanium', hooks: 'purple', crosslinks: 'blue' };
 
 // Parts the person placed by guessing are drawn paler than parts taken from a scan or an X-ray.
 const sourceOpacity = (source) => (source === 'guessed' ? 0.5 : 1);
@@ -31,6 +30,7 @@ const SPOT = ball([0, 0, 0], 3.2);
 //   extras: for the builder and the look of things
 //     picked: { kind: 'level', id, mates } | { kind: 'stretch', top, bottom } | { kind: 'screws' ..., index }
 //             (mates: the vertebrae that move with the picked one, drawn paler)
+//     stiff:  ids of the vertebrae that are held stiff in a fused block, drawn in a cooler colour
 //             the selected piece is drawn in a warm colour (a stretch: its two ends, and paler between)
 //     spots:  [points] the usual spots for a new part, drawn as small dots
 //     look:   { bone, disc, hardware: [r, g, b] or null, byLevel: true to colour hardware by level }
@@ -40,12 +40,15 @@ export function buildScene(spine, detail, extras = {}) {
   const order = levels.map((l) => l.id), used = order.filter((id) => [...(hw.screws || []), ...(hw.hooks || [])].some((p) => p.level === id));
   const finish = (group, piece, index) => {
     if (picked.kind === group && picked.index === index) return COLORS.picked;
-    if (piece.color && FINISHES[piece.color]) return FINISHES[piece.color];
+    // the piece's own colour, then the viewer's choices, then the colour the spine file gives this kind of part
+    if (piece.color && colorOf(piece.color)) return colorOf(piece.color);
     if (look.byLevel && piece.level && used.includes(piece.level)) return BY_LEVEL[Math.round((used.indexOf(piece.level) * (BY_LEVEL.length - 1)) / Math.max(1, used.length - 1))];
-    return look.hardware || FINISHES[DEFAULT_FINISH[group]];
+    return look.hardware || colorOf((hw.colors || {})[group]) || colorOf(USUAL_FINISH[group]);
   };
   const a = order.indexOf(picked.top), b = order.indexOf(picked.bottom);
-  const boneColor = (id, i) => ((picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : look.bone || COLORS.bone);
+  // (stiff vertebrae: the bone colour pulled toward a cool steel blue, so a fused block reads as one piece)
+  const stiff = extras.stiff || [], cool = (c) => c.map((v, k) => v * 0.5 + [0.5, 0.66, 0.86][k] * 0.5);
+  const boneColor = (id, i) => ((picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : stiff.includes(id) ? cool(look.bone || COLORS.bone) : look.bone || COLORS.bone);
   // a vertebra is drawn once in its own axes and then placed, so bending the spine only moves it
   levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level) }));
   for (let i = 0; i < levels.length - 1; i++) {
@@ -64,7 +67,11 @@ export function buildScene(spine, detail, extras = {}) {
     const parts = hookParts(hook, rodDirectionNear(hw.rods, hook.at), rodSize(hook.rod)), color = finish('hooks', hook, i), opacity = sourceOpacity(hook.source);
     add('hooks', parts.blade, color, opacity); add('hooks', parts.head.mesh, color, opacity, { matrix: parts.head.matrix });
   });
-  (hw.crosslinks || []).forEach((link, i) => add('crosslinks', crosslinkMesh(link), finish('crosslinks', link, i), sourceOpacity(link.source)));
+  // a cross-link arches away from the spine: backward as the vertebra next to it sees it
+  const backAt = (p) => levelFrame(levels.reduce((best, l) => (Math.hypot(p[0] - l.centre[0], p[1] - l.centre[1], p[2] - l.centre[2]) < Math.hypot(p[0] - best.centre[0], p[1] - best.centre[1], p[2] - best.centre[2]) ? l : best))).back;
+  (hw.crosslinks || []).forEach((link, i) => add('crosslinks', crosslinkMesh(link, rodDirectionNear(hw.rods, link.from), rodDirectionNear(hw.rods, link.to), backAt(link.from)), finish('crosslinks', link, i), sourceOpacity(link.source)));
+  // the bends put into a rod by hand show as small knobs while that rod is picked
+  if (picked.kind === 'rods' && (hw.rods || [])[picked.index]) for (const p of hw.rods[picked.index].via || []) add('spots', SPOT, COLORS.picked, 1, { matrix: new Float32Array([1.15, 0, 0, 0, 0, 1.15, 0, 0, 0, 0, 1.15, 0, p[0], p[1], p[2], 1]) });
   // pain points glow stronger the worse they are; notes are small pins
   (spine.marks || []).forEach((mark, i) => {
     const chosen = picked.kind === 'marks' && picked.index === i;

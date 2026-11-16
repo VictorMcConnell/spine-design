@@ -1,25 +1,26 @@
-// The builder. Shape: pick one vertebra and move, turn or resize it, or pick a stretch between
-// two vertebrae and bow or offset it. Hardware: fit out a stretch in one go or place parts by
-// hand. Pain: mark where it hurts and pin notes. Everything changes the spine through
-// app.change, which redraws, moves the hardware with the bones and keeps the history for Undo.
+// The builder. Shape: draw the curve, or pick one vertebra and move, turn or resize it, or
+// pick a stretch between two vertebrae and bow or offset it. Hardware: answer three questions
+// (the easy way, in easy.js) or place, drag and bend every part by hand. Pain: mark where it
+// hurts and pin notes. Everything changes the spine through app.change, which redraws, moves
+// the hardware with the bones and keeps the history for Undo.
 
 import { sortedLevels, LEVEL_ORDER } from '../core/spinefile.js';
 import { vertebraShape, levelFrame } from '../core/bones.js';
 import { ANATOMY } from '../core/anatomy.js';
-import { FINISHES } from '../core/hardware.js';
-import { pullLevel, moveAlone, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, stiffen, blockOf } from '../core/shape.js';
-import { slot, freeScrew, resizeScrew, screwLength, fitRods, crosslinkAt, planFor, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow } from '../core/place.js';
+import { pullLevel, moveAlone, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, stiffen, blockOf, pivotAt } from '../core/shape.js';
+import { slot, freeScrew, resizeScrew, screwLength, fitRods, crosslinkAt, planFor, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, putPlanned, moveInLine, settleInLine, placePiece, hookAt, faceHook, bendRod, unbendRod } from '../core/place.js';
 import { rayMesh, rayPoint } from '../core/pick.js';
 import { gizmoHit, dragAlong, dragAround } from '../view/gizmo.js';
-import { vAdd, vScale, vLerp, vDist } from '../core/vec.js';
+import { vAdd, vSub, vScale, vLerp, vDist, vDot } from '../core/vec.js';
+import { setupEasy, swatches } from './easy.js';
 
-const PART_NAMES = { screws: 'Screw', hooks: 'Hook', crosslinks: 'Cross-link' };
+const PART_NAMES = { screws: 'Screw', hooks: 'Hook', crosslinks: 'Cross-link', rods: 'Rod' };
 const AXES = { left: [1, 0, 0], back: [0, 1, 0], up: [0, 0, 1] };
 const DEG = 180 / Math.PI;
 
 export function setupBuilder(app) {
   const { $, renderer } = app;
-  let tab = 'shape', mode = 'one', hwMode = 'easy', plane = 0, placing = null, marking = null, drag = null, pending = null, hot = null;
+  let tab = 'shape', mode = 'draw', hwMode = 'easy', plane = 0, placing = null, marking = null, drag = null, pending = null, hot = null;
   const tool = { one: 'move', stretch: 'bow' };
   const levels = () => sortedLevels(app.spine), ids = () => levels().map((l) => l.id);
   const levelOf = (id) => app.spine.levels.find((l) => l.id === id);
@@ -41,10 +42,18 @@ export function setupBuilder(app) {
     tab = name;
     each('[data-tab]', (b) => b.setAttribute('aria-selected', b.dataset.tab === name ? 'true' : 'false'));
     each('[data-pane]', (p) => { p.hidden = p.dataset.pane !== name; });
-    stopPlacing();
+    stopPlacing(); easy.stopDrawing(); easy.stopPicking();
+    app.showStiff = name === 'shape';
     const fits = !app.picked || (name === 'shape' && (app.picked.kind === 'level' || app.picked.kind === 'stretch')) || (name === 'parts' && (PART_NAMES[app.picked.kind] || app.picked.kind === 'level')) || (name === 'marks' && app.picked.kind === 'marks');
-    $('hint').textContent = name === 'shape' ? 'Click a vertebra, then drag its handles. Drag the background to turn. Scroll or pinch to zoom.' : 'Drag to turn. Scroll or pinch to zoom. Right-drag or two fingers to move.';
     if (app.spine) app.pick(fits ? app.picked : null);
+    hint();
+  }
+  // The line under the picture: what the mouse or a finger does there right now.
+  function hint() {
+    const turn = ' Drag the background to turn. Scroll or pinch to zoom.';
+    $('hint').textContent = tab === 'shape' ? (easy.draw.on() ? 'Drag a line along the spine. Scroll or pinch to zoom. Press "Done drawing" to turn the model again.' : mode === 'draw' ? 'Press a Draw button, or click a vertebra to work on it alone.' + turn : mode === 'one' ? 'Click a vertebra, then drag its handles.' + turn : 'Click the two ends of a stretch, then drag its handles.' + turn)
+      : tab === 'parts' ? (hwMode === 'easy' ? 'Click a vertebra to change what it carries.' + turn : 'Drag a screw or a hook to move it. Drag a rod to bend it.' + turn)
+        : 'Drag to turn. Scroll or pinch to zoom. Right-drag or two fingers to move.';
   }
   each('[data-tab]', (b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
   const LOOK = { front: Math.PI, back: 0, left: Math.PI / 2, right: -Math.PI / 2 };
@@ -52,10 +61,11 @@ export function setupBuilder(app) {
 
   function setMode(next) {
     if (mode === next) return;
-    const was = one(), s = stretch();
+    const was = one(), p = app.picked;
+    easy.stopDrawing();
     mode = next;
     // carry the selection over: the vertebra becomes the top of a stretch, or the other way round
-    app.pick(next === 'stretch' ? (was ? { kind: 'stretch', top: was.id, bottom: null } : null) : s || (app.picked && app.picked.top) ? { kind: 'level', id: app.picked.top } : null);
+    app.pick(next === 'draw' ? null : next === 'stretch' ? (was ? { kind: 'stretch', top: was.id, bottom: null } : null) : p && p.kind === 'stretch' && p.top ? { kind: 'level', id: p.top } : null);
   }
   each('[data-mode]', (b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
   each('[data-tool]', (b) => b.addEventListener('click', () => { tool[b.dataset.tool === 'bow' || b.dataset.tool === 'offset' ? 'stretch' : 'one'] = b.dataset.tool; app.pick(app.picked); }));
@@ -79,13 +89,15 @@ export function setupBuilder(app) {
   // ---------------------------------------------------------------- shape: one vertebra
   const half = (v) => Math.round(v * 2) / 2;
   const typicalSize = (id) => { const a = ANATOMY[id] || ANATOMY.T6; return [a.w, a.d, half((a.hf + a.hb) / 2) || 9]; };
-  // (a vertebra turned by hand leads the stiff block it is part of)
-  const turnTo = (set) => (v) => { const l = one(); if (l) live(() => { set(l, v); restack(app.spine, app.rig, l.id); }); };
+  // (a vertebra turned by hand leads the stiff block it is part of, and with "The spine above
+  // turns with it" ticked everything above it comes along, as if the spine bent in that place)
+  const turned = (l, set) => { if ($('pivotOn').checked) pivotAt(app.spine, app.rig, l.id, set); else { set(l); restack(app.spine, app.rig, l.id); } };
+  const turnTo = (set) => (v) => { const l = one(); if (l) live(() => turned(l, (x) => set(x, v))); };
   const sizeTo = (axis) => (v) => { const l = one(); if (l) { l.size[axis] = v; live(() => restack(app.spine, app.rig)); } };
   const gapDial = dial('gapR', 'gapN', (v) => { const l = one(); if (l) live(() => liftLevel(app.spine, app.rig, l.id, v - gapUnder(app.spine, app.rig, l.id))); });
   const angleDials = [dial('angF', 'angFn', turnTo((l, v) => { l.tilt[0] = v; })), dial('angS', 'angSn', turnTo((l, v) => { l.tilt[1] = v; })), dial('angT', 'angTn', turnTo((l, v) => { l.turn = v; }))];
   const sizeDials = [dial('sizeW', 'sizeWn', sizeTo(0)), dial('sizeD', 'sizeDn', sizeTo(1)), dial('sizeH', 'sizeHn', sizeTo(2))];
-  $('angZero').addEventListener('click', () => { const l = one(); if (l) app.change(() => { l.tilt[0] = 0; l.turn = 0; restack(app.spine, app.rig, l.id); }); });
+  $('angZero').addEventListener('click', () => { const l = one(); if (l) app.change(() => turned(l, (x) => { x.tilt[0] = 0; x.turn = 0; })); });
   $('stiffOn').addEventListener('change', () => { app.stiff = $('stiffOn').checked; stiffen(app.spine, app.rig, app.stiff); app.redraw(); sync(); });
   $('boneTypical').addEventListener('click', () => { const l = one(); if (l) { l.size = typicalSize(l.id); app.change(() => restack(app.spine, app.rig)); } });
   const step = (by) => () => { const list = ids(), i = list.indexOf(app.picked.id) + by; if (i >= 0 && i < list.length) app.pick({ kind: 'level', id: list[i] }); };
@@ -106,6 +118,30 @@ export function setupBuilder(app) {
     if (!last) gapDial(round1(gapUnder(app.spine, app.rig, l.id)));
     angleDials[0](round1(l.tilt[0])); angleDials[1](round1(l.tilt[1])); angleDials[2](round1(l.turn));
     sizeDials.forEach((set, i) => set(half(l.size[i]), Math.floor(typ[i] * 0.6), Math.ceil(typ[i] * 1.6)));
+  }
+
+  // ---------------------------------------------------------------- shape: the fused part
+  // Which stretches are fused is said here, before or after the hardware goes on. A fused
+  // stretch keeps its shape while the rest is bent, as long as the box is ticked.
+  let fusedFor = '';
+  const fuseRange = (top, bottom, on) => { const list = ids(), a = list.indexOf(top), b = list.indexOf(bottom); app.change(() => { for (let i = Math.min(a, b); i < Math.max(a, b); i++) setFusedBelow(app.spine, list[i], on); }, { ride: false }); };
+  $('fuseAdd').addEventListener('click', () => { if ($('fuseTop').value !== $('fuseBottom').value) fuseRange($('fuseTop').value, $('fuseBottom').value, true); });
+  function fusedBox() {
+    const list = ids(), fused = app.spine.fused || [], box = $('fusedList');
+    if (fusedFor !== list.join()) {
+      fusedFor = list.join();
+      const all = list.map((id) => [id, id]);
+      options($('fuseTop'), all, list.includes('T4') ? 'T4' : list[0]); options($('fuseBottom'), all, list.includes('L2') ? 'L2' : list[list.length - 1]);
+    }
+    box.textContent = '';
+    for (const [top, bottom] of fused) {
+      const li = document.createElement('li'), b = document.createElement('button');
+      li.textContent = top + ' to ' + bottom + ' is fused. ';
+      b.textContent = 'Not fused'; b.className = 'plain'; b.addEventListener('click', () => fuseRange(top, bottom, false));
+      li.appendChild(b); box.appendChild(li);
+    }
+    $('fusedNone').hidden = fused.length > 0; $('stiffRow').hidden = $('stiffSay').hidden = !fused.length; $('stiffOn').checked = app.stiff;
+    $('stiffSay').textContent = app.stiff ? 'The fused part moves as one block and is drawn in a cooler colour. Bends go into the joints that are still free.' : 'The fused part can be reshaped like the rest. Tick the box once it has the shape it should keep.';
   }
 
   // ---------------------------------------------------------------- shape: a stretch
@@ -223,13 +259,13 @@ export function setupBuilder(app) {
     if (a < 0 || b < 0) return;
     const plan = pattern === 'clear' ? {} : planFor(list, list[lo], list[hi], pattern);
     app.change(() => {
-      for (let i = lo; i <= hi; i++) for (const side of SIDES) if (list[i] !== 'C1') setCell(app.spine, list[i], side, (plan[list[i]] || {})[side] || '');
+      for (let i = lo; i <= hi; i++) for (const side of SIDES) if (list[i] !== 'C1') putPlanned(app.spine, list[i], side, (plan[list[i]] || {})[side] || '');
       if ($('fillFused').checked) for (let i = lo; i < hi; i++) setFusedBelow(app.spine, list[i], pattern !== 'clear');
     }, { ride: false });
   });
   $('hwClear').addEventListener('click', () => { app.picked = null; app.change(() => { app.spine.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] }; }, { ride: false }); });
   $('rodsFit').addEventListener('click', () => app.change(() => fitRods(app.spine, true), { ride: false }));
-  each('[data-hw]', (b) => b.addEventListener('click', () => { hwMode = b.dataset.hw; stopPlacing(); app.pick(hwMode === 'easy' && pieceOf() ? null : app.picked); }));
+  each('[data-hw]', (b) => b.addEventListener('click', () => { hwMode = b.dataset.hw; stopPlacing(); easy.stopPicking(); app.pick(hwMode === 'easy' && pieceOf() ? null : app.picked); }));
 
   // ---------------------------------------------------------------- hardware: parts by hand
   function spotsFor(kind) {
@@ -263,7 +299,7 @@ export function setupBuilder(app) {
   $('snapOn').addEventListener('change', () => { if (placing) showPlacing(); });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') stopPlacing();
-    if ((e.key === 'Delete' || e.key === 'Backspace') && (pieceOf() || markOf()) && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) removePicked();
+    if ((e.key === 'Delete' || e.key === 'Backspace') && ((pieceOf() && app.picked.kind !== 'rods') || markOf()) && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) removePicked();
   });
 
   // Put the part being placed where the click landed.
@@ -282,8 +318,8 @@ export function setupBuilder(app) {
       } else if (hit) {
         if (placing === 'screw') added = { group, piece: { ...freeScrew(hit.level, hit.point), source: 'guessed' } };
         else {
-          const side = toLocal(hit.point, hit.level.centre, levelFrame(hit.level))[0] >= 0 ? 'left' : 'right', spot = slot(hit.level, side).hook, at = vAdd(hit.point, vScale(levelFrame(hit.level).back, 6)), by = [0, 1, 2].map((j) => at[j] - spot.at[j]);
-          added = { group, piece: { level: hit.level.id, side, rod: side, kind: spot.kind, at, mid: vAdd(spot.mid, by), tip: vAdd(spot.tip, by), source: 'guessed' } };
+          const side = toLocal(hit.point, hit.level.centre, levelFrame(hit.level))[0] >= 0 ? 'left' : 'right';
+          added = { group, piece: { rod: side, kind: 'lamina', ...hookAt(hit.level, vAdd(hit.point, vScale(levelFrame(hit.level).back, 6)), side), source: 'guessed' } };
         }
       } else { app.say('Click on a vertebra.'); return; }
       added.piece.rod = (hw().rods.find((r) => r.side === added.piece.side) || { id: added.piece.side }).id;
@@ -295,8 +331,16 @@ export function setupBuilder(app) {
     if (!added) return;
     const list = hw()[added.group];
     app.picked = { kind: added.group, index: list.length };
-    app.change(() => { list.push(added.piece); if (added.group !== 'crosslinks') fitRods(app.spine); }, { ride: false });
+    let nudged = false;
+    app.change(() => {
+      list.push(added.piece);
+      if (added.group === 'crosslinks') return;
+      // a part dropped out of line with its rod slides in, just far enough for the rod to reach it
+      nudged = app.inLine && !$('snapOn').checked && settleInLine(app.spine, added.piece);
+      fitRods(app.spine);
+    }, { ride: false });
     if (placing) showPlacing();
+    if (nudged) app.say('Moved it a little so that the rod can reach it. Untick "Keep rods believable" to place parts anywhere.');
   }
 
   function removePicked() {
@@ -304,20 +348,70 @@ export function setupBuilder(app) {
     app.picked = null;
     app.change(() => { list.splice(p.index, 1); if (p.kind === 'screws' || p.kind === 'hooks') fitRods(app.spine); }, { ride: false });
   }
-  $('pieceRemove').addEventListener('click', () => { if (pieceOf()) removePicked(); });
+  $('pieceRemove').addEventListener('click', () => { if (pieceOf() && app.picked.kind !== 'rods') removePicked(); });
   const again = (settle) => app.change(() => {}, { settle, ride: false });
   const thick = dial('pieceThick', 'pieceThickN', (v) => { const s = pieceOf(); if (s) { resizeScrew(s, v, 0); again(false); } });
   const long = dial('pieceLong', 'pieceLongN', (v) => { const s = pieceOf(); if (s) { resizeScrew(s, 0, v); again(false); } });
-  $('pieceColor').addEventListener('change', () => { const p = pieceOf(); if (p) { if ($('pieceColor').value) p.color = $('pieceColor').value; else delete p.color; again(true); } });
+  const rodThick = dial('rodThick', 'rodThickN', (v) => { const r = pieceOf(); if (r && app.picked.kind === 'rods') { r.diameter = v; again(false); } });
+  const colored = (name) => { const p = pieceOf(); if (p) { if (name) p.color = name; else delete p.color; again(true); } };
+  each('[data-face]', (b) => b.addEventListener('click', () => { const h = pieceOf(); if (h && app.picked.kind === 'hooks') app.change(() => faceHook(app.spine, h, b.dataset.face), { ride: false }); }));
+  $('rodUnbend').addEventListener('click', () => { const r = pieceOf(); if (r && app.picked.kind === 'rods') app.change(() => unbendRod(app.spine, r), { ride: false }); });
+  $('inLineOn').addEventListener('change', () => { app.inLine = $('inLineOn').checked; });
 
   function pieceBox() {
     const p = pieceOf(), kind = p ? app.picked.kind : '';
-    $('pieceBox').hidden = !p;
+    $('pieceBox').hidden = !p || kind === 'rods'; $('rodBox').hidden = kind !== 'rods';
     if (!p) return;
+    if (kind === 'rods') {
+      const bends = (p.via || []).length;
+      $('rodName').textContent = 'Rod, ' + p.side + ' side' + (!p.auto ? ', traced from a scan' : bends ? ', bent by hand in ' + bends + (bends === 1 ? ' place' : ' places') : '');
+      rodThick(p.diameter || 5.5);
+      swatches($('rodColors'), '', p.color || '', colored, true);
+      $('rodUnbend').disabled = !bends;
+      return;
+    }
     $('pieceName').textContent = PART_NAMES[kind] + (p.level ? ' at ' + p.level : '') + (p.side ? ', ' + p.side + ' side' : '');
     $('pieceThickRow').hidden = $('pieceLongRow').hidden = kind !== 'screws';
     if (kind === 'screws') { thick(p.diameter || 5); long(screwLength(p)); }
-    options($('pieceColor'), [['', 'the usual'], ...Object.keys(FINISHES).map((k) => [k, k])], p.color || '');
+    $('pieceFaceRow').hidden = kind !== 'hooks';
+    pressed('[data-face]', 'face', p.faces || 'down');
+    swatches($('pieceColors'), '', p.color || '', colored, true);
+  }
+
+  // Dragging a screw or a hook over the bone. With snapping it hops from one usual spot to
+  // the next. Without, it sits where the pointer is on the bone.
+  function dragPart(e) {
+    const { kind, index } = drag.part, part = hw()[kind][index], hit = hitLevel({ clientX: e.clientX - drag.off[0], clientY: e.clientY - drag.off[1] });
+    if (!part || !hit) return;
+    const frame = levelFrame(hit.level), side = toLocal(hit.point, hit.level.centre, frame)[0] >= 0 ? 'left' : 'right';
+    let next;
+    if ($('snapOn').checked) {
+      if (hit.level.id === 'C1' || (part.level === hit.level.id && part.side === side) || [...hw().screws, ...hw().hooks].some((p) => p !== part && p.level === hit.level.id && p.side === side)) return;
+      const spot = slot(hit.level, side, part.faces || 'down');
+      next = kind === 'screws' ? { level: hit.level.id, side, ...spot.screw, diameter: part.diameter } : { level: hit.level.id, side, ...spot.hook };
+    } else if (kind === 'screws') {
+      const f = freeScrew(hit.level, hit.point);
+      next = { level: f.level, side: f.side, head: f.head, entry: f.entry, tip: f.tip };
+    } else next = hookAt(hit.level, vAdd(hit.point, vScale(frame.back, 6)), side, part.faces || 'down');
+    app.picked = { kind, index };
+    let went = true;
+    live(() => { went = placePiece(app.spine, part, next, app.inLine); }, false);
+    app.say(went ? '' : 'The rod could not follow it there. Untick "Keep rods believable" to place it anyway.');
+  }
+  // Dragging a rod between two of its parts bends it there: the rod is made to pass through
+  // the spot under the pointer.
+  function dragRod(e) {
+    const rod = hw().rods.find((r) => r.id === drag.rod);
+    if (!rod) return;
+    const ray = renderer.ray(e.clientX, e.clientY), t = vDot(vSub(drag.at, ray.origin), drag.facing) / vDot(ray.direction, drag.facing);
+    if (!(t > 0)) return;
+    const at = vAdd(ray.origin, vScale(ray.direction, t));
+    let via = -1;
+    live(() => { via = bendRod(app.spine, rod, at, drag.via, app.inLine); }, false);
+    drag.via = via;
+    const now = hw().rods.find((r) => r.id === drag.rod);
+    app.picked = { kind: 'rods', index: hw().rods.indexOf(now) };
+    app.say(via < 0 ? 'A rod can be bent between its two ends, not beyond them.' : vDist(now.via[via], at) > 1.5 ? 'That is as far as a rod bends there. Untick "Keep rods believable" to bend it further.' : '');
   }
 
   // ---------------------------------------------------------------- pain points and notes
@@ -370,7 +464,7 @@ export function setupBuilder(app) {
     if (tab === 'shape' && s) return set(tool.stretch === 'bow' ? middle(s).centre : levelOf(s.top).centre, { left: 'double', back: 'double' });
     if (tab === 'marks' && m) return set(markSpot(m), { left: 'double', back: 'double', up: 'double' });
     const part = pieceOf();
-    if (tab === 'parts' && hwMode === 'hand' && part) return app.picked.kind === 'crosslinks' ? set(vLerp(part.from, part.to, 0.5), { up: 'double' }) : set(part.head || part.at, { left: 'double', back: 'double', up: 'double' });
+    if (tab === 'parts' && hwMode === 'hand' && part && app.picked.kind !== 'rods') return app.picked.kind === 'crosslinks' ? set(vLerp(part.from, part.to, 0.5), { up: 'double' }) : set(part.head || part.at, { left: 'double', back: 'double', up: 'double' });
     return null;
   }
 
@@ -386,7 +480,10 @@ export function setupBuilder(app) {
           const link = crosslinkAt(spine, (part.from[2] + part.to[2]) / 2 + by);
           if (link) { part.from = link.from; part.to = link.to; part.level = link.level; delete part.below; }
         } else {
-          for (const key of ['head', 'entry', 'tip', 'at', 'mid']) if (part[key]) part[key] = part[key].map((v, k) => (k === j ? round1(v + by) : v));
+          const step = [0, 0, 0];
+          step[j] = by;
+          if (app.inLine) moveInLine(spine, part, step);
+          else for (const key of ['head', 'entry', 'tip', 'at', 'mid']) if (part[key]) part[key] = part[key].map((v, k) => round1(v + step[k]));
           fitRods(spine);
         }
       }, false);
@@ -397,7 +494,7 @@ export function setupBuilder(app) {
       const soft = $('softOn').checked;
       live(() => { if (name === 'up') liftLevel(spine, rig, l.id, by); else if (soft) pullLevel(spine, rig, l.id, name === 'left' ? by : 0, name === 'back' ? by : 0); else moveAlone(spine, rig, l.id, name === 'left' ? by : 0, name === 'back' ? by : 0); });
     } else if (l && tool.one === 'turn') {
-      live(() => { if (name === 'up') l.turn += turn; else if (name === 'back') l.tilt[0] = Math.max(-80, Math.min(80, l.tilt[0] + turn)); else l.tilt[1] = Math.max(-80, Math.min(80, l.tilt[1] - turn)); restack(spine, rig, l.id); });
+      live(() => turned(l, (x) => { if (name === 'up') x.turn += turn; else if (name === 'back') x.tilt[0] = Math.max(-80, Math.min(80, x.tilt[0] + turn)); else x.tilt[1] = Math.max(-80, Math.min(80, x.tilt[1] - turn)); }));
     } else if (l && tool.one === 'size') {
       const j = { left: 0, back: 1, up: 2 }[name], typ = typicalSize(l.id);
       l.size[j] = Math.max(typ[j] * 0.5, Math.min(typ[j] * 1.8, l.size[j] + 2 * by));
@@ -430,10 +527,12 @@ export function setupBuilder(app) {
       hw().screws.forEach((s, index) => at.push({ kind: 'screws', index, p: s.head, r: 9 }));
       hw().hooks.forEach((h, index) => at.push({ kind: 'hooks', index, p: h.at, r: 9 }));
       hw().crosslinks.forEach((c, index) => { for (const t of [0.25, 0.5, 0.75]) at.push({ kind: 'crosslinks', index, p: vLerp(c.from, c.to, t), r: 6 }); });
+      // a rod is thin and runs behind its screws: it is only taken when nothing else is under the pointer
+      hw().rods.forEach((rod, index) => rod.points.forEach((p) => at.push({ kind: 'rods', index, p, r: 4.2, behind: 14 })));
     }
     let best = null;
-    for (const c of at) { const near = rayPoint(ray.origin, ray.direction, c.p); if (near.off <= c.r && near.along > 0 && (!best || near.along < best.along)) best = { ...c, along: near.along }; }
-    return best && { kind: best.kind, index: best.index };
+    for (const c of at) { const near = rayPoint(ray.origin, ray.direction, c.p), rank = near.along + (c.behind || 0); if (near.off <= c.r && near.along > 0 && (!best || rank < best.rank)) best = { ...c, rank }; }
+    return best && { kind: best.kind, index: best.index, at: best.p };
   }
 
   function tap(e) {
@@ -441,17 +540,23 @@ export function setupBuilder(app) {
     if (placing) { place(e); return; }
     if (marking) { addMark(e); return; }
     if (tab === 'parts' && hwMode === 'easy') {
-      // the sheet and the model point at each other: a click on a vertebra finds its row
-      const hit = hitLevel(e);
-      app.pick(hit ? { kind: 'level', id: hit.level.id } : null);
-      const row = hit && document.querySelector('#sheet tr[data-level="' + hit.level.id + '"]');
+      // the easy way: a click picks the vertebra whose hardware is to be changed
+      easy.tap(e);
+      return;
+    }
+    if (tab === 'parts') {
+      const what = hitThing(e, false), hit = what ? null : hitLevel(e);
+      // a click on bone with the sheet open finds that vertebra's row
+      const row = hit && $('sheetFold').open && document.querySelector('#sheet tr[data-level="' + hit.level.id + '"]');
+      app.pick(what ? { kind: what.kind, index: what.index } : row ? { kind: 'level', id: hit.level.id } : null);
       if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       return;
     }
-    if (tab === 'parts') { app.pick(hitThing(e, false)); return; }
-    if (tab === 'marks') { app.pick(hitThing(e, true)); return; }
+    if (tab === 'marks') { const m = hitThing(e, true); app.pick(m && { kind: m.kind, index: m.index }); return; }
     if (tab !== 'shape') return;
     const hit = hitLevel(e), id = hit && hit.level.id, list = ids(), p = app.picked || {};
+    // while the curve is being drawn in broad strokes, a click on a vertebra opens the fine work on it
+    if (mode === 'draw') { if (id) { mode = 'one'; app.pick({ kind: 'level', id }); } return; }
     if (!id) { app.pick(null); return; }
     if (mode === 'one' && e.shiftKey && p.kind === 'level' && p.id !== id) { mode = 'stretch'; app.pick({ kind: 'stretch', top: list.indexOf(p.id) < list.indexOf(id) ? p.id : id, bottom: list.indexOf(p.id) < list.indexOf(id) ? id : p.id }); return; }
     if (mode === 'one') { app.pick({ kind: 'level', id }); return; }
@@ -463,9 +568,30 @@ export function setupBuilder(app) {
     // A press on a handle grabs it. A press on the selected vertebra (or inside the selected
     // stretch) grabs that: it then follows the pointer.
     down(e) {
-      if (!app.spine || placing || marking) return false;
-      const h = handles(), grabbed = h && gizmoHit(h.spec, renderer, e.clientX, e.clientY, e.pointerType === 'touch' ? 24 : 13);
+      if (!app.spine) return false;
+      if (easy.draw.on()) return easy.draw.down(e);
+      if (placing || marking) return false;
+      // (a press right on the picked screw or hook drags the part itself, not one of its arrows)
+      const h = handles(), box = renderer.canvas.getBoundingClientRect(), mid = h && tab === 'parts' && hwMode === 'hand' && renderer.project(h.spec.at);
+      const onPart = mid && Math.hypot(mid[0] + box.left - e.clientX, mid[1] + box.top - e.clientY) < (e.pointerType === 'touch' ? 16 : 10);
+      const grabbed = h && !onPart && gizmoHit(h.spec, renderer, e.clientX, e.clientY, e.pointerType === 'touch' ? 24 : 13);
       if (grabbed) { drag = { name: grabbed.handle.name, ring: grabbed.handle.kind === 'ring', grab: grabbed.grab, dx: 0, dy: 0, moved: false }; app.redraw(); return true; }
+      if (tab === 'parts' && hwMode === 'hand') {
+        // a press on a screw or a hook grabs it, a press on a rod grabs the rod there
+        const what = hitThing(e, false), ray = renderer.ray(e.clientX, e.clientY);
+        if (what && (what.kind === 'screws' || what.kind === 'hooks')) {
+          // (the part keeps its place under the pointer: the spot where it meets the bone stays as far from the pointer as it was at the press)
+          const part = hw()[what.kind][what.index], foot = renderer.project(part.entry || part.at);
+          drag = { part: what, off: foot ? [e.clientX - foot[0] - box.left, e.clientY - foot[1] - box.top] : [0, 0], dx: 0, dy: 0, moved: false };
+          return true;
+        }
+        if (what && what.kind === 'rods' && hw().rods[what.index].auto) {
+          const rod = hw().rods[what.index], via = (rod.via || []).findIndex((p) => rayPoint(ray.origin, ray.direction, p).off < 6);
+          drag = { rod: rod.id, via, at: via >= 0 ? rod.via[via] : what.at, facing: ray.direction, dx: 0, dy: 0, moved: false };
+          return true;
+        }
+        return false;
+      }
       if (tab !== 'shape') return false;
       const hit = hitLevel(e), l = one(), s = stretch(), list = ids();
       if (!hit) return false;
@@ -475,8 +601,9 @@ export function setupBuilder(app) {
       return true;
     },
     move(e, dx, dy) {
+      if (easy.draw.on()) { easy.draw.move(e); return; }
       if (!drag) return;
-      drag.dx += dx; drag.dy += dy;
+      drag.dx += dx; drag.dy += dy; drag.e = e;
       if (Math.abs(drag.dx) + Math.abs(drag.dy) < 3 && !drag.moved) return;
       if (pending) return;
       pending = requestAnimationFrame(() => {
@@ -484,7 +611,9 @@ export function setupBuilder(app) {
         if (!drag) return;
         const h = handles(), dx2 = drag.dx, dy2 = drag.dy;
         drag.dx = drag.dy = 0; drag.moved = true;
-        if (drag.name) {
+        if (drag.part) dragPart(drag.e);
+        else if (drag.rod) dragRod(drag.e);
+        else if (drag.name) {
           const handle = h && h.spec.handles.find((x) => x.name === drag.name);
           if (!handle) return;
           if (drag.ring) pull(drag.name, 0, dragAround(h.spec, handle, renderer, drag.grab, dx2, dy2)); else pull(drag.name, dragAlong(h.spec, handle, renderer, dx2, dy2), 0);
@@ -499,6 +628,7 @@ export function setupBuilder(app) {
       });
     },
     up(e) {
+      if (easy.draw.on()) { easy.draw.up(e); return; }
       const was = drag; drag = null;
       if (was && was.moved) app.settle(); else { if (was && was.name) app.redraw(); if (e.type === 'pointerup' && !(was && was.name)) tap(e); }
     },
@@ -513,19 +643,21 @@ export function setupBuilder(app) {
   function sync() {
     if (!app.spine) return;
     pressed('[data-mode]', 'mode', mode);
-    $('oneBox').hidden = mode !== 'one'; $('stretchBox').hidden = mode !== 'stretch';
-    $('stiffRow').hidden = !(app.spine.fused || []).length; $('stiffOn').checked = app.stiff;
+    $('drawBox').hidden = mode !== 'draw'; $('oneBox').hidden = mode !== 'one'; $('stretchBox').hidden = mode !== 'stretch';
     pressed('[data-hw]', 'hw', hwMode);
     $('easyBox').hidden = hwMode !== 'easy'; $('handBox').hidden = hwMode !== 'hand';
-    oneBox(); stretchBox(); sheet(); pieceBox(); markBox();
+    oneBox(); stretchBox(); fusedBox(); sheet(); pieceBox(); markBox(); easy.sync(); hint();
   }
 
+  const easy = setupEasy(app, { $, each, pressed, options, ids, levelOf, hitLevel, hint });
   showTab('shape');
   return {
     sync, handles,
     // a new spine was opened, or Undo went back: drop whatever was being placed
-    reset() { placing = marking = null; hot = null; pressed('[data-part]', 'part', null); pressed('[data-mark]', 'mark', null); $('stage').classList.remove('placing'); },
+    reset() { easy.stopDrawing(); easy.stopPicking(); placing = marking = null; hot = null; pressed('[data-part]', 'part', null); pressed('[data-mark]', 'mark', null); $('stage').classList.remove('placing'); },
     // select a stretch and open the Shape tab on it (the list of curves does this)
+    // the vertebra under a point of the page, if there is one (the checks in a browser use this)
+    levelAt(clientX, clientY) { const hit = hitLevel({ clientX, clientY }); return hit ? hit.level.id : null; },
     workOn(top, bottom, which) { mode = 'stretch'; tool.stretch = 'bow'; plane = which; if (tab !== 'shape') showTab('shape'); app.pick({ kind: 'stretch', top, bottom }); },
   };
 }

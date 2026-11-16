@@ -11,6 +11,7 @@ import { readSpineFile, saveSpineFile, loadExample, listExamples, download, file
 import { packSpine, unpackSpine, linkFor, packedIn } from '../io/share.js';
 import { stlOf } from '../io/print.js';
 import { rigOf, carry, stiffen, blockOf } from '../core/shape.js';
+import { fitRods } from '../core/place.js';
 import { setBoneStyle } from '../core/bones.js';
 import { SHAPE_CREDIT } from '../shapes/bodyparts3d.js';
 import { setupBuilder } from './build.js';
@@ -35,6 +36,8 @@ try { look = { ...USUAL, ...JSON.parse(localStorage.getItem('spineBuilderLook') 
 const app = {
   $, renderer, DETAIL, rig: null, picked: null, spots: [],
   stiff: true,                         // fused stretches move as blocks (the switch in the Shape tab)
+  inLine: true,                        // a part stops where its rod could not follow (the switch under By hand)
+  showStiff: true,                     // tint the stiff blocks (while the Shape tab is open)
   get spine() { return spine; },
   say(text) { $('status').textContent = text || ''; },
 
@@ -43,7 +46,10 @@ const app = {
     if (!spine) return;
     // the vertebrae fused to the picked one are tinted too: they move with it
     const block = app.picked && app.picked.kind === 'level' && app.rig ? blockOf(spine, app.rig, app.picked.id) : null;
-    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
+    // while the spine is being shaped, the stretches that are held stiff are drawn in a cooler colour
+    const order = sortedLevels(spine).map((l) => l.id), stiff = [];
+    if (app.showStiff && app.stiff && app.rig) for (const b of app.rig.blocks || []) stiff.push(...order.slice(b.from, b.to + 1));
+    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, stiff, spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
     const handles = builder && builder.handles();
     renderer.setItems(handles ? items.concat(gizmoItems(handles.spec, handles.active)) : items);
     applyToggles();
@@ -59,7 +65,9 @@ const app = {
   //   ride:   false when the change is to the hardware or the marks themselves
   change(fn, { settle = true, ride = true } = {}) {
     if (!spine) return;
-    if (ride) carry(spine, fn); else fn();
+    // (after the bones have moved, the rods are strung through their parts again, so they stay smooth)
+    if (ride) { carry(spine, fn); if (((spine.hardware || {}).rods || []).some((r) => r.auto)) fitRods(spine); } else fn();
+    if (settle) stiffen(spine, app.rig, app.stiff);   // before drawing, so a stretch that was just fused shows as stiff at once
     app.redraw();
     if (settle) app.settle();
   },
@@ -330,7 +338,7 @@ function applyLook(save = true) {
   document.querySelectorAll('[data-back]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.back === look.back ? 'true' : 'false'));
   renderer.setShading(look.shade);
   document.querySelectorAll('[data-shade]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.shade === look.shade ? 'true' : 'false'));
-  $('colBone').value = look.bone; $('colDisc').value = look.disc; $('colHw').value = look.hardware || '#9a9ea8'; $('hwByLevel').checked = !!look.byLevel;
+  $('colBone').value = look.bone; $('colDisc').value = look.disc; $('hwByLevel').checked = !!look.byLevel;
   $('simpleBones').checked = !!look.simple; setBoneStyle(look.simple ? 'drawn' : 'real');
   if (save) { try { localStorage.setItem('spineBuilderLook', JSON.stringify(look)); } catch (e) { /* not kept, that is all */ } }
   app.redraw();
@@ -368,7 +376,6 @@ if (!renderer) {
   document.querySelectorAll('[data-shade]').forEach((b) => b.addEventListener('click', () => { look.shade = b.dataset.shade; applyLook(); }));
   $('colBone').addEventListener('input', () => { look.bone = $('colBone').value; applyLook(); });
   $('colDisc').addEventListener('input', () => { look.disc = $('colDisc').value; applyLook(); });
-  $('colHw').addEventListener('input', () => { look.hardware = $('colHw').value; applyLook(); });
   $('hwByLevel').addEventListener('change', () => { look.byLevel = $('hwByLevel').checked; applyLook(); });
   $('simpleBones').addEventListener('change', () => { look.simple = $('simpleBones').checked; applyLook(); });
   // the bone shapes come from an open anatomy collection that asks to be named

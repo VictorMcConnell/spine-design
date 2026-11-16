@@ -42,21 +42,31 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
 
 ## Hardware
 
-    "rods":       [{ "id": "right", "side": "right", "diameter": 6.0, "points": [[x, y, z], ...] }]
+    "rods":       [{ "id": "right", "side": "right", "diameter": 6.0, "points": [[x, y, z], ...],
+                     "via": [[x, y, z]] }]
     "screws":     [{ "level": "T5", "side": "right", "rod": "right", "head": [x, y, z],
                      "entry": [x, y, z], "tip": [x, y, z], "diameter": 5.0 }]
     "hooks":      [{ "level": "T4", "side": "left", "rod": "left", "kind": "transverse process",
-                     "at": [x, y, z], "mid": [x, y, z], "tip": [x, y, z] }]
+                     "at": [x, y, z], "mid": [x, y, z], "tip": [x, y, z], "faces": "down" }]
     "crosslinks": [{ "level": "T8", "from": [x, y, z], "to": [x, y, z] }]
     "splits":     ["T10"]
+    "colors":     { "rods": "blue", "screws": "titanium", "hooks": "purple", "crosslinks": "gold" }
 
 - A rod is a path of points along its middle.
+- `via` is optional. It lists the spots a rod was bent through by hand, between its screws and
+  hooks. The builder keeps them when it redraws the rod and moves them along when the spine is
+  bent.
 - A screw has the point where it grips the rod (`head`), where its thread starts (`entry`) and
   its `tip`.
 - A hook has the point where it grips the rod (`at`), the middle of its blade (`mid`) and the
   `tip` of the blade.
 - Every piece can carry a `source`, the same way a vertebra does.
-- Every piece can carry a `color`: `titanium`, `steel`, `blue`, `green`, `purple` or `gold`.
+- A hook's `faces` is `down` or `up`: the way its blade points along the spine. Without it the
+  blade points down.
+- Every piece can carry a `color`: `titanium`, `steel`, `black`, `white`, `blue`, `sky`, `teal`,
+  `green`, `lime`, `gold`, `orange`, `red`, `pink` or `purple`, or a colour written as `#rrggbb`.
+- `colors` is optional. It gives a colour to each kind of part. A piece's own `color` wins
+  over it.
 - A hook's `kind` is `pedicle`, `lamina` or `transverse process`. It sets the width of the blade.
 - A rod or a cross-link drawn by the builder carries `"auto": true`. The builder redraws such a
   rod whenever a screw or hook on its side is added or removed. A rod without it (traced from a

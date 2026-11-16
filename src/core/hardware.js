@@ -63,11 +63,28 @@ export function screwLean(levelId) {
   return low >= 0 ? 12 + 3 * low : high >= 0 ? 22 - 5 * high : levelId[0] === 'C' ? 20 : 8;
 }
 
-// Colours a person can pick for a piece of hardware.
+// Colours a person can pick for a piece of hardware. The first two are what the metal looks
+// like. The rest are there to tell parts apart at a glance and to make a point in a picture.
 export const FINISHES = {
-  titanium: [0.6, 0.62, 0.66], steel: [0.78, 0.8, 0.83], blue: [0.16, 0.33, 0.72], green: [0.2, 0.55, 0.3],
-  purple: [0.5, 0.36, 0.78], gold: [0.8, 0.62, 0.2],
+  titanium: [0.6, 0.62, 0.66], steel: [0.78, 0.8, 0.83], black: [0.13, 0.14, 0.16], white: [0.93, 0.93, 0.9],
+  blue: [0.16, 0.33, 0.72], sky: [0.3, 0.62, 0.92], teal: [0.1, 0.6, 0.6], green: [0.2, 0.55, 0.3], lime: [0.58, 0.78, 0.2],
+  gold: [0.8, 0.62, 0.2], orange: [0.93, 0.5, 0.13], red: [0.82, 0.2, 0.18], pink: [0.92, 0.42, 0.66], purple: [0.5, 0.36, 0.78],
 };
+// The colour each kind of part has when nothing else is chosen.
+export const USUAL_FINISH = { rods: 'blue', screws: 'titanium', hooks: 'purple', crosslinks: 'gold' };
+// Sets of colours that go together, for one click.
+export const PALETTES = {
+  metal: { rods: 'steel', screws: 'titanium', hooks: 'titanium', crosslinks: 'steel' },
+  classic: { rods: 'blue', screws: 'titanium', hooks: 'purple', crosslinks: 'gold' },
+  bright: { rods: 'sky', screws: 'orange', hooks: 'pink', crosslinks: 'lime' },
+  bold: { rods: 'red', screws: 'white', hooks: 'gold', crosslinks: 'black' },
+};
+// A colour from its name in FINISHES or from '#rrggbb', as [red, green, blue] from 0 to 1.
+export function colorOf(name) {
+  if (FINISHES[name]) return FINISHES[name];
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(name || '');
+  return m ? [parseInt(m[1], 16) / 255, parseInt(m[2], 16) / 255, parseInt(m[3], 16) / 255] : null;
+}
 
 export function rodMesh(rod) {
   const r = (rod.diameter || HARDWARE.rodDiameter) / 2;
@@ -152,14 +169,17 @@ function screwShaft(screw) {
 
 // A hook: a head on the rod and a curved blade that catches the bone.
 export function hookMesh(hook, rodDirection = [0, 0, 1], rodDiameter = HARDWARE.rodDiameter) {
-  const mid = hook.mid || vLerp(hook.at, hook.tip, 0.5);
-  return appendMesh(headMesh(hook.at, vSub(hook.at, mid), rodDirection, rodDiameter), hookBlade(hook, rodDirection));
+  return appendMesh(headMesh(hook.at, hookOut(hook, rodDirection), rodDirection, rodDiameter), hookBlade(hook, rodDirection));
+}
+// Which way the head of a hook opens: away from where its blade ends, square to the rod.
+function hookOut(hook, rodDirection) {
+  const away = vSub(hook.at, hook.tip), along = vUnit(rodDirection), flat = vSub(away, vScale(along, vDot(away, along)));
+  return vLen(flat) > 1 ? flat : vSub(hook.at, hook.mid || vLerp(hook.at, hook.tip, 0.5));
 }
 
 // The same hook in two pieces for the screen: the blade, and the head as a placed shape.
 export function hookParts(hook, rodDirection = [0, 0, 1], rodDiameter = HARDWARE.rodDiameter) {
-  const mid = hook.mid || vLerp(hook.at, hook.tip, 0.5);
-  return { blade: hookBlade(hook, rodDirection), head: headPlaced(hook.at, vSub(hook.at, mid), rodDirection, rodDiameter) };
+  return { blade: hookBlade(hook, rodDirection), head: headPlaced(hook.at, hookOut(hook, rodDirection), rodDirection, rodDiameter) };
 }
 
 function hookBlade(hook, rodDirection) {
@@ -171,12 +191,32 @@ function hookBlade(hook, rodDirection) {
   return tube(arcThrough(foot, mid, hook.tip, 14), (t) => [kind.width / 2, kind.thick * (1.25 - 0.45 * t)], across, 12);
 }
 
-// A cross-link: a bar between the two rods with a clamp at each end.
-export function crosslinkMesh(link) {
-  const r = HARDWARE.crosslinkBar / 2, along = vUnit(vSub(link.to, link.from));
-  const mesh = tube([link.from, link.to], () => [r, r], [0, 0, 1], 12);
-  for (const end of [link.from, link.to]) {
-    appendMesh(mesh, tube([vSub(end, vScale(along, 4.5)), vAdd(end, vScale(along, 4.5))], (t) => { const k = 4.6 - 1.2 * Math.abs(2 * t - 1) ** 3; return [k, k]; }, [0, 0, 1], 14));
+// A cross-link: a clamp on each rod, closed by a small set screw, and a bar between the two
+// that arches away from the spine to clear the bone in the middle. The bar is in two halves
+// that slide in a sleeve at the top of the arch, which is how these are set to length.
+//   alongFrom, alongTo: which way each rod runs where the cross-link grips it
+//   away: the direction pointing away from the spine (to the back of the person)
+export function crosslinkMesh(link, alongFrom = [0, 0, 1], alongTo = [0, 0, 1], away = [0, 1, 0]) {
+  const span = vSub(link.to, link.from), length = vLen(span), across = vUnit(span), r = HARDWARE.crosslinkBar / 2;
+  // "out" is straight away from the spine as seen from the bar
+  let out = vSub(away, vScale(across, vDot(away, across)));
+  out = vLen(out) > 0.1 ? vUnit(out) : vUnit(vCross(across, [0, 0, 1]));
+  const mesh = { positions: [], indices: [] };
+  const clamp = (at, along) => {
+    const run = vUnit(along), bulge = (t) => { const k = 5.3 - 0.9 * Math.abs(2 * t - 1) ** 4; return [k, k]; };
+    // the body round the rod, and the boss with the set screw on its back
+    appendMesh(mesh, tube([vSub(at, vScale(run, 5)), vAdd(at, vScale(run, 5))], bulge, out, 16));
+    appendMesh(mesh, tube([vAdd(at, vScale(out, 3)), vAdd(at, vScale(out, 8.2))], (t) => [t > 0.8 ? 2.1 : 3.1, t > 0.8 ? 2.1 : 3.1], run, 12));
+  };
+  clamp(link.from, alongFrom); clamp(link.to, alongTo);
+  // the bar: out of the side of each clamp, up over the middle
+  const rise = Math.min(14, 5 + length * 0.12), a = vAdd(link.from, vAdd(vScale(across, 4.5), vScale(out, 1.5))), b = vAdd(link.to, vAdd(vScale(across, -4.5), vScale(out, 1.5)));
+  const top = vAdd(vLerp(a, b, 0.5), vScale(out, rise));
+  appendMesh(mesh, tube(arcThrough(a, top, b, 18), () => [r, r], out, 12));
+  // the sleeve at the top of the arch, with its own set screw
+  if (length > 22) {
+    appendMesh(mesh, tube([vAdd(top, vScale(across, -4.5)), vAdd(top, vScale(across, 4.5))], (t) => { const k = 3.3 - 0.5 * Math.abs(2 * t - 1) ** 4; return [k, k]; }, out, 14));
+    appendMesh(mesh, tube([vAdd(top, vScale(out, 2)), vAdd(top, vScale(out, 5.4))], (t) => [t > 0.75 ? 1.5 : 2.2, t > 0.75 ? 1.5 : 2.2], across, 10));
   }
   return mesh;
 }

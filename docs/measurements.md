@@ -150,6 +150,20 @@ typical figures. Everything else is used as it came.
   back, steepest around T5 to T8.
 - A simple sacrum. The spreadsheet only gives its overall width and depth.
 
+## Rules of thumb for rods
+
+Three numbers in `src/core/place.js` (`ROD_RULES`) keep a sketch from doing what no rod could.
+They are rules of thumb chosen so that the drawing looks right. They were not taken from a
+source and they say nothing about what a real rod can bear.
+
+- A rod turns a corner of at most 45 degrees at any one screw or hook. The usual spots on the
+  lowest lumbar levels and the sacrum already ask for about 41 degrees, which set this number.
+- Two screws or hooks on one rod sit at least 11 mm apart.
+- A bend put into a rod by hand, between two parts, is at most 32 degrees.
+
+A part that is dragged stops where one of these would be broken, and a bend stops the same
+way. The switch "Keep rods believable" in the Hardware tab turns the rules off.
+
 ## Used as it came
 
 Body heights (except the wedge of L1 and L5), canal width and depth, pedicle heights, disc heights, the side curves

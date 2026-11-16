@@ -40,6 +40,9 @@ export function isHeld(spine, id) {
 const isPoint = (p) => Array.isArray(p) && p.length === 3 && p.every((v) => typeof v === 'number' && isFinite(v));
 
 // Check a spine file. Returns a list of problems in plain words. An empty list means it is fine.
+// the names a colour of hardware can have in a file (the colours themselves are in hardware.js)
+const COLOR_NAMES = ['titanium', 'steel', 'black', 'white', 'blue', 'sky', 'teal', 'green', 'lime', 'gold', 'orange', 'red', 'pink', 'purple'];
+
 export function validateSpine(spine) {
   const problems = [];
   if (!spine || typeof spine !== 'object') return ['This is not a spine file.'];
@@ -61,10 +64,17 @@ export function validateSpine(spine) {
     if (!Array.isArray(pair) || pair.length !== 2 || !pair.every((id) => LEVEL_ORDER.includes(id))) problems.push('A fused stretch is not written as [top, bottom].');
   }
   const hw = spine.hardware || {};
-  for (const r of hw.rods || []) if (!Array.isArray(r.points) || r.points.length < 2 || !r.points.every(isPoint)) problems.push('A rod has no usable path.');
+  for (const r of hw.rods || []) {
+    if (!Array.isArray(r.points) || r.points.length < 2 || !r.points.every(isPoint)) problems.push('A rod has no usable path.');
+    if (r.via !== undefined && (!Array.isArray(r.via) || !r.via.every(isPoint))) problems.push('A rod has a bend the app cannot use.');
+  }
   for (const s of hw.screws || []) if (!isPoint(s.head) || !isPoint(s.tip)) problems.push('A screw at ' + (s.level || '?') + ' has no usable position.');
-  for (const h of hw.hooks || []) if (!isPoint(h.at) || !isPoint(h.tip)) problems.push('A hook at ' + (h.level || '?') + ' has no usable position.');
+  for (const h of hw.hooks || []) {
+    if (!isPoint(h.at) || !isPoint(h.tip)) problems.push('A hook at ' + (h.level || '?') + ' has no usable position.');
+    if (h.faces !== undefined && h.faces !== 'up' && h.faces !== 'down') problems.push('A hook at ' + (h.level || '?') + ' faces neither up nor down.');
+  }
   for (const c of hw.crosslinks || []) if (!isPoint(c.from) || !isPoint(c.to)) problems.push('A cross-link has no usable position.');
+  for (const [kind, color] of Object.entries(hw.colors || {})) if (!['rods', 'screws', 'hooks', 'crosslinks'].includes(kind) || !/^([a-z]+|#[0-9a-f]{6})$/i.test(color) || (color[0] !== '#' && !COLOR_NAMES.includes(color))) problems.push('The colour given for the ' + kind + ' is not one this app knows.');
   if (hw.splits !== undefined && (!Array.isArray(hw.splits) || hw.splits.some((id) => !LEVEL_ORDER.includes(id)))) problems.push('The list of places where the rods end names a vertebra that does not exist.');
   return problems;
 }

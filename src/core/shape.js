@@ -118,7 +118,7 @@ function riders(spine) {
   const add = (holder, key, level) => { if (Array.isArray(holder[key])) out.push({ holder, key, level: level || nearest(holder[key]) }); };
   for (const s of hw.screws || []) for (const k of ['head', 'entry', 'tip']) add(s, k, byId(s.level));
   for (const h of hw.hooks || []) for (const k of ['at', 'mid', 'tip']) add(h, k, byId(h.level));
-  for (const r of hw.rods || []) r.points.forEach((p, i) => add(r.points, i, null));
+  for (const r of hw.rods || []) { r.points.forEach((p, i) => add(r.points, i, null)); (r.via || []).forEach((p, i) => add(r.via, i, null)); }
   for (const c of hw.crosslinks || []) for (const k of ['from', 'to']) add(c, k, null);
   for (const m of spine.marks || []) for (const k of ['at', 'from', 'to']) add(m, k, null);
   return out;
@@ -367,6 +367,108 @@ export function setTwist(spine, rig, top, bottom, degrees) {
   const delta = (degrees - twistOf(spine, top, bottom)) / peak;
   for (let i = a; i <= b; i++) levels[i].turn = round2(clamp(levels[i].turn + delta * part(i), -90, 90));
   restack(spine, rig);
+}
+
+// Turn one vertebra and take everything above it along, as if the spine were bent in that
+// one place and stiff above it. "change" is given the vertebra and sets its tilt or turn.
+export function pivotAt(spine, rig, id, change) {
+  const levels = sortedLevels(spine), k = levels.findIndex((l) => l.id === id);
+  if (k < 0) return;
+  const before = levels.slice(0, k + 1).map(frameOf), was = before[k];
+  change(levels[k]);
+  const now = frameOf(levels[k]);
+  const carried = (v) => vAdd(vAdd(vScale(now.left, vDot(was.left, v)), vScale(now.back, vDot(was.back, v))), vScale(now.up, vDot(was.up, v)));
+  for (let i = 0; i < k; i++) {
+    const t = tiltFromFrame({ left: carried(before[i].left), back: carried(before[i].back), up: carried(before[i].up) });
+    levels[i].tilt = [round2(clamp(t.tilt[0], -80, 80)), round2(clamp(t.tilt[1], -80, 80))]; levels[i].turn = round2(t.turn);
+  }
+  restack(spine, rig, id);
+}
+
+// Give the spine the shape of a line drawn over it. The line is a list of points [across, up]
+// in millimetres, in the plane the spine is looked at: plane 0 from the back (across = to
+// the left), plane 1 from the side (across = to the back). Only the shape of the line counts,
+// not where it was drawn: it is slid sideways until it starts on the spine. From its lowest
+// point upward, each vertebra leans so that it lies along the line. Vertebrae below the
+// line keep the lean they had, and above its end the spine eases back to the lean it had.
+// A stiff block keeps its shape: it is turned as a
+// whole so that it starts and ends on the line, like a ruler laid along a curve. No joint
+// is bent further than JOINT_MOST, so a wild line still gives a spine. Returns false if the
+// line is too short to mean anything.
+//   JOINT_MOST: the most one vertebra may lean against the one below it, in degrees,
+//   sideways and front to back. Rules of thumb that only stop the absurd: the lowest joints
+//   of a normal lower back already bend about 17 degrees front to back.
+export const JOINT_MOST = [18, 26];
+export function followLine(spine, rig, plane, line) {
+  const levels = sortedLevels(spine), n = levels.length;
+  // from the bottom up, evenly spaced and smoothed, so a shaky hand does not make a shaky spine
+  const pts = line.slice().sort((p, q) => p[1] - q[1]).filter((p, i, all) => i === 0 || p[1] - all[i - 1][1] > 0.5);
+  if (pts.length < 2 || pts[pts.length - 1][1] - pts[0][1] < 30) return false;
+  const start = pts[0][1], reach = pts[pts.length - 1][1], STEP = 4;
+  let across = [];
+  for (let z = start, i = 1; z <= reach; z += STEP) {
+    while (i < pts.length - 1 && pts[i][1] < z) i++;
+    across.push(pts[i - 1][0] + ((pts[i][0] - pts[i - 1][0]) * (z - pts[i - 1][1])) / Math.max(1e-6, pts[i][1] - pts[i - 1][1]));
+  }
+  for (let pass = 0; pass < 8; pass++) across = across.map((v, i) => (i === 0 || i === across.length - 1 ? v : (across[i - 1] + 2 * v + across[i + 1]) / 4));
+  const lineAt = (z) => { const k = Math.max(0, Math.min(across.length - 1.001, (z - start) / STEP)), i = Math.floor(k); return across[i] + (across[i + 1] - across[i]) * (k - i); };
+  // the first vertebra the line reaches: the lowest one whose middle is above the start of the line
+  let first = n - 2;                                   // the bottom vertebra never leans to follow
+  while (first > 0 && levels[first].centre[2] < start) first--;
+  if (levels[first].centre[2] < start || levels[first].centre[2] > reach) return false;
+  const base = levels.map((l) => l.tilt[plane]), axis = plane === 0 ? 0 : 1, DEG = 180 / Math.PI;
+  const gapOver = (i) => (i > 0 ? (rig.joints[i - 1] || { gap: 4 }).gap : 0);
+  // the lean that puts a point "arm" away from "foot" onto the line, found in a few rounds
+  const reachLine = (foot, arm) => {
+    let z = foot[2] + arm, side = 0;
+    for (let round = 0; round < 5; round++) { side = clamp(lineAt(z) + shift - foot[axis], -0.9 * arm, 0.9 * arm); z = foot[2] + Math.sqrt(arm * arm - side * side); }
+    return { z, lean: Math.atan2(side, z - foot[2]) * DEG };
+  };
+  const blockAt = (i) => (rig.blocks || []).find((x) => i >= x.from && i <= x.to);
+  let shift = null, i = first;
+  for (; i >= 0; i--) {
+    const block = blockAt(i);
+    if (block && i !== block.to) continue;               // held by its block, which was laid along the line from its lowest vertebra
+    // the vertebra swings about the middle of the gap under it and reaches to the middle of
+    // the gap above it. Putting that upper end on the line, one vertebra after the other,
+    // lays the whole chain along the line without the vertebrae leaning to and fro.
+    const lower = levels[i + 1], j = rig.joints[i] || { gap: 4 };
+    const foot = vAdd(lower.centre, vScale(frameOf(lower).up, lower.size[2] / 2 + j.gap / 2));
+    if (shift === null) shift = foot[axis] - lineAt(foot[2]);
+    let lean;
+    if (block) {
+      // a stiff block: the straight line from its foot to its upper end is what is laid on the line
+      const top = levels[block.from], end = vAdd(top.centre, vScale(frameOf(top).up, top.size[2] / 2 + gapOver(block.from) / 2));
+      const across = end[axis] - foot[axis], up = end[2] - foot[2], arm = Math.hypot(across, up), now = Math.atan2(across, up) * DEG;
+      if (foot[2] + 20 > reach) break;
+      // (a block that sticks out past the end of the line is pointed at that end)
+      const want = foot[2] + up > reach + 12 ? Math.atan2(lineAt(reach) + shift - foot[axis], reach - foot[2]) * DEG : reachLine(foot, arm).lean;
+      lean = levels[i].tilt[plane] + want - now;
+    } else {
+      const arm = j.gap / 2 + levels[i].size[2] + gapOver(i) / 2, on = reachLine(foot, arm);
+      if (on.z > reach + arm / 2) break;
+      // a vertebra that starts beside the line (above a block, or after a joint that was held back) closes
+      // half of the distance and leaves the rest to the next one, so the spine eases back onto the line
+      const miss = lineAt(foot[2]) + shift - foot[axis];
+      lean = Math.abs(miss) > 0.5 ? reachLine([foot[0] + (axis === 0 ? miss / 2 : 0), foot[1] + (axis === 1 ? miss / 2 : 0), foot[2]], arm).lean : on.lean;
+    }
+    const under = lower.tilt[plane];
+    levels[i].tilt[plane] = round2(clamp(clamp(lean, under - JOINT_MOST[plane], under + JOINT_MOST[plane]), -80, 80));
+    restack(spine, rig);
+  }
+  // Above the end of the line the spine eases back to the lean it had: each vertebra keeps
+  // half of the change of the one below it, so there is no sharp corner where the line stops.
+  for (; i >= 0; i--) {
+    const block = blockAt(i);
+    if (block && i !== block.to) continue;
+    const under = levels[i + 1].tilt[plane], more = (under - base[i + 1]) / 2;
+    if (Math.abs(more) < 0.2) break;
+    levels[i].tilt[plane] = round2(clamp(clamp(base[i] + more, under - JOINT_MOST[plane], under + JOINT_MOST[plane]), -80, 80));
+    restack(spine, rig);
+  }
+  tidy(levels);
+  restack(spine, rig);
+  return levels.some((l, i) => Math.abs(l.tilt[plane] - base[i]) > 0.2);
 }
 
 // Slide one vertebra on its own, without bending the spine: it steps sideways (toLeft) or

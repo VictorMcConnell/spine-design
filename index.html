@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#131418">
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23191a20'/%3E%3Cg fill='%23d9c39a'%3E%3Crect x='20' y='8' width='22' height='9' rx='3.5'/%3E%3Crect x='23' y='20' width='22' height='9' rx='3.5'/%3E%3Crect x='24' y='32' width='22' height='9' rx='3.5'/%3E%3Crect x='21' y='44' width='22' height='10' rx='3.5'/%3E%3C/g%3E%3C/svg%3E">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-FgV5R7NIZhTBY4b4VdDx/nR/HJ+P+aedpRrTpwGoLZY=' 'sha256-PPDdVnXPpMzYUywEMshOrum/h9KVTMGdi152b//pbRE='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6xSkIat+R4FpX5t58an7T4JDvru1uzcOIYS7tjHeoR8=' 'sha256-UK12bHCV8AFQAJyqvRG07sTrZStPIw27h3uDBxL37xA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <style>
 :root { --bg: #131418; --panel: #1c1e24; --ink: #eceae5; --muted: #a3a2aa; --line: #32343c; --accent: #9aa7ff; }
 * { box-sizing: border-box; }
@@ -115,6 +115,30 @@ input[type="color"] { width: 34px; height: 26px; padding: 0; border: 1px solid v
 #sheet tr.picked td:first-child button { color: #ffc84d; }
 #sheet button[data-col] { touch-action: none; }
 .note { margin: 6px 0; padding: 6px 9px; border-left: 3px solid #d2b55a; background: rgba(210, 181, 90, 0.09); border-radius: 0 6px 6px 0; color: var(--ink); }
+/* a boxed group of controls, big choices, colour swatches */
+.box { margin: 10px 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255, 255, 255, 0.025); }
+.box h3 { margin-top: 0; }
+.check.strong { margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: rgba(170, 180, 255, 0.12); border: 1px solid rgba(170, 180, 255, 0.4); color: var(--ink); font-weight: 600; }
+.choices { display: grid; gap: 5px; margin: 6px 0; }
+.choices button { display: block; text-align: left; padding: 7px 10px; line-height: 1.3; }
+.choices button strong { display: block; }
+.choices button span { font-size: 12px; color: var(--muted); }
+.choices button[aria-pressed="true"] { border-color: var(--accent); background: #30345a; }
+.sideRow { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 6px; margin: 6px 0; }
+.sideRow .seg { margin: 0; }
+.seg.four button { padding: 6px 2px; font-size: 12px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin: 6px 0; }
+.swatches > span { flex: 0 0 100%; font-size: 12.5px; color: var(--muted); }
+.swatch { width: 17px; height: 17px; padding: 0; border-radius: 50%; border: 2px solid transparent; outline: 1px solid rgba(255, 255, 255, 0.25); cursor: pointer; }
+.swatch[aria-pressed="true"] { border-color: #fff; outline: 2px solid var(--accent); }
+.swatch.none { width: auto; height: auto; border-radius: 6px; padding: 2px 7px; font-size: 12px; outline: 0; border: 1px solid var(--line); }
+details#sheetFold { margin: 10px 0; }
+details#sheetFold summary { cursor: pointer; padding: 6px 0; color: var(--ink); font-weight: 600; }
+/* the pad to draw the curve on: dots over the view, and the line being drawn */
+#drawPad { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(170, 180, 255, 0.5) 1.2px, transparent 1.6px); background-size: 26px 26px; }
+#drawSvg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#drawLine { stroke: #ffc84d; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+#stage.drawing canvas { cursor: crosshair; }
 /* the note shown when the app opens */
 #welcome { width: min(560px, 94vw); max-height: 92vh; overflow: auto; padding: 20px 22px; border: 1px solid var(--line); border-radius: 14px; background: #1b1c22; color: var(--ink); box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55); }
 #welcome::backdrop { background: rgba(8, 9, 12, 0.72); }
@@ -183,7 +207,7 @@ button.plain:hover { color: var(--ink); background: none; }
 <div id="lookMenu" class="menu" hidden>
   <div class="row looks" id="backs" aria-label="Background"><span class="small">Background</span><button data-back="dark">Dark</button><button data-back="grey">Grey</button><button data-back="light">Light</button><button data-back="white">White</button><button data-back="black">Black</button></div>
   <div class="row looks" id="shades" aria-label="Shading"><span class="small">Shading</span><button data-shade="soft">Soft light</button><button data-shade="clay">Clay</button><button data-shade="drawing">Drawing</button><button data-shade="xray">X-ray</button><button data-shade="plain">Plain</button></div>
-  <div class="pair colors"><label>Bone <input type="color" id="colBone"></label><label>Discs <input type="color" id="colDisc"></label><label>Hardware <input type="color" id="colHw"></label></div>
+  <div class="pair colors"><label>Bone <input type="color" id="colBone"></label><label>Discs <input type="color" id="colDisc"></label></div>
   <label class="check"><input type="checkbox" id="hwByLevel">Give the hardware of each level its own colour</label>
   <label class="check"><input type="checkbox" id="simpleBones">Simple bone shapes (drawn from measurements)</label>
   <label class="slider">Bone <input id="boneOpacity" type="range" min="10" max="100" value="100"><span>see-through to solid</span></label>
@@ -194,6 +218,7 @@ button.plain:hover { color: var(--ink); background: none; }
     <canvas id="view" aria-label="3D view of the spine"></canvas>
     <div id="labels" aria-hidden="true"></div>
     <div id="tags" aria-hidden="true"></div>
+    <div id="drawPad" hidden aria-hidden="true"><svg id="drawSvg"><polyline id="drawLine" fill="none"></polyline></svg></div>
     <p id="hint">Drag to turn. Scroll or pinch to zoom. Right-drag or two fingers to move.</p>
   </section>
   <aside id="panel">
@@ -208,13 +233,18 @@ button.plain:hover { color: var(--ink); background: none; }
     </nav>
 
     <section data-pane="shape">
-      <div class="seg" role="group" aria-label="What to change">
-        <button data-mode="one" aria-pressed="true">One vertebra</button><button data-mode="stretch" aria-pressed="false">A stretch of the spine</button>
+      <div class="seg" role="group" aria-label="How to shape it">
+        <button data-mode="draw" aria-pressed="true">Draw it</button><button data-mode="one" aria-pressed="false">One vertebra</button><button data-mode="stretch" aria-pressed="false">A stretch</button>
       </div>
 
-      <label class="check" id="stiffRow" hidden><input type="checkbox" id="stiffOn" checked>Fused parts stay stiff</label>
+      <div id="drawBox">
+        <p class="small">The quick way. Draw the curve of your spine with the mouse or a finger, and the spine takes that shape.</p>
+        <div class="row"><button data-draw="0" aria-pressed="false">Draw it from the back</button><button data-draw="1" aria-pressed="false">Draw it from the side</button></div>
+        <p class="say" id="drawSay">Press one of the two buttons. Then drag a line over the spine, from the pelvis up or from the neck down.</p>
+        <div class="row"><button id="drawDone" hidden>Done drawing</button></div>
+      </div>
 
-      <div id="oneBox">
+      <div id="oneBox" hidden>
         <p class="small" id="oneHint">Click a vertebra to pick it.</p>
         <div id="oneOn" hidden>
           <div class="row between"><button id="boneUp">One up</button><strong id="boneName"></strong><button id="boneDown">One down</button></div>
@@ -227,6 +257,7 @@ button.plain:hover { color: var(--ink); background: none; }
           </div>
           <div data-toolpane="turn" hidden>
             <p class="small">Drag a ring on the model, or set the angles.</p>
+            <label class="check"><input type="checkbox" id="pivotOn" checked>The spine above turns with it</label>
             <label class="dial">Top leans to the left<span><input type="range" id="angF" min="-60" max="60" step="0.5"><input type="number" id="angFn" min="-60" max="60" step="0.5">°</span></label>
             <label class="dial">Top leans back<span><input type="range" id="angS" min="-60" max="60" step="0.5"><input type="number" id="angSn" min="-60" max="60" step="0.5">°</span></label>
             <label class="dial">Front turned to the left<span><input type="range" id="angT" min="-60" max="60" step="0.5"><input type="number" id="angTn" min="-60" max="60" step="0.5">°</span></label>
@@ -262,6 +293,14 @@ button.plain:hover { color: var(--ink); background: none; }
           </div>
         </div>
       </div>
+      <div class="box" id="fusedBox">
+        <h3>Fused part</h3>
+        <p class="small" id="fusedNone">Is part of this spine fused? Say where, and that part keeps its shape while you bend the rest.</p>
+        <ul id="fusedList" class="picks"></ul>
+        <label class="pair">From<select id="fuseTop"></select>to<select id="fuseBottom"></select><button id="fuseAdd">Add</button></label>
+        <label class="check strong" id="stiffRow" hidden><input type="checkbox" id="stiffOn" checked>Fused parts stay stiff</label>
+        <p class="small" id="stiffSay" hidden></p>
+      </div>
       <div class="row"><button id="straighten">Take out everything sideways</button></div>
     </section>
 
@@ -270,6 +309,54 @@ button.plain:hover { color: var(--ink); background: none; }
         <button data-hw="easy" aria-pressed="true">The easy way</button><button data-hw="hand" aria-pressed="false">By hand</button>
       </div>
       <div id="easyBox">
+        <p class="small">Three questions, and the hardware is put on for you. You can change any vertebra afterwards.</p>
+        <h3>1. Where is the fusion?</h3>
+        <label class="pair">From<select id="gTop"></select>to<select id="gBottom"></select></label>
+        <div class="row"><button id="gPick" aria-pressed="false">Or click its two ends on the model</button></div>
+        <h3>2. What holds it?</h3>
+        <div class="choices" role="group" aria-label="What holds it">
+          <button data-gkind="screws" aria-pressed="true"><strong>Screws</strong><span>on both sides of every vertebra</span></button>
+          <button data-gkind="hooksTop" aria-pressed="false"><strong>Hooks on top, screws below</strong><span>two pairs of hooks at the top, gripping like a claw</span></button>
+          <button data-gkind="alternate" aria-pressed="false"><strong>Screws on every other vertebra</strong><span>fewer screws on the same rods</span></button>
+          <button data-gkind="hooks" aria-pressed="false"><strong>Hooks</strong><span>on both sides of every vertebra</span></button>
+        </div>
+        <h3>3. Cross-links between the rods</h3>
+        <div class="seg" role="group" aria-label="Cross-links"><button data-glinks="0" aria-pressed="false">None</button><button data-glinks="1" aria-pressed="true">One</button><button data-glinks="2" aria-pressed="false">Two</button></div>
+        <div class="row"><button id="gBuild" class="main">Put it on the spine</button></div>
+        <p class="say" id="gSay">To change one vertebra afterwards, click it on the model.</p>
+        <div id="gCard" class="box" hidden>
+          <div class="row between"><button id="gUp">One up</button><strong id="gName"></strong><button id="gDown">One down</button></div>
+          <div class="sideRow"><span>Left</span><div class="seg four" data-gside="left"><button data-gput="screw">Screw</button><button data-gput="hook-down">Hook down</button><button data-gput="hook-up">Hook up</button><button data-gput="">Nothing</button></div></div>
+          <div class="sideRow"><span>Right</span><div class="seg four" data-gside="right"><button data-gput="screw">Screw</button><button data-gput="hook-down">Hook down</button><button data-gput="hook-up">Hook up</button><button data-gput="">Nothing</button></div></div>
+          <label class="check" id="gFusedRow"><input type="checkbox" id="gFused">Fused to the vertebra below</label>
+          <label class="check" id="gLinkRow"><input type="checkbox" id="gLink">Cross-link below it</label>
+        </div>
+      </div>
+      <div id="handBox" hidden>
+        <p class="small">Full control. Pick a part and click the spine to add it. Drag a part to move it over the bone. Drag a rod between two parts to bend it. Click a part or a rod for its settings.</p>
+        <div class="row" id="inventory">
+          <button data-part="screw" aria-pressed="false">Screw</button><button data-part="hook" aria-pressed="false">Hook</button><button data-part="crosslink" aria-pressed="false">Cross-link</button>
+        </div>
+        <label class="check"><input type="checkbox" id="snapOn" checked>Snap to the usual spots</label>
+        <label class="check"><input type="checkbox" id="inLineOn" checked>Keep rods believable: a part stops where its rod could not follow</label>
+        <div id="pieceBox" class="box" hidden>
+          <h3 id="pieceName"></h3>
+          <p class="small">Drag it over the bone, or drag the arrows for small steps.</p>
+          <label class="dial" id="pieceThickRow">Thickness<span><input type="range" id="pieceThick" min="3.5" max="8" step="0.5"><input type="number" id="pieceThickN" min="3.5" max="8" step="0.5"> mm</span></label>
+          <label class="dial" id="pieceLongRow">Length<span><input type="range" id="pieceLong" min="10" max="65"><input type="number" id="pieceLongN" min="10" max="65"> mm</span></label>
+          <div class="seg" id="pieceFaceRow" role="group" aria-label="Which way the hook points"><button data-face="down">Points down</button><button data-face="up">Points up</button></div>
+          <div class="swatches" id="pieceColors" aria-label="Colour of this part"></div>
+          <div class="row"><button id="pieceRemove">Remove this part</button></div>
+        </div>
+        <div id="rodBox" class="box" hidden>
+          <h3 id="rodName"></h3>
+          <p class="small">Drag the rod between two parts to bend it there. Drag a knob to move that bend.</p>
+          <label class="dial">Thickness<span><input type="range" id="rodThick" min="3.5" max="7" step="0.5"><input type="number" id="rodThickN" min="3.5" max="7" step="0.5"> mm</span></label>
+          <div class="swatches" id="rodColors" aria-label="Colour of this rod"></div>
+          <div class="row"><button id="rodUnbend">Take the bends out</button></div>
+        </div>
+        <details id="sheetFold">
+          <summary>All levels at a glance</summary>
         <p class="small">Each row is a vertebra, top to bottom. Tap a cell to change it, or drag down a column to fill several. The model follows as you go.</p>
         <table id="sheet" aria-label="Hardware and fusion, level by level">
           <thead><tr><th>Level</th><th>Left</th><th>Right</th><th title="This vertebra is fused to the one below">Fused below</th><th title="A cross-link between the rods, below this vertebra">Link below</th><th title="The rods stop below this vertebra and start again further down">Rods end</th></tr></thead>
@@ -284,24 +371,14 @@ button.plain:hover { color: var(--ink); background: none; }
           <option value="clear">nothing</option>
         </select></label>
         <label class="check"><input type="checkbox" id="fillFused" checked>and mark that stretch as fused</label>
-        <div class="row"><button id="hwFill">Fill</button><button id="hwClear">Remove all hardware</button></div>
+        <div class="row"><button id="hwFill">Fill</button></div>
+        </details>
+        <div class="row"><button id="rodsFit">Redraw the rods through the parts</button></div>
       </div>
-      <div id="handBox" hidden>
-        <p class="small">Pick a part, then click the spine. Blue dots show the usual spots. Click a part that is there to move, resize or remove it.</p>
-        <div class="row" id="inventory">
-          <button data-part="screw" aria-pressed="false">Screw</button><button data-part="hook" aria-pressed="false">Hook</button><button data-part="crosslink" aria-pressed="false">Cross-link</button>
-        </div>
-        <label class="check"><input type="checkbox" id="snapOn" checked>Snap to the usual spots</label>
-        <div id="pieceBox" hidden>
-          <h3 id="pieceName"></h3>
-          <p class="small">Drag the arrows on the model to move it.</p>
-          <label class="dial" id="pieceThickRow">Thickness<span><input type="range" id="pieceThick" min="3.5" max="8" step="0.5"><input type="number" id="pieceThickN" min="3.5" max="8" step="0.5"> mm</span></label>
-          <label class="dial" id="pieceLongRow">Length<span><input type="range" id="pieceLong" min="10" max="65"><input type="number" id="pieceLongN" min="10" max="65"> mm</span></label>
-          <label class="pair" id="pieceColorRow">Colour<select id="pieceColor"></select></label>
-          <div class="row"><button id="pieceRemove">Remove this part</button></div>
-        </div>
-      </div>
-      <div class="row"><button id="rodsFit">Redraw the rods through the parts</button></div>
+      <h3>Colours</h3>
+      <div class="row looks" id="paletteRow" aria-label="Sets of colours"><span class="small">Sets</span><button data-palette="classic">Classic</button><button data-palette="metal">Metal</button><button data-palette="bright">Bright</button><button data-palette="bold">Bold</button></div>
+      <div id="kindColors"></div>
+      <div class="row"><button id="hwClear">Remove all hardware</button></div>
     </section>
 
     <section data-pane="marks" hidden>
@@ -341,8 +418,8 @@ button.plain:hover { color: var(--ink); background: none; }
   </dialog>
 </main>
 <script>
-window.SPINE_BUILD = {"version":"0.3.0","source":""};
-window.SPINE_EXAMPLES = {"average.spine.json":{"schema":1,"name":"Average spine","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A typical adult spine with no sideways curve, stacked from general measurements. Start here and shape it into your own.","levels":[{"id":"C1","centre":[0,-71,605.5],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,592.8],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,575.3],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,558.6],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,541.6],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,524.5],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,507.5],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,489.8],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[0,-39.9,469.4],"tilt":[0,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[0,-30.9,447.8],"tilt":[0,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[0,-23,424.9],"tilt":[0,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[0,-16.5,400.7],"tilt":[0,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[0,-11.3,375.4],"tilt":[0,-9.8],"turn":0,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[0,-7.6,349],"tilt":[0,-6.2],"turn":0,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[0,-5.5,321.7],"tilt":[0,-2.5],"turn":0,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[0,-5.1,293.4],"tilt":[0,1.1],"turn":0,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[0,-6.6,264.4],"tilt":[0,4.7],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[0,-10,234.8],"tilt":[0,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[0,-15.5,204.6],"tilt":[0,12],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[0,-21.4,174.3],"tilt":[0,10],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[0,-26.6,140.2],"tilt":[0,7.5],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[0,-29.8,104.7],"tilt":[0,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-chest-45.spine.json":{"schema":1,"name":"One curve in the chest","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A single sideways curve of 45° from T5 to T12, bowing to the right, with the bodies turned. A place to start if your curve is in the upper back.","levels":[{"id":"C1","centre":[0,-70.5,594.9],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-71.8,582.2],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-72.8,564.7],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-71.9,548],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.2,531],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-64.6,513.9],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58,496.9],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.3,479.2],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-1.1,-39.4,458.8],"tilt":[6.1,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-4.6,-30.5,437.5],"tilt":[12.2,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-10.7,-22.9,415.4],"tilt":[18.29,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-19.6,-16.8,392.8],"tilt":[24.39,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-28.7,-12,369.2],"tilt":[17.96,-9.8],"turn":-2.97,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-35.4,-8.4,343.7],"tilt":[11.53,-6.2],"turn":-9.65,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-39.3,-6.3,316.7],"tilt":[5.11,-2.5],"turn":-15,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-40.2,-5.9,288.5],"tilt":[-1.32,1.1],"turn":-15,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-37.9,-7.4,259.6],"tilt":[-7.75,4.7],"turn":-9.65,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-32.3,-10.7,230.6],"tilt":[-14.18,8.4],"turn":-2.97,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-23.3,-15.9,201.8],"tilt":[-20.61,12],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[-13.9,-21.5,173],"tilt":[-15.46,10],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[-6.3,-26.6,139.8],"tilt":[-10.3,7.5],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[-1.6,-29.8,104.6],"tilt":[-5.15,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-double.spine.json":{"schema":1,"name":"Two curves, an S shape","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A curve of 50° to the right in the chest and one of 40° to the left in the lower back.","levels":[{"id":"C1","centre":[0,-71,592.2],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,579.5],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,562],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,545.3],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,528.3],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,511.2],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,494.2],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,476.5],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-1,-39.9,456.1],"tilt":[5.28,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-4,-31,434.7],"tilt":[10.58,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-9.3,-23.3,412.4],"tilt":[15.86,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-17,-17.1,389.4],"tilt":[21.15,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-24.7,-12.2,365.3],"tilt":[14.63,-9.8],"turn":-4,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-29.9,-8.6,339.4],"tilt":[8.13,-6.2],"turn":-12,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-31.5,-6.5,312.2],"tilt":[-1.14,-2.5],"turn":-16,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-28.6,-6.1,284.1],"tilt":[-10.43,1.1],"turn":-12,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-21.1,-7.5,256.2],"tilt":[-19.68,4.7],"turn":-4,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-8.9,-10.6,229.3],"tilt":[-28.96,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[3.6,-15.6,201.8],"tilt":[-20.06,12],"turn":4.58,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[11.7,-21.3,172.7],"tilt":[-11.16,10],"turn":12,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[15.6,-26.4,138.9],"tilt":[-2.27,7.5],"turn":12,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[14.2,-29.6,103.5],"tilt":[6.62,3],"turn":4.58,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[8.6,-28.6,67.4],"tilt":[11.04,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[2.5,-19.3,31.6],"tilt":[8.29,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-lower-back-35.spine.json":{"schema":1,"name":"One curve in the lower back","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A single sideways curve of 35° from T11 to L4, bowing to the left.","levels":[{"id":"C1","centre":[0,-70.7,599.3],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72,586.6],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73,569.1],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.1,552.4],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.4,535.4],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-64.8,518.3],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.2,501.3],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.5,483.6],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[0,-39.6,463.2],"tilt":[0,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[0,-30.6,441.6],"tilt":[0,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[0,-22.7,418.7],"tilt":[0,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[0,-16.2,394.5],"tilt":[0,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[0,-11,369.2],"tilt":[0,-9.8],"turn":0,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[0,-7.3,342.8],"tilt":[0,-6.2],"turn":0,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[1,-5.2,315.5],"tilt":[-4.28,-2.5],"turn":0,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[4.2,-4.8,287.4],"tilt":[-8.57,1.1],"turn":0,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[9.6,-6.3,258.9],"tilt":[-12.85,4.7],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[17.3,-9.6,230.3],"tilt":[-17.13,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[24.4,-15,201],"tilt":[-10.13,12],"turn":4.58,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[27.9,-20.8,170.9],"tilt":[-3.13,10],"turn":12,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[27.6,-26,136.9],"tilt":[3.87,7.5],"turn":12,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[23,-29.2,101.8],"tilt":[10.87,3],"turn":4.58,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[13.9,-28.3,66.4],"tilt":[17.87,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[4.1,-19.2,31.4],"tilt":[13.4,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"fusion-rods-t4-l4.spine.json":{"schema":1,"name":"Fusion with rods and screws","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"What is left of an S shape after surgery: fused from T4 to L4, with hooks on the top two levels, screws below, two rods and two cross-links. Made up, not a real person.","levels":[{"id":"C1","centre":[0,-71,603.3],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,590.6],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,573.1],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,556.4],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,539.4],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,522.3],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,505.3],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,487.6],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-0.5,-39.9,467.2],"tilt":[2.56,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-2,-30.9,445.6],"tilt":[5.1,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-4.6,-23,422.8],"tilt":[7.66,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-8.4,-16.6,398.9],"tilt":[10.21,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-12.2,-11.5,373.9],"tilt":[7.06,-9.8],"turn":-2,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-14.7,-7.8,347.6],"tilt":[3.92,-6.2],"turn":-6,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-15.6,-5.7,320.3],"tilt":[-0.02,-2.5],"turn":-8,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-14.6,-5.3,292],"tilt":[-3.95,1.1],"turn":-6,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-11.6,-6.8,263.2],"tilt":[-7.86,4.7],"turn":-2,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-6.5,-10.1,234],"tilt":[-11.81,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-1.2,-15.5,204.3],"tilt":[-8.37,12],"turn":1.91,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[2.3,-21.4,174.2],"tilt":[-4.94,10],"turn":5,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[4.2,-26.6,140.2],"tilt":[-1.51,7.5],"turn":5,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[4.1,-29.8,104.7],"tilt":[1.92,3],"turn":1.91,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[2.5,-28.8,68.1],"tilt":[3.19,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0.7,-19.4,31.8],"tilt":[2.39,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[["T4","L4"]],"hardware":{"rods":[{"id":"right","side":"right","diameter":5.5,"points":[[-15,5.8,450.7],[-15.5,6.8,448],[-16.5,9,442.4],[-17.4,10.9,437.7],[-18.7,13.2,431.8],[-19.9,15.7,425.3],[-20.9,18.1,418.6],[-21.7,20.4,411.7],[-22.3,22.8,404.3],[-22.8,25,396.9],[-23.2,26.8,389.6],[-23.5,27.9,382.7],[-23.7,28.5,376],[-23.9,29,369.2],[-24.1,29.8,362],[-24.3,30.8,355.9],[-24.4,32,349.7],[-24.6,33.3,343.2],[-24.7,34.5,336.8],[-24.9,35.4,330.3],[-25.2,36,323.9],[-25.5,36.5,317.5],[-25.8,36.8,311],[-26,36.9,304.5],[-26.1,36.9,297.8],[-26,36.6,290.9],[-25.8,36,283.8],[-25.4,35.3,276.6],[-25.1,34.6,269.4],[-24.8,34.1,262.5],[-24.5,33.9,255.8],[-24.3,33.8,249.4],[-24,33.8,243],[-23.7,33.8,236.5],[-23.4,33.7,229.9],[-23.1,33.6,222.9],[-22.7,33.5,215.7],[-22.4,33.3,208.5],[-22.1,32.9,201.5],[-21.8,32.1,194.9],[-21.5,30.3,187.5],[-21.3,27.7,180.8],[-21.2,25.2,174.1],[-21.3,23.4,167.2],[-21.6,22.6,159.8],[-22.2,22.5,152.1],[-22.7,22.5,144.4],[-23.2,22,136.8],[-23.4,20.7,129.3],[-23.6,19,122],[-23.8,17.4,114.5],[-24.1,16.1,107],[-24.7,15.4,98.8],[-25.6,15.1,90.1],[-26.4,15,82.1],[-27,14.8,75.8],[-27.6,14.5,69.4],[-27.8,14.4,66.8]],"auto":true,"source":"typical"},{"id":"left","side":"left","diameter":5.5,"points":[[11.3,6.6,447.4],[11.1,7.5,444.7],[10.6,9.6,438.9],[10.3,11.5,433.8],[9.8,13.9,427.3],[9.3,16.4,420.3],[8.6,18.7,413.4],[7.6,20.8,406.7],[6.3,22.9,399.8],[5.1,24.8,392.9],[4.2,26.1,386.1],[3.9,26.7,379.5],[3.8,26.7,373.1],[4,26.6,366.6],[4.1,26.9,359.8],[4.2,27.8,352.6],[4.4,29,345.2],[4.6,30.3,337.6],[4.7,31.3,330.1],[4.7,32.1,322.7],[4.6,32.8,315.3],[4.5,33.3,307.8],[4.4,33.7,300],[4.2,33.8,293.5],[3.8,33.7,286.7],[3.5,33.5,279.8],[3.3,33.3,273],[3.6,33.3,266.5],[4.6,33.5,258.9],[6,33.7,251.8],[7.7,34,244.5],[9.4,34.2,236.7],[10.8,34.3,229.7],[12.5,34.5,222.2],[14.1,34.6,214.6],[15.5,34.5,207.1],[16.6,34,200.1],[17.3,32.6,192.2],[17.4,30.6,184.8],[17.5,28.6,177.5],[17.9,27.1,170],[18.6,26.6,163.7],[19.5,26.6,157.2],[20.5,26.7,150.6],[21.6,26.7,144],[22.7,26.1,137.5],[24,24.8,131],[25.4,23,124.6],[26.9,21.1,118.1],[28.3,19.2,111.7],[29.4,17.8,105.2],[30.3,16.9,98.3],[31,16.2,91],[31.5,15.7,83.9],[32,15.3,77.5],[32.4,15,72.5],[33,14.4,66],[33.2,14.2,63.6]],"auto":true,"source":"typical"}],"screws":[{"level":"T6","side":"right","rod":"right","head":[-23.2,26.8,389.6],"entry":[-22.4,18,388],"tip":[-19.6,-11.4,382.6],"diameter":4,"source":"typical"},{"level":"T6","side":"left","rod":"left","head":[4.2,26.1,386.1],"entry":[2.6,17.4,384.8],"tip":[-2.9,-11.8,380.5],"diameter":4,"source":"typical"},{"level":"T7","side":"right","rod":"right","head":[-24.1,29.8,362],"entry":[-23.8,20.9,361],"tip":[-22.6,-18.7,356.6],"diameter":4.5,"source":"typical"},{"level":"T7","side":"left","rod":"left","head":[4.1,26.9,359.8],"entry":[1.9,18.2,359],"tip":[-7.8,-20.2,355.5],"diameter":4.5,"source":"typical"},{"level":"T8","side":"right","rod":"right","head":[-24.9,35.4,330.3],"entry":[-24.9,26.4,329.9],"tip":[-24.9,-13.5,328.2],"diameter":4.5,"source":"typical"},{"level":"T8","side":"left","rod":"left","head":[4.7,31.3,330.1],"entry":[2.3,22.6,329.7],"tip":[-8.8,-15.8,328.1],"diameter":4.5,"source":"typical"},{"level":"T9","side":"right","rod":"right","head":[-26.1,36.9,297.8],"entry":[-25.8,27.9,298],"tip":[-24.4,-12,298.9],"diameter":5,"source":"typical"},{"level":"T9","side":"left","rod":"left","head":[4.4,33.7,300],"entry":[2.2,25,300],"tip":[-7.5,-13.8,300.1],"diameter":5,"source":"typical"},{"level":"T10","side":"right","rod":"right","head":[-24.8,34.1,262.5],"entry":[-23.9,25.2,263.3],"tip":[-20,-14.4,267.1],"diameter":5.5,"source":"typical"},{"level":"T10","side":"left","rod":"left","head":[3.6,33.3,266.5],"entry":[2,24.5,267],"tip":[-5.1,-14.8,269.2],"diameter":5.5,"source":"typical"},{"level":"T11","side":"right","rod":"right","head":[-23.4,33.7,229.9],"entry":[-22.3,24.9,231.4],"tip":[-17.5,-14.2,238.2],"diameter":5.5,"source":"typical"},{"level":"T11","side":"left","rod":"left","head":[9.4,34.2,236.7],"entry":[8,25.4,237.7],"tip":[2,-13.9,242.2],"diameter":5.5,"source":"typical"},{"level":"T12","side":"right","rod":"right","head":[-21.8,32.1,194.9],"entry":[-20.3,23.5,196.9],"tip":[-14.1,-15,206],"diameter":5.5,"source":"typical"},{"level":"T12","side":"left","rod":"left","head":[16.6,34,200.1],"entry":[15.5,25.2,201.8],"tip":[10.7,-13.8,209.4],"diameter":5.5,"source":"typical"},{"level":"L1","side":"right","rod":"right","head":[-21.3,23.4,167.2],"entry":[-18.8,15,168.9],"tip":[-6,-27.3,177.5],"diameter":6.5,"source":"typical"},{"level":"L1","side":"left","rod":"left","head":[17.9,27.1,170],"entry":[16.8,18.3,171.4],"tip":[11,-25.7,178.7],"diameter":6.5,"source":"typical"},{"level":"L2","side":"right","rod":"right","head":[-23.2,22,136.8],"entry":[-20.1,13.6,138],"tip":[-4.8,-28.3,143.9],"diameter":7,"source":"typical"},{"level":"L2","side":"left","rod":"left","head":[22.7,26.1,137.5],"entry":[21.1,17.3,138.6],"tip":[13.2,-26.7,144.2],"diameter":7,"source":"typical"},{"level":"L3","side":"right","rod":"right","head":[-24.1,16.1,107],"entry":[-21,7.6,107.4],"tip":[-5.7,-34.6,109.1],"diameter":7.5,"source":"typical"},{"level":"L3","side":"left","rod":"left","head":[29.4,17.8,105.2],"entry":[26.9,9.2,105.7],"tip":[14.5,-34,108.4],"diameter":7.5,"source":"typical"},{"level":"L4","side":"right","rod":"right","head":[-27,14.8,75.8],"entry":[-23.8,6.5,74.8],"tip":[-7.8,-35.3,69.5],"diameter":7.5,"source":"typical"},{"level":"L4","side":"left","rod":"left","head":[32.4,15,72.5],"entry":[29.1,6.6,71.8],"tip":[12.9,-35.2,68.4],"diameter":7.5,"source":"typical"}],"hooks":[{"level":"T4","side":"right","rod":"right","at":[-16.5,9,442.4],"mid":[-13.2,2.6,435.7],"tip":[-12.2,4,427.6],"kind":"lamina","source":"typical"},{"level":"T4","side":"left","rod":"left","at":[10.6,9.6,438.9],"mid":[6,3,433.3],"tip":[3,4.3,425.7],"kind":"lamina","source":"typical"},{"level":"T5","side":"right","rod":"right","at":[-20.9,18.1,418.6],"mid":[-17.8,11.3,412.2],"tip":[-17.2,12.2,404],"kind":"lamina","source":"typical"},{"level":"T5","side":"left","rod":"left","at":[8.6,18.7,413.4],"mid":[3.8,11.7,408.4],"tip":[0.4,12.6,400.9],"kind":"lamina","source":"typical"}],"crosslinks":[{"level":"T8","from":[-25.5,36.5,316.5],"to":[4.6,32.7,316.5],"source":"typical","auto":true},{"level":"T12","from":[-21.9,32.4,197.7],"to":[16.8,33.6,197.7],"source":"typical","auto":true}]},"marks":[],"pictures":[]},"fusion-t4-l2.spine.json":{"schema":1,"name":"Example: scoliosis fusion, T4 to L2, rods to L4","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"Made from the CT, MRI and X-rays of the person who started this project, shared by him as an example. Positions are his real ones. The bone shapes are drawn by the app.","levels":[{"id":"C7","centre":[61,10.4,416.3],"tilt":[34.7,-30],"turn":-2.1,"size":[33.8,17.7,17.5],"source":"measured"},{"id":"T1","centre":[46.8,19.6,403.4],"tilt":[55.7,-38.7],"turn":6.7,"size":[38.3,21.8,17.3],"source":"measured"},{"id":"T2","centre":[29.7,27.1,392.3],"tilt":[57.4,-39.7],"turn":-9.2,"size":[31.1,17.1,19.2],"source":"measured"},{"id":"T3","centre":[14.4,37.7,380.9],"tilt":[46,-33.8],"turn":-28.2,"size":[27.1,17.7,18.3],"source":"measured"},{"id":"T4","centre":[2.2,47.2,367.5],"tilt":[28.6,-23.7],"turn":-25.4,"size":[29.2,23,16.8],"source":"measured"},{"id":"T5","centre":[-4.8,52.8,349.7],"tilt":[10.7,-13],"turn":-28.8,"size":[29.1,24.1,17.6],"source":"measured"},{"id":"T6","centre":[-6.2,54.9,329.4],"tilt":[-1.5,-1],"turn":-31,"size":[29.4,25.3,18.1],"source":"measured"},{"id":"T7","centre":[-3,53.4,308.1],"tilt":[-7.9,8.9],"turn":-29.7,"size":[30.3,27,19.6],"source":"measured"},{"id":"T8","centre":[1.9,48.3,286],"tilt":[-10.8,11],"turn":-23.7,"size":[31.2,28.6,21.8],"source":"measured"},{"id":"T9","centre":[7,42.1,261.8],"tilt":[-14.6,11.9],"turn":-14.3,"size":[29.9,26.6,22.9],"source":"measured"},{"id":"T10","centre":[15.6,36.7,237.6],"tilt":[-17.5,17.9],"turn":-3.7,"size":[36.5,31.6,24.7],"source":"measured"},{"id":"T11","centre":[23.6,27.4,212.3],"tilt":[-13.1,20.5],"turn":2.6,"size":[40.2,33.5,23.8],"source":"measured"},{"id":"T12","centre":[31.5,14,189.9],"tilt":[-8.3,22.6],"turn":5.1,"size":[35.8,26,25],"source":"measured"},{"id":"L1","centre":[35.6,3.4,160.9],"tilt":[-10,21.4],"turn":10.7,"size":[40.8,27.6,31.7],"source":"measured"},{"id":"L2","centre":[36.8,-7.5,127.9],"tilt":[1.4,16.9],"turn":15,"size":[44,29.5,31.8],"source":"measured"},{"id":"L3","centre":[32.2,-15.3,94.8],"tilt":[15.7,7.9],"turn":11.7,"size":[45.1,30.9,30],"source":"measured"},{"id":"L4","centre":[20.3,-18.6,56.7],"tilt":[21,-0.2],"turn":2.1,"size":[45.8,30.9,28.7],"source":"measured"},{"id":"L5","centre":[5.8,-9.6,20.6],"tilt":[15.8,-25],"turn":-3.8,"size":[48.4,31.7,30.4],"source":"measured"},{"id":"S1","centre":[0,0,0],"tilt":[2.3,-48.3],"turn":-7.5,"size":[49.9,31.7,27],"source":"measured"}],"fused":[["T4","L2"]],"hardware":{"rods":[{"id":"right","side":"right","diameter":6,"points":[[10.9,83.2,408.5],[10.3,85,398.5],[9.8,86.9,388.5],[9.2,88.8,378.5],[8.6,90.6,368.4],[8.1,92.2,358.4],[7.7,93.5,348.4],[7.3,94.6,338.2],[6.9,95.2,328.1],[6.6,95.5,318],[6.3,95.3,307.9],[6.1,94.6,297.8],[6,93.5,287.7],[5.9,92,277.5],[5.8,89.9,267.2],[5.8,87.4,257],[5.8,84.5,246.8],[5.8,81.2,236.5],[5.9,77.6,226.3],[5.9,73.6,216],[6,69.4,205.8],[6,64.9,195.3],[6,60.3,185.1],[6,55.7,174.8],[5.9,51.1,164.5],[5.8,46.5,154.3],[5.6,42.2,144],[5.4,38.1,133.8],[5.1,34.4,123.5],[4.7,31.2,113.3],[4.2,28.5,103.1],[3.7,26.6,93],[3.1,25.4,82.9],[2.4,25.2,72.9],[1.6,26,62.8],[0.8,27.9,52.7]],"source":"measured"},{"id":"left","side":"left","diameter":6,"points":[[30.7,63.6,387.3],[31.3,67.2,378],[31.7,70.5,368.6],[32.1,73.5,359.3],[32.3,76,350],[32.5,78.2,340.7],[32.7,80,331.3],[32.9,81.4,322],[33.1,82.5,312.6],[33.3,83.2,303.2],[33.5,83.6,293.8],[33.8,83.6,284.4],[34.1,83.3,275],[34.5,82.6,265.6],[34.9,81.6,256.1],[35.3,80.3,246.6],[35.8,78.7,237.2],[36.3,76.9,227.7],[36.9,74.7,218.2],[37.4,72.4,208.6],[37.9,69.8,199.1],[38.5,67.1,189.6],[39,64.2,180.1],[39.6,61.2,170.5],[40.1,58.2,161],[40.6,55.1,151.5],[41.1,52.1,142],[41.5,49.1,132.4],[42,46.3,122.9],[42.5,43.8,113.4],[42.9,41.5,103.9],[43.4,39.6,94.4],[43.9,38.1,84.9],[44.5,37.2,75.5],[45.2,36.9,66],[46,37.4,56.5]],"source":"measured"}],"screws":[{"level":"T5","side":"right","rod":"right","head":[8.3,91.6,362.5],"entry":[4.6,86.2,361.8],"tip":[-10.1,60.3,352.3],"diameter":5,"source":"measured"},{"level":"T6","side":"right","rod":"right","head":[7.4,94.3,341.5],"entry":[2.9,89.5,341.2],"tip":[-9.8,63,331.4],"diameter":5,"source":"measured"},{"level":"T7","side":"right","rod":"right","head":[6.5,95.5,315.1],"entry":[4.4,89.2,315.2],"tip":[-7.4,61.7,310.3],"diameter":5,"source":"measured"},{"level":"T8","side":"right","rod":"right","head":[6,93.6,287.9],"entry":[3.4,87.6,288.7],"tip":[-7.1,54.1,287.4],"diameter":5,"source":"measured"},{"level":"T9","side":"right","rod":"right","head":[5.8,88.8,262.3],"entry":[6.2,82.4,263.8],"tip":[-1.9,47.6,262],"diameter":5.5,"source":"measured"},{"level":"T10","side":"right","rod":"right","head":[5.8,79.9,232.7],"entry":[6.1,73.7,234.9],"tip":[5.3,38.1,237.2],"diameter":5.5,"source":"measured"},{"level":"T11","side":"right","rod":"right","head":[6,68.8,204.4],"entry":[7,62.8,206.9],"tip":[11.4,28.3,212],"diameter":5.5,"source":"measured"},{"level":"T12","side":"right","rod":"right","head":[6,57.4,178.6],"entry":[5.6,51.4,181.4],"tip":[17.7,14.2,188.3],"diameter":5.5,"source":"measured"},{"level":"L1","side":"right","rod":"right","head":[5.7,45.2,151.2],"entry":[6.7,39.2,153.7],"tip":[22.4,2.7,162.7],"diameter":6.5,"source":"measured"},{"level":"L2","side":"right","rod":"right","head":[5.1,35.2,125.9],"entry":[7.6,29.4,127.9],"tip":[26.2,-5.2,131.4],"diameter":6.5,"source":"measured"},{"level":"L3","side":"right","rod":"right","head":[3.8,27,95.5],"entry":[5.9,20.8,96.5],"tip":[22.5,-17.2,100.4],"diameter":6.5,"source":"measured"},{"level":"L4","side":"right","rod":"right","head":[2.1,25.4,68.5],"entry":[1.4,18.8,68.1],"tip":[14.3,-21,62.2],"diameter":6.5,"source":"measured"},{"level":"T9","side":"left","rod":"left","head":[34.5,82.6,265.8],"entry":[31.9,76.6,266.2],"tip":[19.7,43.6,267.3],"diameter":5,"source":"measured"},{"level":"T10","side":"left","rod":"left","head":[35.9,78.6,236.5],"entry":[34.6,72.2,237.6],"tip":[26.7,38.1,241.4],"diameter":5.5,"source":"measured"},{"level":"T11","side":"left","rod":"left","head":[37.6,71.6,205.7],"entry":[37.1,65.2,207.4],"tip":[35.6,30.4,213.1],"diameter":5.5,"source":"measured"},{"level":"T12","side":"left","rod":"left","head":[39.2,63.2,176.8],"entry":[40.4,57,178.8],"tip":[32,14.6,187],"diameter":5.5,"source":"measured"},{"level":"L1","side":"left","rod":"left","head":[40.5,55.3,152.3],"entry":[41.5,49.2,154.4],"tip":[46.9,4.4,160.1],"diameter":5.5,"source":"measured"},{"level":"L2","side":"left","rod":"left","head":[41.9,46.8,124.4],"entry":[43,40.5,126.3],"tip":[46.7,-4.6,128.5],"diameter":6.5,"source":"measured"},{"level":"L3","side":"left","rod":"left","head":[43.2,40.2,97.7],"entry":[43.9,33.8,99],"tip":[50.6,-11.7,102.1],"diameter":6.5,"source":"measured"},{"level":"L4","side":"left","rod":"left","head":[45.3,36.9,65],"entry":[43.4,30.6,64.8],"tip":[34.9,-13.6,57.5],"diameter":6.5,"source":"measured"}],"hooks":[{"level":"T4","side":"right","rod":"right","kind":"transverse process","at":[9.8,86.7,389.8],"mid":[1.1,77.7,388],"tip":[0.8,75.4,380.8],"source":"measured"},{"level":"T4","side":"left","rod":"left","kind":"transverse process","at":[31.7,69.9,370.4],"mid":[37.2,58.9,366.3],"tip":[36.1,57.4,359.7],"source":"measured"},{"level":"T5","side":"left","rod":"left","kind":"pedicle","at":[32.3,76.4,348.5],"mid":[26.7,66.9,346.9],"tip":[22.8,64.3,350.8],"source":"measured"},{"level":"T6","side":"left","rod":"left","kind":"pedicle","at":[32.8,81,324.8],"mid":[26.3,72,324.1],"tip":[22.6,70.4,330.4],"source":"measured"},{"level":"T8","side":"left","rod":"left","kind":"transverse process","at":[33.5,83.6,295],"mid":[33.9,70.5,294.1],"tip":[37.5,68.2,287.6],"source":"measured"}],"crosslinks":[{"level":"T8","from":[0.3,93.7,277.4],"to":[39.6,81.7,278.3],"source":"measured"},{"level":"L2/L3","from":[11.4,33.6,114.1],"to":[35.9,41.3,112.2],"source":"measured"}]},"marks":[{"kind":"pain","text":"Sharp pain","at":[32.7,51.4,372],"radius":17},{"kind":"pain","text":"Ache, L2 to L5","from":[46.7,18.7,127.6],"to":[15.7,16.6,20.1],"radius":30}],"pictures":[]}};
+window.SPINE_BUILD = {"version":"0.4.0","source":""};
+window.SPINE_EXAMPLES = {"average.spine.json":{"schema":1,"name":"Average spine","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A typical adult spine with no sideways curve, stacked from general measurements. Start here and shape it into your own.","levels":[{"id":"C1","centre":[0,-71,605.5],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,592.8],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,575.3],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,558.6],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,541.6],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,524.5],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,507.5],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,489.8],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[0,-39.9,469.4],"tilt":[0,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[0,-30.9,447.8],"tilt":[0,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[0,-23,424.9],"tilt":[0,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[0,-16.5,400.7],"tilt":[0,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[0,-11.3,375.4],"tilt":[0,-9.8],"turn":0,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[0,-7.6,349],"tilt":[0,-6.2],"turn":0,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[0,-5.5,321.7],"tilt":[0,-2.5],"turn":0,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[0,-5.1,293.4],"tilt":[0,1.1],"turn":0,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[0,-6.6,264.4],"tilt":[0,4.7],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[0,-10,234.8],"tilt":[0,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[0,-15.5,204.6],"tilt":[0,12],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[0,-21.4,174.3],"tilt":[0,10],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[0,-26.6,140.2],"tilt":[0,7.5],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[0,-29.8,104.7],"tilt":[0,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-chest-45.spine.json":{"schema":1,"name":"One curve in the chest","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A single sideways curve of 45° from T5 to T12, bowing to the right, with the bodies turned. A place to start if your curve is in the upper back.","levels":[{"id":"C1","centre":[0,-70.5,594.9],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-71.8,582.2],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-72.8,564.7],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-71.9,548],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.2,531],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-64.6,513.9],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58,496.9],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.3,479.2],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-1.1,-39.4,458.8],"tilt":[6.1,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-4.6,-30.5,437.5],"tilt":[12.2,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-10.7,-22.9,415.4],"tilt":[18.29,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-19.6,-16.8,392.8],"tilt":[24.39,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-28.7,-12,369.2],"tilt":[17.96,-9.8],"turn":-2.97,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-35.4,-8.4,343.7],"tilt":[11.53,-6.2],"turn":-9.65,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-39.3,-6.3,316.7],"tilt":[5.11,-2.5],"turn":-15,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-40.2,-5.9,288.5],"tilt":[-1.32,1.1],"turn":-15,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-37.9,-7.4,259.6],"tilt":[-7.75,4.7],"turn":-9.65,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-32.3,-10.7,230.6],"tilt":[-14.18,8.4],"turn":-2.97,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-23.3,-15.9,201.8],"tilt":[-20.61,12],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[-13.9,-21.5,173],"tilt":[-15.46,10],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[-6.3,-26.6,139.8],"tilt":[-10.3,7.5],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[-1.6,-29.8,104.6],"tilt":[-5.15,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-double.spine.json":{"schema":1,"name":"Two curves, an S shape","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A curve of 50° to the right in the chest and one of 40° to the left in the lower back.","levels":[{"id":"C1","centre":[0,-71,592.2],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,579.5],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,562],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,545.3],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,528.3],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,511.2],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,494.2],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,476.5],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-1,-39.9,456.1],"tilt":[5.28,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-4,-31,434.7],"tilt":[10.58,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-9.3,-23.3,412.4],"tilt":[15.86,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-17,-17.1,389.4],"tilt":[21.15,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-24.7,-12.2,365.3],"tilt":[14.63,-9.8],"turn":-4,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-29.9,-8.6,339.4],"tilt":[8.13,-6.2],"turn":-12,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-31.5,-6.5,312.2],"tilt":[-1.14,-2.5],"turn":-16,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-28.6,-6.1,284.1],"tilt":[-10.43,1.1],"turn":-12,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-21.1,-7.5,256.2],"tilt":[-19.68,4.7],"turn":-4,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-8.9,-10.6,229.3],"tilt":[-28.96,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[3.6,-15.6,201.8],"tilt":[-20.06,12],"turn":4.58,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[11.7,-21.3,172.7],"tilt":[-11.16,10],"turn":12,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[15.6,-26.4,138.9],"tilt":[-2.27,7.5],"turn":12,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[14.2,-29.6,103.5],"tilt":[6.62,3],"turn":4.58,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[8.6,-28.6,67.4],"tilt":[11.04,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[2.5,-19.3,31.6],"tilt":[8.29,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-lower-back-35.spine.json":{"schema":1,"name":"One curve in the lower back","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A single sideways curve of 35° from T11 to L4, bowing to the left.","levels":[{"id":"C1","centre":[0,-70.7,599.3],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72,586.6],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73,569.1],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.1,552.4],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.4,535.4],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-64.8,518.3],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.2,501.3],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.5,483.6],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[0,-39.6,463.2],"tilt":[0,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[0,-30.6,441.6],"tilt":[0,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[0,-22.7,418.7],"tilt":[0,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[0,-16.2,394.5],"tilt":[0,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[0,-11,369.2],"tilt":[0,-9.8],"turn":0,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[0,-7.3,342.8],"tilt":[0,-6.2],"turn":0,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[1,-5.2,315.5],"tilt":[-4.28,-2.5],"turn":0,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[4.2,-4.8,287.4],"tilt":[-8.57,1.1],"turn":0,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[9.6,-6.3,258.9],"tilt":[-12.85,4.7],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[17.3,-9.6,230.3],"tilt":[-17.13,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[24.4,-15,201],"tilt":[-10.13,12],"turn":4.58,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[27.9,-20.8,170.9],"tilt":[-3.13,10],"turn":12,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[27.6,-26,136.9],"tilt":[3.87,7.5],"turn":12,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[23,-29.2,101.8],"tilt":[10.87,3],"turn":4.58,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[13.9,-28.3,66.4],"tilt":[17.87,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[4.1,-19.2,31.4],"tilt":[13.4,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"fusion-rods-t4-l4.spine.json":{"schema":1,"name":"Fusion with rods and screws","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"What is left of an S shape after surgery: fused from T4 to L4, with hooks on the top two levels, screws below, two rods and two cross-links. Made up, not a real person.","levels":[{"id":"C1","centre":[0,-71,603.3],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,590.6],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,573.1],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,556.4],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,539.4],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,522.3],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,505.3],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,487.6],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-0.5,-39.9,467.2],"tilt":[2.56,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-2,-30.9,445.6],"tilt":[5.1,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-4.6,-23,422.8],"tilt":[7.66,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-8.4,-16.6,398.9],"tilt":[10.21,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-12.2,-11.5,373.9],"tilt":[7.06,-9.8],"turn":-2,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-14.7,-7.8,347.6],"tilt":[3.92,-6.2],"turn":-6,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-15.6,-5.7,320.3],"tilt":[-0.02,-2.5],"turn":-8,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-14.6,-5.3,292],"tilt":[-3.95,1.1],"turn":-6,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-11.6,-6.8,263.2],"tilt":[-7.86,4.7],"turn":-2,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-6.5,-10.1,234],"tilt":[-11.81,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-1.2,-15.5,204.3],"tilt":[-8.37,12],"turn":1.91,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[2.3,-21.4,174.2],"tilt":[-4.94,10],"turn":5,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[4.2,-26.6,140.2],"tilt":[-1.51,7.5],"turn":5,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[4.1,-29.8,104.7],"tilt":[1.92,3],"turn":1.91,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[2.5,-28.8,68.1],"tilt":[3.19,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0.7,-19.4,31.8],"tilt":[2.39,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[["T4","L4"]],"hardware":{"rods":[{"id":"right","side":"right","diameter":5.5,"points":[[-15,5.8,450.7],[-15.7,7.3,446.8],[-16.5,9,442.4],[-17.3,10.5,438.5],[-18.2,12.4,433.9],[-19.2,14.3,428.9],[-20.1,16.3,423.7],[-20.9,18.1,418.6],[-21.4,19.7,414],[-21.9,21.3,409.2],[-22.3,22.9,404.3],[-22.6,24.4,399.4],[-22.9,25.7,394.5],[-23.2,26.8,389.6],[-23.5,27.7,384.1],[-23.7,28.3,378.6],[-23.8,28.7,373.2],[-24,29.1,367.6],[-24.1,29.8,362],[-24.2,30.6,356.8],[-24.4,31.6,351.6],[-24.5,32.7,346.3],[-24.6,33.7,341],[-24.7,34.7,335.6],[-24.9,35.4,330.3],[-25.1,35.9,324.9],[-25.4,36.4,319.6],[-25.6,36.7,314.2],[-25.9,36.9,308.8],[-26,36.9,303.3],[-26.1,36.9,297.8],[-26,36.7,292],[-25.9,36.2,286.1],[-25.6,35.6,280.2],[-25.3,35,274.2],[-25.1,34.5,268.3],[-24.8,34.1,262.5],[-24.6,33.9,257],[-24.3,33.8,251.6],[-24.1,33.8,246.2],[-23.9,33.8,240.8],[-23.6,33.8,235.4],[-23.4,33.7,229.9],[-23.1,33.6,224.1],[-22.8,33.6,218.1],[-22.5,33.5,212.2],[-22.3,33.3,206.3],[-22,32.9,200.5],[-21.8,32.1,194.9],[-21.6,30.7,189.1],[-21.4,28.8,183.6],[-21.3,26.7,178.2],[-21.2,24.8,172.8],[-21.3,23.4,167.2],[-21.5,22.8,162.2],[-21.8,22.5,157.2],[-22.2,22.5,152.1],[-22.6,22.5,147],[-22.9,22.4,141.9],[-23.2,22,136.8],[-23.4,21.2,131.8],[-23.5,20.2,126.9],[-23.6,19,121.9],[-23.7,17.9,117],[-23.8,16.9,112],[-24.1,16.1,107],[-24.5,15.6,101.6],[-25,15.3,96],[-25.5,15.1,90.3],[-26.1,15,84.8],[-26.6,14.9,79.9],[-27,14.8,75.8],[-27.4,14.6,71],[-27.8,14.4,66.8]],"auto":true,"source":"typical"},{"id":"left","side":"left","diameter":5.5,"points":[[11.3,6.6,447.4],[11,8,443.4],[10.6,9.6,438.9],[10.3,11.1,434.7],[10,13,429.7],[9.6,15,424.3],[9.2,16.9,418.8],[8.6,18.7,413.4],[7.8,20.4,408],[6.8,22.1,402.6],[5.8,23.7,397.1],[4.8,25.1,391.6],[4.2,26.1,386.1],[3.9,26.6,380.9],[3.8,26.7,375.7],[3.9,26.6,370.4],[4,26.6,365.2],[4.1,26.9,359.8],[4.2,27.4,354.9],[4.3,28.2,350],[4.4,29,345.1],[4.5,29.8,340.1],[4.6,30.6,335.1],[4.7,31.3,330.1],[4.7,31.8,325.1],[4.7,32.3,320.2],[4.6,32.8,315.2],[4.6,33.2,310.2],[4.5,33.5,305.1],[4.4,33.7,300],[4.2,33.8,294.5],[3.9,33.7,288.9],[3.6,33.6,283.2],[3.4,33.4,277.6],[3.3,33.3,272],[3.6,33.3,266.5],[4.2,33.4,261.5],[5,33.5,256.5],[6.1,33.7,251.7],[7.2,33.9,246.8],[8.3,34.1,241.8],[9.4,34.2,236.7],[10.4,34.3,231.6],[11.6,34.5,226.4],[12.7,34.6,221.1],[13.9,34.7,215.7],[15,34.7,210.4],[15.9,34.4,205.2],[16.6,34,200.1],[17.1,33.2,194.9],[17.3,32,189.9],[17.4,30.6,184.9],[17.4,29.2,180],[17.6,28,175.1],[17.9,27.1,170],[18.5,26.7,164.7],[19.2,26.6,159.2],[20,26.7,153.8],[20.8,26.7,148.3],[21.8,26.6,142.9],[22.7,26.1,137.5],[23.8,25.1,132.1],[24.9,23.7,126.7],[26.2,22.1,121.4],[27.4,20.4,116],[28.5,19,110.6],[29.4,17.8,105.2],[30.1,17,99.6],[30.7,16.4,93.6],[31.2,16,87.6],[31.7,15.6,81.9],[32.1,15.3,76.8],[32.4,15,72.5],[32.8,14.6,67.7],[33.2,14.2,63.6]],"auto":true,"source":"typical"}],"screws":[{"level":"T6","side":"right","rod":"right","head":[-23.2,26.8,389.6],"entry":[-22.4,18,388],"tip":[-19.6,-11.4,382.6],"diameter":4,"source":"typical"},{"level":"T6","side":"left","rod":"left","head":[4.2,26.1,386.1],"entry":[2.6,17.4,384.8],"tip":[-2.9,-11.8,380.5],"diameter":4,"source":"typical"},{"level":"T7","side":"right","rod":"right","head":[-24.1,29.8,362],"entry":[-23.8,20.9,361],"tip":[-22.6,-18.7,356.6],"diameter":4.5,"source":"typical"},{"level":"T7","side":"left","rod":"left","head":[4.1,26.9,359.8],"entry":[1.9,18.2,359],"tip":[-7.8,-20.2,355.5],"diameter":4.5,"source":"typical"},{"level":"T8","side":"right","rod":"right","head":[-24.9,35.4,330.3],"entry":[-24.9,26.4,329.9],"tip":[-24.9,-13.5,328.2],"diameter":4.5,"source":"typical"},{"level":"T8","side":"left","rod":"left","head":[4.7,31.3,330.1],"entry":[2.3,22.6,329.7],"tip":[-8.8,-15.8,328.1],"diameter":4.5,"source":"typical"},{"level":"T9","side":"right","rod":"right","head":[-26.1,36.9,297.8],"entry":[-25.8,27.9,298],"tip":[-24.4,-12,298.9],"diameter":5,"source":"typical"},{"level":"T9","side":"left","rod":"left","head":[4.4,33.7,300],"entry":[2.2,25,300],"tip":[-7.5,-13.8,300.1],"diameter":5,"source":"typical"},{"level":"T10","side":"right","rod":"right","head":[-24.8,34.1,262.5],"entry":[-23.9,25.2,263.3],"tip":[-20,-14.4,267.1],"diameter":5.5,"source":"typical"},{"level":"T10","side":"left","rod":"left","head":[3.6,33.3,266.5],"entry":[2,24.5,267],"tip":[-5.1,-14.8,269.2],"diameter":5.5,"source":"typical"},{"level":"T11","side":"right","rod":"right","head":[-23.4,33.7,229.9],"entry":[-22.3,24.9,231.4],"tip":[-17.5,-14.2,238.2],"diameter":5.5,"source":"typical"},{"level":"T11","side":"left","rod":"left","head":[9.4,34.2,236.7],"entry":[8,25.4,237.7],"tip":[2,-13.9,242.2],"diameter":5.5,"source":"typical"},{"level":"T12","side":"right","rod":"right","head":[-21.8,32.1,194.9],"entry":[-20.3,23.5,196.9],"tip":[-14.1,-15,206],"diameter":5.5,"source":"typical"},{"level":"T12","side":"left","rod":"left","head":[16.6,34,200.1],"entry":[15.5,25.2,201.8],"tip":[10.7,-13.8,209.4],"diameter":5.5,"source":"typical"},{"level":"L1","side":"right","rod":"right","head":[-21.3,23.4,167.2],"entry":[-18.8,15,168.9],"tip":[-6,-27.3,177.5],"diameter":6.5,"source":"typical"},{"level":"L1","side":"left","rod":"left","head":[17.9,27.1,170],"entry":[16.8,18.3,171.4],"tip":[11,-25.7,178.7],"diameter":6.5,"source":"typical"},{"level":"L2","side":"right","rod":"right","head":[-23.2,22,136.8],"entry":[-20.1,13.6,138],"tip":[-4.8,-28.3,143.9],"diameter":7,"source":"typical"},{"level":"L2","side":"left","rod":"left","head":[22.7,26.1,137.5],"entry":[21.1,17.3,138.6],"tip":[13.2,-26.7,144.2],"diameter":7,"source":"typical"},{"level":"L3","side":"right","rod":"right","head":[-24.1,16.1,107],"entry":[-21,7.6,107.4],"tip":[-5.7,-34.6,109.1],"diameter":7.5,"source":"typical"},{"level":"L3","side":"left","rod":"left","head":[29.4,17.8,105.2],"entry":[26.9,9.2,105.7],"tip":[14.5,-34,108.4],"diameter":7.5,"source":"typical"},{"level":"L4","side":"right","rod":"right","head":[-27,14.8,75.8],"entry":[-23.8,6.5,74.8],"tip":[-7.8,-35.3,69.5],"diameter":7.5,"source":"typical"},{"level":"L4","side":"left","rod":"left","head":[32.4,15,72.5],"entry":[29.1,6.6,71.8],"tip":[12.9,-35.2,68.4],"diameter":7.5,"source":"typical"}],"hooks":[{"level":"T4","side":"right","rod":"right","at":[-16.5,9,442.4],"mid":[-15.5,9.4,430.8],"tip":[-14.7,2,424.2],"kind":"lamina","faces":"down","source":"typical"},{"level":"T4","side":"left","rod":"left","at":[10.6,9.6,438.9],"mid":[6.7,9.9,427.9],"tip":[4.5,2.4,421.7],"kind":"lamina","faces":"down","source":"typical"},{"level":"T5","side":"right","rod":"right","at":[-20.9,18.1,418.6],"mid":[-16.6,12.7,428],"tip":[-14.6,3.1,429.5],"kind":"lamina","faces":"up","source":"typical"},{"level":"T5","side":"left","rod":"left","at":[8.6,18.7,413.4],"mid":[8,13.2,423.7],"tip":[7,3.5,425.7],"kind":"lamina","faces":"up","source":"typical"}],"crosslinks":[{"level":"T8","from":[-25.5,36.6,316.5],"to":[4.6,32.7,316.5],"source":"typical","auto":true},{"level":"T12","from":[-21.9,32.5,197.7],"to":[16.8,33.6,197.7],"source":"typical","auto":true}]},"marks":[],"pictures":[]},"fusion-t4-l2.spine.json":{"schema":1,"name":"Example: scoliosis fusion, T4 to L2, rods to L4","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"Made from the CT, MRI and X-rays of the person who started this project, shared by him as an example. Positions are his real ones. The bone shapes are drawn by the app.","levels":[{"id":"C7","centre":[61,10.4,416.3],"tilt":[34.7,-30],"turn":-2.1,"size":[33.8,17.7,17.5],"source":"measured"},{"id":"T1","centre":[46.8,19.6,403.4],"tilt":[55.7,-38.7],"turn":6.7,"size":[38.3,21.8,17.3],"source":"measured"},{"id":"T2","centre":[29.7,27.1,392.3],"tilt":[57.4,-39.7],"turn":-9.2,"size":[31.1,17.1,19.2],"source":"measured"},{"id":"T3","centre":[14.4,37.7,380.9],"tilt":[46,-33.8],"turn":-28.2,"size":[27.1,17.7,18.3],"source":"measured"},{"id":"T4","centre":[2.2,47.2,367.5],"tilt":[28.6,-23.7],"turn":-25.4,"size":[29.2,23,16.8],"source":"measured"},{"id":"T5","centre":[-4.8,52.8,349.7],"tilt":[10.7,-13],"turn":-28.8,"size":[29.1,24.1,17.6],"source":"measured"},{"id":"T6","centre":[-6.2,54.9,329.4],"tilt":[-1.5,-1],"turn":-31,"size":[29.4,25.3,18.1],"source":"measured"},{"id":"T7","centre":[-3,53.4,308.1],"tilt":[-7.9,8.9],"turn":-29.7,"size":[30.3,27,19.6],"source":"measured"},{"id":"T8","centre":[1.9,48.3,286],"tilt":[-10.8,11],"turn":-23.7,"size":[31.2,28.6,21.8],"source":"measured"},{"id":"T9","centre":[7,42.1,261.8],"tilt":[-14.6,11.9],"turn":-14.3,"size":[29.9,26.6,22.9],"source":"measured"},{"id":"T10","centre":[15.6,36.7,237.6],"tilt":[-17.5,17.9],"turn":-3.7,"size":[36.5,31.6,24.7],"source":"measured"},{"id":"T11","centre":[23.6,27.4,212.3],"tilt":[-13.1,20.5],"turn":2.6,"size":[40.2,33.5,23.8],"source":"measured"},{"id":"T12","centre":[31.5,14,189.9],"tilt":[-8.3,22.6],"turn":5.1,"size":[35.8,26,25],"source":"measured"},{"id":"L1","centre":[35.6,3.4,160.9],"tilt":[-10,21.4],"turn":10.7,"size":[40.8,27.6,31.7],"source":"measured"},{"id":"L2","centre":[36.8,-7.5,127.9],"tilt":[1.4,16.9],"turn":15,"size":[44,29.5,31.8],"source":"measured"},{"id":"L3","centre":[32.2,-15.3,94.8],"tilt":[15.7,7.9],"turn":11.7,"size":[45.1,30.9,30],"source":"measured"},{"id":"L4","centre":[20.3,-18.6,56.7],"tilt":[21,-0.2],"turn":2.1,"size":[45.8,30.9,28.7],"source":"measured"},{"id":"L5","centre":[5.8,-9.6,20.6],"tilt":[15.8,-25],"turn":-3.8,"size":[48.4,31.7,30.4],"source":"measured"},{"id":"S1","centre":[0,0,0],"tilt":[2.3,-48.3],"turn":-7.5,"size":[49.9,31.7,27],"source":"measured"}],"fused":[["T4","L2"]],"hardware":{"rods":[{"id":"right","side":"right","diameter":6,"points":[[10.9,83.2,408.5],[10.3,85,398.5],[9.8,86.9,388.5],[9.2,88.8,378.5],[8.6,90.6,368.4],[8.1,92.2,358.4],[7.7,93.5,348.4],[7.3,94.6,338.2],[6.9,95.2,328.1],[6.6,95.5,318],[6.3,95.3,307.9],[6.1,94.6,297.8],[6,93.5,287.7],[5.9,92,277.5],[5.8,89.9,267.2],[5.8,87.4,257],[5.8,84.5,246.8],[5.8,81.2,236.5],[5.9,77.6,226.3],[5.9,73.6,216],[6,69.4,205.8],[6,64.9,195.3],[6,60.3,185.1],[6,55.7,174.8],[5.9,51.1,164.5],[5.8,46.5,154.3],[5.6,42.2,144],[5.4,38.1,133.8],[5.1,34.4,123.5],[4.7,31.2,113.3],[4.2,28.5,103.1],[3.7,26.6,93],[3.1,25.4,82.9],[2.4,25.2,72.9],[1.6,26,62.8],[0.8,27.9,52.7]],"source":"measured"},{"id":"left","side":"left","diameter":6,"points":[[30.7,63.6,387.3],[31.3,67.2,378],[31.7,70.5,368.6],[32.1,73.5,359.3],[32.3,76,350],[32.5,78.2,340.7],[32.7,80,331.3],[32.9,81.4,322],[33.1,82.5,312.6],[33.3,83.2,303.2],[33.5,83.6,293.8],[33.8,83.6,284.4],[34.1,83.3,275],[34.5,82.6,265.6],[34.9,81.6,256.1],[35.3,80.3,246.6],[35.8,78.7,237.2],[36.3,76.9,227.7],[36.9,74.7,218.2],[37.4,72.4,208.6],[37.9,69.8,199.1],[38.5,67.1,189.6],[39,64.2,180.1],[39.6,61.2,170.5],[40.1,58.2,161],[40.6,55.1,151.5],[41.1,52.1,142],[41.5,49.1,132.4],[42,46.3,122.9],[42.5,43.8,113.4],[42.9,41.5,103.9],[43.4,39.6,94.4],[43.9,38.1,84.9],[44.5,37.2,75.5],[45.2,36.9,66],[46,37.4,56.5]],"source":"measured"}],"screws":[{"level":"T5","side":"right","rod":"right","head":[8.3,91.6,362.5],"entry":[4.6,86.2,361.8],"tip":[-10.1,60.3,352.3],"diameter":5,"source":"measured"},{"level":"T6","side":"right","rod":"right","head":[7.4,94.3,341.5],"entry":[2.9,89.5,341.2],"tip":[-9.8,63,331.4],"diameter":5,"source":"measured"},{"level":"T7","side":"right","rod":"right","head":[6.5,95.5,315.1],"entry":[4.4,89.2,315.2],"tip":[-7.4,61.7,310.3],"diameter":5,"source":"measured"},{"level":"T8","side":"right","rod":"right","head":[6,93.6,287.9],"entry":[3.4,87.6,288.7],"tip":[-7.1,54.1,287.4],"diameter":5,"source":"measured"},{"level":"T9","side":"right","rod":"right","head":[5.8,88.8,262.3],"entry":[6.2,82.4,263.8],"tip":[-1.9,47.6,262],"diameter":5.5,"source":"measured"},{"level":"T10","side":"right","rod":"right","head":[5.8,79.9,232.7],"entry":[6.1,73.7,234.9],"tip":[5.3,38.1,237.2],"diameter":5.5,"source":"measured"},{"level":"T11","side":"right","rod":"right","head":[6,68.8,204.4],"entry":[7,62.8,206.9],"tip":[11.4,28.3,212],"diameter":5.5,"source":"measured"},{"level":"T12","side":"right","rod":"right","head":[6,57.4,178.6],"entry":[5.6,51.4,181.4],"tip":[17.7,14.2,188.3],"diameter":5.5,"source":"measured"},{"level":"L1","side":"right","rod":"right","head":[5.7,45.2,151.2],"entry":[6.7,39.2,153.7],"tip":[22.4,2.7,162.7],"diameter":6.5,"source":"measured"},{"level":"L2","side":"right","rod":"right","head":[5.1,35.2,125.9],"entry":[7.6,29.4,127.9],"tip":[26.2,-5.2,131.4],"diameter":6.5,"source":"measured"},{"level":"L3","side":"right","rod":"right","head":[3.8,27,95.5],"entry":[5.9,20.8,96.5],"tip":[22.5,-17.2,100.4],"diameter":6.5,"source":"measured"},{"level":"L4","side":"right","rod":"right","head":[2.1,25.4,68.5],"entry":[1.4,18.8,68.1],"tip":[14.3,-21,62.2],"diameter":6.5,"source":"measured"},{"level":"T9","side":"left","rod":"left","head":[34.5,82.6,265.8],"entry":[31.9,76.6,266.2],"tip":[19.7,43.6,267.3],"diameter":5,"source":"measured"},{"level":"T10","side":"left","rod":"left","head":[35.9,78.6,236.5],"entry":[34.6,72.2,237.6],"tip":[26.7,38.1,241.4],"diameter":5.5,"source":"measured"},{"level":"T11","side":"left","rod":"left","head":[37.6,71.6,205.7],"entry":[37.1,65.2,207.4],"tip":[35.6,30.4,213.1],"diameter":5.5,"source":"measured"},{"level":"T12","side":"left","rod":"left","head":[39.2,63.2,176.8],"entry":[40.4,57,178.8],"tip":[32,14.6,187],"diameter":5.5,"source":"measured"},{"level":"L1","side":"left","rod":"left","head":[40.5,55.3,152.3],"entry":[41.5,49.2,154.4],"tip":[46.9,4.4,160.1],"diameter":5.5,"source":"measured"},{"level":"L2","side":"left","rod":"left","head":[41.9,46.8,124.4],"entry":[43,40.5,126.3],"tip":[46.7,-4.6,128.5],"diameter":6.5,"source":"measured"},{"level":"L3","side":"left","rod":"left","head":[43.2,40.2,97.7],"entry":[43.9,33.8,99],"tip":[50.6,-11.7,102.1],"diameter":6.5,"source":"measured"},{"level":"L4","side":"left","rod":"left","head":[45.3,36.9,65],"entry":[43.4,30.6,64.8],"tip":[34.9,-13.6,57.5],"diameter":6.5,"source":"measured"}],"hooks":[{"level":"T4","side":"right","rod":"right","kind":"transverse process","at":[9.8,86.7,389.8],"mid":[1.1,77.7,388],"tip":[0.8,75.4,380.8],"source":"measured"},{"level":"T4","side":"left","rod":"left","kind":"transverse process","at":[31.7,69.9,370.4],"mid":[37.2,58.9,366.3],"tip":[36.1,57.4,359.7],"source":"measured"},{"level":"T5","side":"left","rod":"left","kind":"pedicle","at":[32.3,76.4,348.5],"mid":[26.7,66.9,346.9],"tip":[22.8,64.3,350.8],"source":"measured"},{"level":"T6","side":"left","rod":"left","kind":"pedicle","at":[32.8,81,324.8],"mid":[26.3,72,324.1],"tip":[22.6,70.4,330.4],"source":"measured"},{"level":"T8","side":"left","rod":"left","kind":"transverse process","at":[33.5,83.6,295],"mid":[33.9,70.5,294.1],"tip":[37.5,68.2,287.6],"source":"measured"}],"crosslinks":[{"level":"T8","from":[0.3,93.7,277.4],"to":[39.6,81.7,278.3],"source":"measured"},{"level":"L2/L3","from":[11.4,33.6,114.1],"to":[35.9,41.3,112.2],"source":"measured"}]},"marks":[{"kind":"pain","text":"Sharp pain","at":[32.7,51.4,372],"radius":17},{"kind":"pain","text":"Ache, L2 to L5","from":[46.7,18.7,127.6],"to":[15.7,16.6,20.1],"radius":30}],"pictures":[]}};
 window.SPINE_EXAMPLE_LIST = [
  {
   "file": "average.spine.json",
@@ -999,6 +1076,9 @@ function isHeld(spine, id) {
 const isPoint = (p) => Array.isArray(p) && p.length === 3 && p.every((v) => typeof v === 'number' && isFinite(v));
 
 // Check a spine file. Returns a list of problems in plain words. An empty list means it is fine.
+// the names a colour of hardware can have in a file (the colours themselves are in hardware.js)
+const COLOR_NAMES = ['titanium', 'steel', 'black', 'white', 'blue', 'sky', 'teal', 'green', 'lime', 'gold', 'orange', 'red', 'pink', 'purple'];
+
 function validateSpine(spine) {
   const problems = [];
   if (!spine || typeof spine !== 'object') return ['This is not a spine file.'];
@@ -1020,10 +1100,17 @@ function validateSpine(spine) {
     if (!Array.isArray(pair) || pair.length !== 2 || !pair.every((id) => LEVEL_ORDER.includes(id))) problems.push('A fused stretch is not written as [top, bottom].');
   }
   const hw = spine.hardware || {};
-  for (const r of hw.rods || []) if (!Array.isArray(r.points) || r.points.length < 2 || !r.points.every(isPoint)) problems.push('A rod has no usable path.');
+  for (const r of hw.rods || []) {
+    if (!Array.isArray(r.points) || r.points.length < 2 || !r.points.every(isPoint)) problems.push('A rod has no usable path.');
+    if (r.via !== undefined && (!Array.isArray(r.via) || !r.via.every(isPoint))) problems.push('A rod has a bend the app cannot use.');
+  }
   for (const s of hw.screws || []) if (!isPoint(s.head) || !isPoint(s.tip)) problems.push('A screw at ' + (s.level || '?') + ' has no usable position.');
-  for (const h of hw.hooks || []) if (!isPoint(h.at) || !isPoint(h.tip)) problems.push('A hook at ' + (h.level || '?') + ' has no usable position.');
+  for (const h of hw.hooks || []) {
+    if (!isPoint(h.at) || !isPoint(h.tip)) problems.push('A hook at ' + (h.level || '?') + ' has no usable position.');
+    if (h.faces !== undefined && h.faces !== 'up' && h.faces !== 'down') problems.push('A hook at ' + (h.level || '?') + ' faces neither up nor down.');
+  }
   for (const c of hw.crosslinks || []) if (!isPoint(c.from) || !isPoint(c.to)) problems.push('A cross-link has no usable position.');
+  for (const [kind, color] of Object.entries(hw.colors || {})) if (!['rods', 'screws', 'hooks', 'crosslinks'].includes(kind) || !/^([a-z]+|#[0-9a-f]{6})$/i.test(color) || (color[0] !== '#' && !COLOR_NAMES.includes(color))) problems.push('The colour given for the ' + kind + ' is not one this app knows.');
   if (hw.splits !== undefined && (!Array.isArray(hw.splits) || hw.splits.some((id) => !LEVEL_ORDER.includes(id)))) problems.push('The list of places where the rods end names a vertebra that does not exist.');
   return problems;
 }
@@ -1542,11 +1629,28 @@ function screwLean(levelId) {
   return low >= 0 ? 12 + 3 * low : high >= 0 ? 22 - 5 * high : levelId[0] === 'C' ? 20 : 8;
 }
 
-// Colours a person can pick for a piece of hardware.
+// Colours a person can pick for a piece of hardware. The first two are what the metal looks
+// like. The rest are there to tell parts apart at a glance and to make a point in a picture.
 const FINISHES = {
-  titanium: [0.6, 0.62, 0.66], steel: [0.78, 0.8, 0.83], blue: [0.16, 0.33, 0.72], green: [0.2, 0.55, 0.3],
-  purple: [0.5, 0.36, 0.78], gold: [0.8, 0.62, 0.2],
+  titanium: [0.6, 0.62, 0.66], steel: [0.78, 0.8, 0.83], black: [0.13, 0.14, 0.16], white: [0.93, 0.93, 0.9],
+  blue: [0.16, 0.33, 0.72], sky: [0.3, 0.62, 0.92], teal: [0.1, 0.6, 0.6], green: [0.2, 0.55, 0.3], lime: [0.58, 0.78, 0.2],
+  gold: [0.8, 0.62, 0.2], orange: [0.93, 0.5, 0.13], red: [0.82, 0.2, 0.18], pink: [0.92, 0.42, 0.66], purple: [0.5, 0.36, 0.78],
 };
+// The colour each kind of part has when nothing else is chosen.
+const USUAL_FINISH = { rods: 'blue', screws: 'titanium', hooks: 'purple', crosslinks: 'gold' };
+// Sets of colours that go together, for one click.
+const PALETTES = {
+  metal: { rods: 'steel', screws: 'titanium', hooks: 'titanium', crosslinks: 'steel' },
+  classic: { rods: 'blue', screws: 'titanium', hooks: 'purple', crosslinks: 'gold' },
+  bright: { rods: 'sky', screws: 'orange', hooks: 'pink', crosslinks: 'lime' },
+  bold: { rods: 'red', screws: 'white', hooks: 'gold', crosslinks: 'black' },
+};
+// A colour from its name in FINISHES or from '#rrggbb', as [red, green, blue] from 0 to 1.
+function colorOf(name) {
+  if (FINISHES[name]) return FINISHES[name];
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(name || '');
+  return m ? [parseInt(m[1], 16) / 255, parseInt(m[2], 16) / 255, parseInt(m[3], 16) / 255] : null;
+}
 
 function rodMesh(rod) {
   const r = (rod.diameter || HARDWARE.rodDiameter) / 2;
@@ -1631,14 +1735,17 @@ function screwShaft(screw) {
 
 // A hook: a head on the rod and a curved blade that catches the bone.
 function hookMesh(hook, rodDirection = [0, 0, 1], rodDiameter = HARDWARE.rodDiameter) {
-  const mid = hook.mid || vLerp(hook.at, hook.tip, 0.5);
-  return appendMesh(headMesh(hook.at, vSub(hook.at, mid), rodDirection, rodDiameter), hookBlade(hook, rodDirection));
+  return appendMesh(headMesh(hook.at, hookOut(hook, rodDirection), rodDirection, rodDiameter), hookBlade(hook, rodDirection));
+}
+// Which way the head of a hook opens: away from where its blade ends, square to the rod.
+function hookOut(hook, rodDirection) {
+  const away = vSub(hook.at, hook.tip), along = vUnit(rodDirection), flat = vSub(away, vScale(along, vDot(away, along)));
+  return vLen(flat) > 1 ? flat : vSub(hook.at, hook.mid || vLerp(hook.at, hook.tip, 0.5));
 }
 
 // The same hook in two pieces for the screen: the blade, and the head as a placed shape.
 function hookParts(hook, rodDirection = [0, 0, 1], rodDiameter = HARDWARE.rodDiameter) {
-  const mid = hook.mid || vLerp(hook.at, hook.tip, 0.5);
-  return { blade: hookBlade(hook, rodDirection), head: headPlaced(hook.at, vSub(hook.at, mid), rodDirection, rodDiameter) };
+  return { blade: hookBlade(hook, rodDirection), head: headPlaced(hook.at, hookOut(hook, rodDirection), rodDirection, rodDiameter) };
 }
 
 function hookBlade(hook, rodDirection) {
@@ -1650,12 +1757,32 @@ function hookBlade(hook, rodDirection) {
   return tube(arcThrough(foot, mid, hook.tip, 14), (t) => [kind.width / 2, kind.thick * (1.25 - 0.45 * t)], across, 12);
 }
 
-// A cross-link: a bar between the two rods with a clamp at each end.
-function crosslinkMesh(link) {
-  const r = HARDWARE.crosslinkBar / 2, along = vUnit(vSub(link.to, link.from));
-  const mesh = tube([link.from, link.to], () => [r, r], [0, 0, 1], 12);
-  for (const end of [link.from, link.to]) {
-    appendMesh(mesh, tube([vSub(end, vScale(along, 4.5)), vAdd(end, vScale(along, 4.5))], (t) => { const k = 4.6 - 1.2 * Math.abs(2 * t - 1) ** 3; return [k, k]; }, [0, 0, 1], 14));
+// A cross-link: a clamp on each rod, closed by a small set screw, and a bar between the two
+// that arches away from the spine to clear the bone in the middle. The bar is in two halves
+// that slide in a sleeve at the top of the arch, which is how these are set to length.
+//   alongFrom, alongTo: which way each rod runs where the cross-link grips it
+//   away: the direction pointing away from the spine (to the back of the person)
+function crosslinkMesh(link, alongFrom = [0, 0, 1], alongTo = [0, 0, 1], away = [0, 1, 0]) {
+  const span = vSub(link.to, link.from), length = vLen(span), across = vUnit(span), r = HARDWARE.crosslinkBar / 2;
+  // "out" is straight away from the spine as seen from the bar
+  let out = vSub(away, vScale(across, vDot(away, across)));
+  out = vLen(out) > 0.1 ? vUnit(out) : vUnit(vCross(across, [0, 0, 1]));
+  const mesh = { positions: [], indices: [] };
+  const clamp = (at, along) => {
+    const run = vUnit(along), bulge = (t) => { const k = 5.3 - 0.9 * Math.abs(2 * t - 1) ** 4; return [k, k]; };
+    // the body round the rod, and the boss with the set screw on its back
+    appendMesh(mesh, tube([vSub(at, vScale(run, 5)), vAdd(at, vScale(run, 5))], bulge, out, 16));
+    appendMesh(mesh, tube([vAdd(at, vScale(out, 3)), vAdd(at, vScale(out, 8.2))], (t) => [t > 0.8 ? 2.1 : 3.1, t > 0.8 ? 2.1 : 3.1], run, 12));
+  };
+  clamp(link.from, alongFrom); clamp(link.to, alongTo);
+  // the bar: out of the side of each clamp, up over the middle
+  const rise = Math.min(14, 5 + length * 0.12), a = vAdd(link.from, vAdd(vScale(across, 4.5), vScale(out, 1.5))), b = vAdd(link.to, vAdd(vScale(across, -4.5), vScale(out, 1.5)));
+  const top = vAdd(vLerp(a, b, 0.5), vScale(out, rise));
+  appendMesh(mesh, tube(arcThrough(a, top, b, 18), () => [r, r], out, 12));
+  // the sleeve at the top of the arch, with its own set screw
+  if (length > 22) {
+    appendMesh(mesh, tube([vAdd(top, vScale(across, -4.5)), vAdd(top, vScale(across, 4.5))], (t) => { const k = 3.3 - 0.5 * Math.abs(2 * t - 1) ** 4; return [k, k]; }, out, 14));
+    appendMesh(mesh, tube([vAdd(top, vScale(out, 2)), vAdd(top, vScale(out, 5.4))], (t) => [t > 0.75 ? 1.5 : 2.2, t > 0.75 ? 1.5 : 2.2], across, 10));
   }
   return mesh;
 }
@@ -1673,7 +1800,7 @@ function rodDirectionNear(rods, point) {
   return best || [0, 0, 1];
 }
 
-return { HARDWARE, TYPICAL, screwRegion, typicalScrew, screwLean, FINISHES, rodMesh, screwMesh, screwParts, hookMesh, hookParts, crosslinkMesh, rodDirectionNear };
+return { HARDWARE, TYPICAL, screwRegion, typicalScrew, screwLean, FINISHES, USUAL_FINISH, PALETTES, colorOf, rodMesh, screwMesh, screwParts, hookMesh, hookParts, crosslinkMesh, rodDirectionNear };
 })();
 
 // ---- view/scene.js
@@ -1682,7 +1809,7 @@ M.m4 = (() => {
 
 const { sortedLevels, isFused } = M.m5;
 const { vertebraShape, levelFrame, discMesh } = M.m6;
-const { rodMesh, screwParts, hookParts, crosslinkMesh, rodDirectionNear, FINISHES, HARDWARE } = M.m10;
+const { rodMesh, screwParts, hookParts, crosslinkMesh, rodDirectionNear, colorOf, USUAL_FINISH, HARDWARE } = M.m10;
 const { tube, ball } = M.m2;
 
 const COLORS = { bone: [0.78, 0.68, 0.52], disc: [0.33, 0.52, 0.74], fusedDisc: [0.6, 0.56, 0.48], picked: [1, 0.78, 0.3], between: [0.93, 0.8, 0.55], spot: [0.45, 0.75, 1], note: [0.55, 0.8, 1] };
@@ -1694,7 +1821,6 @@ const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[
 function painColor(strength) {
   return mix([1, 0.82, 0.25], [0.95, 0.16, 0.14], (Math.max(1, Math.min(10, strength || 5)) - 1) / 9);
 }
-const DEFAULT_FINISH = { rods: 'blue', screws: 'titanium', hooks: 'purple', crosslinks: 'blue' };
 
 // Parts the person placed by guessing are drawn paler than parts taken from a scan or an X-ray.
 const sourceOpacity = (source) => (source === 'guessed' ? 0.5 : 1);
@@ -1711,6 +1837,7 @@ const SPOT = ball([0, 0, 0], 3.2);
 //   extras: for the builder and the look of things
 //     picked: { kind: 'level', id, mates } | { kind: 'stretch', top, bottom } | { kind: 'screws' ..., index }
 //             (mates: the vertebrae that move with the picked one, drawn paler)
+//     stiff:  ids of the vertebrae that are held stiff in a fused block, drawn in a cooler colour
 //             the selected piece is drawn in a warm colour (a stretch: its two ends, and paler between)
 //     spots:  [points] the usual spots for a new part, drawn as small dots
 //     look:   { bone, disc, hardware: [r, g, b] or null, byLevel: true to colour hardware by level }
@@ -1720,12 +1847,15 @@ function buildScene(spine, detail, extras = {}) {
   const order = levels.map((l) => l.id), used = order.filter((id) => [...(hw.screws || []), ...(hw.hooks || [])].some((p) => p.level === id));
   const finish = (group, piece, index) => {
     if (picked.kind === group && picked.index === index) return COLORS.picked;
-    if (piece.color && FINISHES[piece.color]) return FINISHES[piece.color];
+    // the piece's own colour, then the viewer's choices, then the colour the spine file gives this kind of part
+    if (piece.color && colorOf(piece.color)) return colorOf(piece.color);
     if (look.byLevel && piece.level && used.includes(piece.level)) return BY_LEVEL[Math.round((used.indexOf(piece.level) * (BY_LEVEL.length - 1)) / Math.max(1, used.length - 1))];
-    return look.hardware || FINISHES[DEFAULT_FINISH[group]];
+    return look.hardware || colorOf((hw.colors || {})[group]) || colorOf(USUAL_FINISH[group]);
   };
   const a = order.indexOf(picked.top), b = order.indexOf(picked.bottom);
-  const boneColor = (id, i) => ((picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : look.bone || COLORS.bone);
+  // (stiff vertebrae: the bone colour pulled toward a cool steel blue, so a fused block reads as one piece)
+  const stiff = extras.stiff || [], cool = (c) => c.map((v, k) => v * 0.5 + [0.5, 0.66, 0.86][k] * 0.5);
+  const boneColor = (id, i) => ((picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : stiff.includes(id) ? cool(look.bone || COLORS.bone) : look.bone || COLORS.bone);
   // a vertebra is drawn once in its own axes and then placed, so bending the spine only moves it
   levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level) }));
   for (let i = 0; i < levels.length - 1; i++) {
@@ -1744,7 +1874,11 @@ function buildScene(spine, detail, extras = {}) {
     const parts = hookParts(hook, rodDirectionNear(hw.rods, hook.at), rodSize(hook.rod)), color = finish('hooks', hook, i), opacity = sourceOpacity(hook.source);
     add('hooks', parts.blade, color, opacity); add('hooks', parts.head.mesh, color, opacity, { matrix: parts.head.matrix });
   });
-  (hw.crosslinks || []).forEach((link, i) => add('crosslinks', crosslinkMesh(link), finish('crosslinks', link, i), sourceOpacity(link.source)));
+  // a cross-link arches away from the spine: backward as the vertebra next to it sees it
+  const backAt = (p) => levelFrame(levels.reduce((best, l) => (Math.hypot(p[0] - l.centre[0], p[1] - l.centre[1], p[2] - l.centre[2]) < Math.hypot(p[0] - best.centre[0], p[1] - best.centre[1], p[2] - best.centre[2]) ? l : best))).back;
+  (hw.crosslinks || []).forEach((link, i) => add('crosslinks', crosslinkMesh(link, rodDirectionNear(hw.rods, link.from), rodDirectionNear(hw.rods, link.to), backAt(link.from)), finish('crosslinks', link, i), sourceOpacity(link.source)));
+  // the bends put into a rod by hand show as small knobs while that rod is picked
+  if (picked.kind === 'rods' && (hw.rods || [])[picked.index]) for (const p of hw.rods[picked.index].via || []) add('spots', SPOT, COLORS.picked, 1, { matrix: new Float32Array([1.15, 0, 0, 0, 0, 1.15, 0, 0, 0, 0, 1.15, 0, p[0], p[1], p[2], 1]) });
   // pain points glow stronger the worse they are; notes are small pins
   (spine.marks || []).forEach((mark, i) => {
     const chosen = picked.kind === 'marks' && picked.index === i;
@@ -2196,7 +2330,7 @@ function riders(spine) {
   const add = (holder, key, level) => { if (Array.isArray(holder[key])) out.push({ holder, key, level: level || nearest(holder[key]) }); };
   for (const s of hw.screws || []) for (const k of ['head', 'entry', 'tip']) add(s, k, byId(s.level));
   for (const h of hw.hooks || []) for (const k of ['at', 'mid', 'tip']) add(h, k, byId(h.level));
-  for (const r of hw.rods || []) r.points.forEach((p, i) => add(r.points, i, null));
+  for (const r of hw.rods || []) { r.points.forEach((p, i) => add(r.points, i, null)); (r.via || []).forEach((p, i) => add(r.via, i, null)); }
   for (const c of hw.crosslinks || []) for (const k of ['from', 'to']) add(c, k, null);
   for (const m of spine.marks || []) for (const k of ['at', 'from', 'to']) add(m, k, null);
   return out;
@@ -2447,6 +2581,108 @@ function setTwist(spine, rig, top, bottom, degrees) {
   restack(spine, rig);
 }
 
+// Turn one vertebra and take everything above it along, as if the spine were bent in that
+// one place and stiff above it. "change" is given the vertebra and sets its tilt or turn.
+function pivotAt(spine, rig, id, change) {
+  const levels = sortedLevels(spine), k = levels.findIndex((l) => l.id === id);
+  if (k < 0) return;
+  const before = levels.slice(0, k + 1).map(frameOf), was = before[k];
+  change(levels[k]);
+  const now = frameOf(levels[k]);
+  const carried = (v) => vAdd(vAdd(vScale(now.left, vDot(was.left, v)), vScale(now.back, vDot(was.back, v))), vScale(now.up, vDot(was.up, v)));
+  for (let i = 0; i < k; i++) {
+    const t = tiltFromFrame({ left: carried(before[i].left), back: carried(before[i].back), up: carried(before[i].up) });
+    levels[i].tilt = [round2(clamp(t.tilt[0], -80, 80)), round2(clamp(t.tilt[1], -80, 80))]; levels[i].turn = round2(t.turn);
+  }
+  restack(spine, rig, id);
+}
+
+// Give the spine the shape of a line drawn over it. The line is a list of points [across, up]
+// in millimetres, in the plane the spine is looked at: plane 0 from the back (across = to
+// the left), plane 1 from the side (across = to the back). Only the shape of the line counts,
+// not where it was drawn: it is slid sideways until it starts on the spine. From its lowest
+// point upward, each vertebra leans so that it lies along the line. Vertebrae below the
+// line keep the lean they had, and above its end the spine eases back to the lean it had.
+// A stiff block keeps its shape: it is turned as a
+// whole so that it starts and ends on the line, like a ruler laid along a curve. No joint
+// is bent further than JOINT_MOST, so a wild line still gives a spine. Returns false if the
+// line is too short to mean anything.
+//   JOINT_MOST: the most one vertebra may lean against the one below it, in degrees,
+//   sideways and front to back. Rules of thumb that only stop the absurd: the lowest joints
+//   of a normal lower back already bend about 17 degrees front to back.
+const JOINT_MOST = [18, 26];
+function followLine(spine, rig, plane, line) {
+  const levels = sortedLevels(spine), n = levels.length;
+  // from the bottom up, evenly spaced and smoothed, so a shaky hand does not make a shaky spine
+  const pts = line.slice().sort((p, q) => p[1] - q[1]).filter((p, i, all) => i === 0 || p[1] - all[i - 1][1] > 0.5);
+  if (pts.length < 2 || pts[pts.length - 1][1] - pts[0][1] < 30) return false;
+  const start = pts[0][1], reach = pts[pts.length - 1][1], STEP = 4;
+  let across = [];
+  for (let z = start, i = 1; z <= reach; z += STEP) {
+    while (i < pts.length - 1 && pts[i][1] < z) i++;
+    across.push(pts[i - 1][0] + ((pts[i][0] - pts[i - 1][0]) * (z - pts[i - 1][1])) / Math.max(1e-6, pts[i][1] - pts[i - 1][1]));
+  }
+  for (let pass = 0; pass < 8; pass++) across = across.map((v, i) => (i === 0 || i === across.length - 1 ? v : (across[i - 1] + 2 * v + across[i + 1]) / 4));
+  const lineAt = (z) => { const k = Math.max(0, Math.min(across.length - 1.001, (z - start) / STEP)), i = Math.floor(k); return across[i] + (across[i + 1] - across[i]) * (k - i); };
+  // the first vertebra the line reaches: the lowest one whose middle is above the start of the line
+  let first = n - 2;                                   // the bottom vertebra never leans to follow
+  while (first > 0 && levels[first].centre[2] < start) first--;
+  if (levels[first].centre[2] < start || levels[first].centre[2] > reach) return false;
+  const base = levels.map((l) => l.tilt[plane]), axis = plane === 0 ? 0 : 1, DEG = 180 / Math.PI;
+  const gapOver = (i) => (i > 0 ? (rig.joints[i - 1] || { gap: 4 }).gap : 0);
+  // the lean that puts a point "arm" away from "foot" onto the line, found in a few rounds
+  const reachLine = (foot, arm) => {
+    let z = foot[2] + arm, side = 0;
+    for (let round = 0; round < 5; round++) { side = clamp(lineAt(z) + shift - foot[axis], -0.9 * arm, 0.9 * arm); z = foot[2] + Math.sqrt(arm * arm - side * side); }
+    return { z, lean: Math.atan2(side, z - foot[2]) * DEG };
+  };
+  const blockAt = (i) => (rig.blocks || []).find((x) => i >= x.from && i <= x.to);
+  let shift = null, i = first;
+  for (; i >= 0; i--) {
+    const block = blockAt(i);
+    if (block && i !== block.to) continue;               // held by its block, which was laid along the line from its lowest vertebra
+    // the vertebra swings about the middle of the gap under it and reaches to the middle of
+    // the gap above it. Putting that upper end on the line, one vertebra after the other,
+    // lays the whole chain along the line without the vertebrae leaning to and fro.
+    const lower = levels[i + 1], j = rig.joints[i] || { gap: 4 };
+    const foot = vAdd(lower.centre, vScale(frameOf(lower).up, lower.size[2] / 2 + j.gap / 2));
+    if (shift === null) shift = foot[axis] - lineAt(foot[2]);
+    let lean;
+    if (block) {
+      // a stiff block: the straight line from its foot to its upper end is what is laid on the line
+      const top = levels[block.from], end = vAdd(top.centre, vScale(frameOf(top).up, top.size[2] / 2 + gapOver(block.from) / 2));
+      const across = end[axis] - foot[axis], up = end[2] - foot[2], arm = Math.hypot(across, up), now = Math.atan2(across, up) * DEG;
+      if (foot[2] + 20 > reach) break;
+      // (a block that sticks out past the end of the line is pointed at that end)
+      const want = foot[2] + up > reach + 12 ? Math.atan2(lineAt(reach) + shift - foot[axis], reach - foot[2]) * DEG : reachLine(foot, arm).lean;
+      lean = levels[i].tilt[plane] + want - now;
+    } else {
+      const arm = j.gap / 2 + levels[i].size[2] + gapOver(i) / 2, on = reachLine(foot, arm);
+      if (on.z > reach + arm / 2) break;
+      // a vertebra that starts beside the line (above a block, or after a joint that was held back) closes
+      // half of the distance and leaves the rest to the next one, so the spine eases back onto the line
+      const miss = lineAt(foot[2]) + shift - foot[axis];
+      lean = Math.abs(miss) > 0.5 ? reachLine([foot[0] + (axis === 0 ? miss / 2 : 0), foot[1] + (axis === 1 ? miss / 2 : 0), foot[2]], arm).lean : on.lean;
+    }
+    const under = lower.tilt[plane];
+    levels[i].tilt[plane] = round2(clamp(clamp(lean, under - JOINT_MOST[plane], under + JOINT_MOST[plane]), -80, 80));
+    restack(spine, rig);
+  }
+  // Above the end of the line the spine eases back to the lean it had: each vertebra keeps
+  // half of the change of the one below it, so there is no sharp corner where the line stops.
+  for (; i >= 0; i--) {
+    const block = blockAt(i);
+    if (block && i !== block.to) continue;
+    const under = levels[i + 1].tilt[plane], more = (under - base[i + 1]) / 2;
+    if (Math.abs(more) < 0.2) break;
+    levels[i].tilt[plane] = round2(clamp(clamp(base[i] + more, under - JOINT_MOST[plane], under + JOINT_MOST[plane]), -80, 80));
+    restack(spine, rig);
+  }
+  tidy(levels);
+  restack(spine, rig);
+  return levels.some((l, i) => Math.abs(l.tilt[plane] - base[i]) > 0.2);
+}
+
 // Slide one vertebra on its own, without bending the spine: it steps sideways (toLeft) or
 // backward (toBack) against the one below, and the ones above stay where they are.
 function moveAlone(spine, rig, id, toLeft, toBack) {
@@ -2481,16 +2717,16 @@ function straighten(spine, rig) {
   restack(spine, rig);
 }
 
-return { frameOf, toLocal, rigOf, stiffen, blockOf, restack, carry, typicalLean, readShape, applyShape, pullLevel, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, gapUnder, straighten };
+return { frameOf, toLocal, rigOf, stiffen, blockOf, restack, carry, typicalLean, readShape, applyShape, pullLevel, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, pivotAt, JOINT_MOST, followLine, moveAlone, liftLevel, gapUnder, straighten };
 })();
 
 // ---- core/place.js
-M.m18 = (() => {
+M.m17 = (() => {
 // Putting hardware on a spine: the usual spot for a screw or a hook on each side of each
 // vertebra, rods that run through whatever is placed, and a quick way to fit out a whole
 // stretch in one go. Positions are typical ones worked out from the size of each vertebra.
 
-const { vAdd, vSub, vScale, vUnit, vLen, vDist, toWorld } = M.m3;
+const { vAdd, vSub, vScale, vUnit, vLen, vDist, vDot, toWorld } = M.m3;
 const { sortedLevels, LEVEL_ORDER } = M.m5;
 const { anatomyFor, levelFrame, screwEntryFor } = M.m6;
 const { typicalScrew, screwLean, HARDWARE } = M.m10;
@@ -2501,8 +2737,9 @@ const round1 = (v) => Math.round(v * 10) / 10;
 const sign = (side) => (side === 'left' ? 1 : -1);
 
 // The usual spot on one side of a vertebra, in the world.
-//   screw: { head, entry, tip, diameter }   hook: { at, mid, tip, kind }
-function slot(level, side) {
+//   screw: { head, entry, tip, diameter }   hook: { at, mid, tip, kind, faces }
+//   faces: which way the blade of the hook points, 'down' (the usual) or 'up'
+function slot(level, side, faces = 'down') {
   const a = anatomyFor(level.id, level.size), frame = levelFrame(level), sg = sign(side);
   const h = (a.hf + a.hb) / 2, back = a.d / 2, cy = back + a.cd / 2 - 1, px = a.cw / 2 + a.pw / 2, zp = h * 0.16;
   // screws point forward through the pedicle and a little toward the middle, more so lower down
@@ -2514,8 +2751,23 @@ function slot(level, side) {
   const head = along(entry, dir, -9);
   return {
     screw: { head: out(head), entry: out(entry), tip: out(along(entry, dir, length)), diameter: size.diameter },
-    hook: { at: out(head), mid: out([head[0] - sg * 4, head[1] - 8, head[2] - 4]), tip: out([head[0] - sg * 6, head[1] - 9, head[2] - 12]), kind: 'lamina' },
+    hook: { at: out(head), ...bladeFrom(level, out(head), sg, faces), kind: 'lamina', faces },
   };
+}
+
+// The blade of a hook whose head is at a point: it leaves the head down or up along the
+// bone, where it can be seen, and then curls forward to catch under the edge of the bone.
+function bladeFrom(level, at, sg, faces) {
+  const frame = levelFrame(level), k = faces === 'up' ? 1 : -1;
+  const off = (x, y, z) => vAdd(at, vAdd(vScale(frame.left, x), vAdd(vScale(frame.back, y), vScale(frame.up, z)))).map(round1);
+  return { mid: off(-sg * 2.5, -3, 11 * k), tip: off(-sg * 4, -12, 15 * k) };
+}
+
+// Point the blade of a hook down or up, where the hook is.
+function faceHook(spine, hook, faces) {
+  const level = spine.levels.find((l) => l.id === hook.level);
+  if (!level) return;
+  Object.assign(hook, bladeFrom(level, hook.at, sign(hook.side), faces), { faces });
 }
 
 // A screw put in by hand at a point on the bone: it heads for the middle of the body.
@@ -2534,52 +2786,195 @@ function resizeScrew(screw, diameter, length) {
 }
 const screwLength = (screw) => Math.round(vLen(vSub(screw.tip, screw.entry || screw.head)));
 
-// A smooth path through a list of points, with a point about every 8 mm, running a little
-// past both ends.
+// A smooth path through a list of points, with a point about every 6 mm, running a little
+// past both ends. The curve passes through every point and does not swing out beyond them
+// the way a simpler curve does when the points are unevenly spread (a centripetal
+// Catmull-Rom curve). Points that all but sit on each other are taken as one.
 function pathThrough(points) {
-  const first = vAdd(points[0], vScale(vUnit(vSub(points[0], points[1])), 9)), last = vAdd(points[points.length - 1], vScale(vUnit(vSub(points[points.length - 1], points[points.length - 2])), 9));
-  const p = [first, ...points, last], out = [];
-  for (let i = 0; i < p.length - 1; i++) {
-    const p0 = p[Math.max(i - 1, 0)], p1 = p[i], p2 = p[i + 1], p3 = p[Math.min(i + 2, p.length - 1)], steps = Math.max(1, Math.ceil(vDist(p1, p2) / 8));
-    for (let s = 0; s < steps; s++) {
-      const t = s / steps, t2 = t * t, t3 = t2 * t;
-      out.push([0, 1, 2].map((j) => round1(0.5 * (2 * p1[j] + (p2[j] - p0[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (3 * p1[j] - p0[j] - 3 * p2[j] + p3[j]) * t3))));
+  const list = [];
+  for (const p of points) if (!list.length || vDist(p, list[list.length - 1]) > 3) list.push(p);
+  if (list.length < 2) return list.map((p) => p.map(round1));
+  const first = vAdd(list[0], vScale(vUnit(vSub(list[0], list[1])), 9)), last = vAdd(list[list.length - 1], vScale(vUnit(vSub(list[list.length - 1], list[list.length - 2])), 9));
+  const p = [vAdd(first, vSub(first, list[0])), first, ...list, last, vAdd(last, vSub(last, list[list.length - 1]))], out = [];
+  const mixed = (a, b, ta, tb, t) => [0, 1, 2].map((j) => (a[j] * (tb - t) + b[j] * (t - ta)) / (tb - ta));
+  for (let i = 1; i < p.length - 2; i++) {
+    const p0 = p[i - 1], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2];
+    const t0 = 0, t1 = t0 + Math.sqrt(vDist(p0, p1)), t2 = t1 + Math.sqrt(vDist(p1, p2)), t3 = t2 + Math.sqrt(vDist(p2, p3)), steps = Math.max(1, Math.ceil(vDist(p1, p2) / 6));
+    for (let k = 0; k < steps; k++) {
+      const t = t1 + ((t2 - t1) * k) / steps;
+      const a1 = mixed(p0, p1, t0, t1, t), a2 = mixed(p1, p2, t1, t2, t), a3 = mixed(p2, p3, t2, t3, t);
+      out.push(mixed(mixed(a1, a2, t0, t2, t), mixed(a2, a3, t1, t3, t), t1, t2, t).map(round1));
     }
   }
   out.push(last.map(round1));
   return out;
 }
 
+// How far down the spine a point is: the distance along the line through the middles of the
+// vertebrae, from the top one, to the place on that line nearest the point. Rods are strung
+// through their screws and hooks in this order, whichever vertebra each one is named after.
+function stationOf(levels, point) {
+  let best = null, gone = 0;
+  for (let i = 0; i < levels.length - 1; i++) {
+    const a = levels[i].centre, ab = vSub(levels[i + 1].centre, a), length = vLen(ab);
+    let t = vDot(vSub(point, a), ab) / (length * length);
+    if (i > 0) t = Math.max(0, t);
+    if (i < levels.length - 2) t = Math.min(1, t);
+    const off = vDist(point, vAdd(a, vScale(ab, Math.max(0, Math.min(1, t)))));
+    if (!best || off < best.off) best = { off, station: gone + t * length };
+    gone += length;
+  }
+  return best ? best.station : 0;
+}
+
+// The screws and hooks of one side in the order a rod runs through them, cut into the runs
+// that each get a rod of their own (see hardware.splits).
+//   returns [[{ at, level, piece }]]
+function runsOf(spine, side) {
+  const hw = spine.hardware, levels = sortedLevels(spine), order = (id) => LEVEL_ORDER.indexOf(id), splits = (hw.splits || []).map(order);
+  const grips = [...hw.screws.filter((s) => s.side === side).map((s) => ({ at: s.head, level: s.level, piece: s })), ...hw.hooks.filter((h) => h.side === side).map((h) => ({ at: h.at, level: h.level, piece: h }))];
+  for (const g of grips) g.station = stationOf(levels, g.at);
+  grips.sort((p, q) => p.station - q.station);
+  const runs = [[]];
+  for (const g of grips) {
+    const run = runs[runs.length - 1], last = run[run.length - 1];
+    if (last && splits.some((sp) => sp >= order(last.level) && sp < order(g.level))) runs.push([g]); else run.push(g);
+  }
+  return runs;
+}
+
+// What each rod of a side is strung through, in order along the spine: its screws and hooks
+// (each with .piece) and the bends made by hand that lie between its two ends (each with
+// .via). One list for each run of runsOf.
+function strungOf(spine, side) {
+  const levels = sortedLevels(spine), bends = ((spine.hardware || {}).rods || []).filter((r) => r.side === side && r.auto).flatMap((r) => r.via || []).map((at) => ({ at, station: stationOf(levels, at), via: true }));
+  return runsOf(spine, side).map((run) => (run.length < 2 ? run : [...run, ...bends.filter((v) => v.station > run[0].station + 4 && v.station < run[run.length - 1].station - 4)].sort((p, q) => p.station - q.station)));
+}
+// The corner a rod turns at point k of a list of points, in degrees.
+function cornerAt(points, k) {
+  if (k <= 0 || k >= points.length - 1) return 0;
+  const a = vSub(points[k], points[k - 1]), b = vSub(points[k + 1], points[k]), la = vLen(a), lb = vLen(b);
+  return la < 0.5 || lb < 0.5 ? 180 : (Math.acos(Math.max(-1, Math.min(1, vDot(a, b) / (la * lb)))) * 180) / Math.PI;
+}
+
+// ---- keeping a rod believable
+// A real rod is a stiff bar that a surgeon bends by a few degrees here and there. These two
+// numbers keep a sketch from doing what no rod could: the sharpest corner a rod may turn at
+// one screw or hook, in degrees, and the least room between two of them on one rod, in
+// millimetres.
+// "bend" is the sharpest corner at a bend that is put into a rod by hand.
+const ROD_RULES = { sharpest: 45, closest: 11, bend: 32 };
+
+// How hard a rod is asked to bend at each of its screws and hooks, and how crowded they are.
+//   returns { corner, gap } for one piece: the sharpest corner at it or at its two
+//   neighbours, and the distance to its nearest neighbour. Null if it is on no rod.
+function strainAt(spine, piece) {
+  const list = strungOf(spine, piece.side).find((r) => r.some((g) => g.piece === piece));
+  if (!list) return null;
+  const i = list.findIndex((g) => g.piece === piece), points = list.map((g) => g.at);
+  // (the room is counted to the next screw or hook each way, not to a bend in between)
+  const gaps = [-1, 1].map((step) => { for (let k = i + step; k >= 0 && k < list.length; k += step) if (list[k].piece) return vDist(points[i], points[k]); return Infinity; });
+  return { corner: Math.max(cornerAt(points, i - 1), cornerAt(points, i), cornerAt(points, i + 1)), gap: Math.min(...gaps) };
+}
+
+// Move a screw or a hook by a step, but only as far as its rod can follow: the move stops
+// where the rod would have to turn a sharper corner than ROD_RULES allows or where two
+// pieces would crowd each other. A piece that is already out of line may always move back
+// toward the line. Returns how much of the step was taken, from 0 to 1.
+function moveInLine(spine, piece, step) {
+  const keys = ['head', 'entry', 'tip', 'at', 'mid'].filter((k) => piece[k]), from = keys.map((k) => piece[k]);
+  const put = (f) => keys.forEach((k, n) => { piece[k] = from[n].map((v, j) => round1(v + step[j] * f)); });
+  const before = strainAt(spine, piece);
+  const fine = () => { const now = strainAt(spine, piece); return !now || ((now.corner <= ROD_RULES.sharpest || now.corner <= before.corner + 0.01) && (now.gap >= ROD_RULES.closest || now.gap >= before.gap - 0.01)); };
+  put(1);
+  if (!before || fine()) return 1;
+  let low = 0, high = 1;
+  for (let k = 0; k < 9; k++) { const mid = (low + high) / 2; put(mid); if (fine()) low = mid; else high = mid; }
+  put(low);
+  return low;
+}
+
+// Bring a piece that was just put down into line with its rod, if it would kink the rod or
+// crowd a neighbour: it slides toward the straight line between its neighbours, only as far
+// as needed. Returns true if it had to move.
+function settleInLine(spine, piece) {
+  const now = strainAt(spine, piece);
+  if (!now || (now.corner <= ROD_RULES.sharpest && now.gap >= ROD_RULES.closest)) return false;
+  const run = runsOf(spine, piece.side).find((r) => r.some((g) => g.piece === piece)), i = run.findIndex((g) => g.piece === piece), here = run[i].at;
+  const prev = run[i - 1] && run[i - 1].at, next = run[i + 1] && run[i + 1].at;
+  // where it would sit with no corner at all: on the line between its neighbours, or a clear step along the rod from its only one
+  let goal;
+  if (prev && next) { const ab = vSub(next, prev), t = Math.max(0.2, Math.min(0.8, vDot(vSub(here, prev), ab) / vDot(ab, ab))); goal = vAdd(prev, vScale(ab, t)); }
+  else { const other = prev || next, away = vSub(here, other); goal = vAdd(other, vScale(vLen(away) > 0.5 ? vUnit(away) : [0, 0, prev ? -1 : 1], Math.max(vLen(away), ROD_RULES.closest + 1))); }
+  const keys = ['head', 'entry', 'tip', 'at', 'mid'].filter((k) => piece[k]), from = keys.map((k) => piece[k]), step = vSub(goal, here);
+  const put = (f) => keys.forEach((k, n) => { piece[k] = from[n].map((v, j) => round1(v + step[j] * f)); });
+  const fine = () => { const s = strainAt(spine, piece); return s.corner <= ROD_RULES.sharpest && s.gap >= ROD_RULES.closest; };
+  let low = 0, high = 1;
+  put(1);
+  if (fine()) { for (let k = 0; k < 8; k++) { const mid = (low + high) / 2; put(mid); if (fine()) high = mid; else low = mid; } put(high); }
+  return true;
+}
+
 // Draw the rods again so that they run through every screw and hook. Each side gets one rod,
 // or several where the person has said the rods end (hardware.splits: the levels below which
 // the rods stop and start again). A rod that came with the file (traced from a scan) is left
-// alone unless "all" is true. Cross-links made by the sheet are put back on the new rods.
+// alone unless "all" is true. Bends put into a rod by hand (rod.via: extra points the rod
+// passes through) are kept. Cross-links made by the sheet are put back on the new rods.
 function fitRods(spine, all = false) {
   const hw = spine.hardware = spine.hardware || {};
   for (const key of ['rods', 'screws', 'hooks', 'crosslinks']) hw[key] = hw[key] || [];
-  const order = (id) => LEVEL_ORDER.indexOf(id), splits = (hw.splits || []).map(order);
   for (const side of ['right', 'left']) {
     const old = hw.rods.filter((r) => r.side === side);
     if (old.some((r) => !r.auto) && !all) continue;
-    const grips = [...hw.screws.filter((s) => s.side === side).map((s) => ({ at: s.head, level: s.level, piece: s })), ...hw.hooks.filter((h) => h.side === side).map((h) => ({ at: h.at, level: h.level, piece: h }))];
-    grips.sort((p, q) => order(p.level) - order(q.level) || q.at[2] - p.at[2]);
+    const lists = strungOf(spine, side);
     hw.rods = hw.rods.filter((r) => r.side !== side);
-    // cut the list of grips wherever the rods are said to end between two of them
-    const runs = [[]];
-    for (const g of grips) {
-      const run = runs[runs.length - 1], last = run[run.length - 1];
-      if (last && splits.some((sp) => sp >= order(last.level) && sp < order(g.level))) runs.push([g]); else run.push(g);
-    }
-    runs.forEach((run, k) => {
-      const id = side + (k ? '-' + (k + 1) : '');
-      for (const g of run) g.piece.rod = id;
-      if (run.length < 2) return;
-      hw.rods.push({ id, side, diameter: (old[0] && old[0].diameter) || HARDWARE.rodDiameter, points: pathThrough(run.map((g) => g.at)), auto: true, source: 'typical', ...(old[0] && old[0].color ? { color: old[0].color } : {}) });
+    lists.forEach((list, k) => {
+      const id = side + (k ? '-' + (k + 1) : ''), was = old.find((r) => r.id === id) || old[0] || {}, via = list.filter((g) => g.via).map((g) => g.at);
+      for (const g of list) if (g.piece) g.piece.rod = id;
+      if (list.length - via.length < 2) return;
+      hw.rods.push({ id, side, diameter: was.diameter || HARDWARE.rodDiameter, points: pathThrough(list.map((g) => g.at)), auto: true, source: 'typical', ...(was.color ? { color: was.color } : {}), ...(via.length ? { via } : {}) });
     });
   }
   hw.rods.sort((p, q) => (p.side === 'right' ? 0 : 1) - (q.side === 'right' ? 0 : 1));
   // cross-links that belong to a gap between two levels follow the rods, or go if a rod is gone
   hw.crosslinks = hw.crosslinks.map((c) => (c.below ? linkUnder(spine, c.below) || null : c)).filter(Boolean);
+}
+
+// Bend a rod by hand: make it pass through a point between two of its screws or hooks.
+// "index" names a bend that is there already (to move it), or is left out to add one.
+// Returns the number of the bend in rod.via, or -1 if the rod cannot be bent there.
+//   inLine: the bend is taken only as far as a rod could be bent: the rod turns no sharper
+//           corner there, or at the point before or after, than ROD_RULES allows
+function bendRod(spine, rod, at, index = -1, inLine = true) {
+  if (!rod.auto) return -1;
+  rod.via = rod.via || [];
+  const was = index >= 0 ? rod.via[index] : null;
+  let kept = at.map(round1);
+  if (index < 0) index = rod.via.push(kept) - 1; else rod.via[index] = kept;
+  const list = inLine && strungOf(spine, rod.side).find((r) => r.some((g) => g.at === kept));
+  if (list) {
+    const i = list.findIndex((g) => g.at === kept), points = list.map((g) => g.at), a = points[i - 1], b = points[i + 1], ab = vSub(b, a);
+    // with no bend at all it would sit here, on the straight line between the points before and after
+    const base = vAdd(a, vScale(ab, Math.max(0.15, Math.min(0.85, vDot(vSub(kept, a), ab) / vDot(ab, ab)))));
+    // the corners at the point before, at the bend and at the point after. None may get sharper than the rules
+    // allow, unless it was that sharp already (with no bend, or with the bend where it was).
+    const corners = (p) => { points[i] = p; return [cornerAt(points, i - 1), cornerAt(points, i), cornerAt(points, i + 1)]; };
+    const calm = corners(base), held = was ? corners(was) : [0, 0, 0], reach = (f) => vAdd(base, vScale(vSub(kept, base), f));
+    const fine = (p) => corners(p).every((c, k) => c <= Math.max(k === 1 ? ROD_RULES.bend : ROD_RULES.sharpest, calm[k], held[k]) + 0.01);
+    if (!fine(kept)) {
+      let low = 0, high = 1;
+      for (let k = 0; k < 9; k++) { const mid = (low + high) / 2; if (fine(reach(mid))) low = mid; else high = mid; }
+      kept = rod.via[index] = reach(low).map(round1);
+    }
+  }
+  fitRods(spine);
+  const now = spine.hardware.rods.find((r) => r.id === rod.id);
+  return now && now.via ? now.via.indexOf(kept) : -1;
+}
+// Take one bend out of a rod, or all of them (index left out).
+function unbendRod(spine, rod, index = -1) {
+  if (index < 0) delete rod.via; else if (rod.via) rod.via.splice(index, 1);
+  fitRods(spine);
 }
 
 // The point of a rod at a given height.
@@ -2602,13 +2997,16 @@ function crosslinkAt(spine, z) {
 
 // Which pieces go where, for a stretch of the spine.
 //   pattern: 'screws' (both sides, every level), 'alternate' (every other level),
-//            'hooksTop' (hooks on the top two levels, screws below)
-// Returns { T4: { right: 'screw', left: 'hook' }, ... } with '' for an empty spot.
+//            'hooksTop' (hooks on the top two levels, screws below. The highest hooks
+//            point down and the ones under them point up, so that the two grip the bone
+//            between them like a claw)
+// Returns { T4: { right: 'screw', left: 'hook' }, ... } with '' for an empty spot and
+// 'hook-up' for a hook that points up.
 function planFor(ids, top, bottom, pattern) {
   const a = ids.indexOf(top), b = ids.indexOf(bottom), plan = {};
   for (let i = Math.min(a, b); i <= Math.max(a, b) && a >= 0 && b >= 0; i++) {
     const n = i - Math.min(a, b), last = i === Math.max(a, b);
-    const kind = pattern === 'alternate' ? (n % 2 === 0 || last ? 'screw' : '') : pattern === 'hooksTop' && n < 2 ? 'hook' : 'screw';
+    const kind = pattern === 'alternate' ? (n % 2 === 0 || last ? 'screw' : '') : pattern === 'hooksTop' && n < 2 ? (n ? 'hook-up' : 'hook') : 'screw';
     plan[ids[i]] = { right: kind, left: kind };
   }
   return plan;
@@ -2624,7 +3022,7 @@ function buildHardware(spine, plan, crosslinks = 0) {
     for (const side of ['right', 'left']) {
       const spot = slot(level, side);
       if (want[side] === 'screw') hw.screws.push({ level: level.id, side, rod: side, ...spot.screw, source: 'typical' });
-      if (want[side] === 'hook') hw.hooks.push({ level: level.id, side, rod: side, ...spot.hook, source: 'typical' });
+      if (want[side] === 'hook' || want[side] === 'hook-up') hw.hooks.push({ level: level.id, side, rod: side, ...(want[side] === 'hook' ? spot : slot(level, side, 'up')).hook, source: 'typical' });
     }
   }
   fitRods(spine, true);
@@ -2643,17 +3041,73 @@ function cellOf(spine, id, side) {
   return (hw.screws || []).some((p) => p.level === id && p.side === side) ? 'screw' : (hw.hooks || []).some((p) => p.level === id && p.side === side) ? 'hook' : '';
 }
 
+// Which way the hook on one side of a vertebra points: 'down', 'up', or '' if there is none.
+function hookFaces(spine, id, side) {
+  const hook = ((spine.hardware || {}).hooks || []).find((p) => p.level === id && p.side === side);
+  return hook ? hook.faces || 'down' : '';
+}
+
 // Put a screw, a hook or nothing on one side of a vertebra, at the usual spot.
-function setCell(spine, id, side, kind) {
+//   faces: for a hook, which way its blade points ('down' or 'up')
+function setCell(spine, id, side, kind, faces = 'down') {
   const hw = spine.hardware = spine.hardware || {}, level = spine.levels.find((l) => l.id === id);
   for (const key of ['rods', 'screws', 'hooks', 'crosslinks']) hw[key] = hw[key] || [];
-  if (!level || cellOf(spine, id, side) === kind) return;
+  if (!level || (cellOf(spine, id, side) === kind && (kind !== 'hook' || hookFaces(spine, id, side) === faces))) return;
   hw.screws = hw.screws.filter((p) => !(p.level === id && p.side === side));
   hw.hooks = hw.hooks.filter((p) => !(p.level === id && p.side === side));
-  const spot = slot(level, side);
+  const spot = slot(level, side, faces);
   if (kind === 'screw') hw.screws.push({ level: id, side, rod: side, ...spot.screw, source: 'typical' });
   if (kind === 'hook') hw.hooks.push({ level: id, side, rod: side, ...spot.hook, source: 'typical' });
   fitRods(spine);
+}
+
+// Put on one side of a vertebra what a plan asks for there ('screw', 'hook', 'hook-up' or '').
+function putPlanned(spine, id, side, what) {
+  const [kind, faces] = (what || '').split('-');
+  return setCell(spine, id, side, kind, faces || 'down');
+}
+
+// Fit out a stretch of the spine in one go, the way the three questions of the easy mode
+// ask for it. What is on the stretch already is replaced. Hardware elsewhere stays.
+//   kind:  'screws', 'hooksTop', 'alternate' or 'hooks' (see planFor; 'hooks' is hooks all
+//          the way, the two highest pointing down and the others up, which is how hooks
+//          are set against each other)
+//   links: how many cross-links, spread evenly
+function fitOut(spine, top, bottom, kind, links = 0) {
+  const ids = sortedLevels(spine).map((l) => l.id), a = ids.indexOf(top), b = ids.indexOf(bottom), lo = Math.min(a, b), hi = Math.max(a, b);
+  if (a < 0 || b < 0 || lo === hi) return false;
+  const plan = planFor(ids, ids[lo], ids[hi], kind === 'hooks' ? 'screws' : kind);
+  for (let i = lo; i <= hi; i++) {
+    if (ids[i] === 'C1') continue;
+    for (const side of ['right', 'left']) {
+      putPlanned(spine, ids[i], side, kind === 'hooks' ? (i - lo >= 2 ? 'hook-up' : 'hook') : plan[ids[i]][side]);
+    }
+  }
+  for (let i = lo; i < hi; i++) { setFusedBelow(spine, ids[i], true); setLinkBelow(spine, ids[i], false); }
+  for (let k = 1; k <= links; k++) {
+    // the gap nearest to an even share of the way down, moved on if a cross-link cannot sit there
+    const want = Math.min(hi - 1, Math.max(lo, Math.round(lo + ((hi - lo) * k) / (links + 1) - 0.5)));
+    for (const i of [want, want + 1, want - 1, want + 2, want - 2]) if (i >= lo && i < hi && !linkBelow(spine, ids[i]) && setLinkBelow(spine, ids[i], true)) break;
+  }
+  return true;
+}
+
+// Move a screw or hook to a new place (the fields of "next" are written onto it). With
+// "inLine" the move is refused, and the piece left where it was, if its rod could not
+// follow there. Returns true if it moved.
+function placePiece(spine, piece, next, inLine = true) {
+  const before = strainAt(spine, piece), old = {};
+  for (const k of Object.keys(next)) old[k] = piece[k];
+  Object.assign(piece, next);
+  const now = strainAt(spine, piece);
+  if (inLine && now && before && !((now.corner <= ROD_RULES.sharpest || now.corner <= before.corner + 0.01) && (now.gap >= ROD_RULES.closest || now.gap >= before.gap - 0.01))) { Object.assign(piece, old); return false; }
+  fitRods(spine);
+  return true;
+}
+
+// A hook whose head is at a point near a vertebra: the fields that place it.
+function hookAt(level, at, side, faces = 'down') {
+  return { level: level.id, side, at: at.map(round1), ...bladeFrom(level, at.map(round1), sign(side), faces), faces };
 }
 
 // Is this vertebra fused to the one below it?
@@ -2710,7 +3164,7 @@ function setRodsEndBelow(spine, id, on) {
   fitRods(spine);
 }
 
-return { slot, freeScrew, resizeScrew, screwLength, fitRods, crosslinkAt, planFor, buildHardware, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow };
+return { slot, faceHook, freeScrew, resizeScrew, screwLength, ROD_RULES, strainAt, moveInLine, settleInLine, fitRods, bendRod, unbendRod, crosslinkAt, planFor, buildHardware, cellOf, hookFaces, setCell, putPlanned, fitOut, placePiece, hookAt, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow };
 })();
 
 // ---- core/pick.js
@@ -2748,30 +3202,219 @@ function rayPoint(origin, direction, point) {
 return { rayMesh, rayPoint };
 })();
 
+// ---- ui/easy.js
+M.m20 = (() => {
+// The easy ways into the builder, for people who do not want to learn a 3D program:
+//   - draw the curve of the spine as a line over the model,
+//   - answer three questions and have the hardware put on, then change one vertebra at a time,
+//   - pick colours for the hardware from swatches.
+// The detailed tools are in build.js, which calls in here.
+
+const { followLine } = M.m16;
+const { fitOut, cellOf, hookFaces, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow } = M.m17;
+const { FINISHES, PALETTES, USUAL_FINISH, colorOf } = M.m10;
+
+const KINDS = [['rods', 'Rods'], ['screws', 'Screws'], ['hooks', 'Hooks'], ['crosslinks', 'Cross-links']];
+
+// A row of round colour buttons.
+//   chosen: the name of the colour that is on now      pick(name): called with the new one
+//   usual:  true to add a button that goes back to the usual colour (pick is called with '')
+function swatches(box, label, chosen, pick, usual = false) {
+  box.textContent = '';
+  if (label) { const span = document.createElement('span'); span.textContent = label; box.appendChild(span); }
+  for (const name of Object.keys(FINISHES)) {
+    const b = document.createElement('button'), c = FINISHES[name].map((v) => Math.round(v * 255));
+    b.className = 'swatch'; b.style.background = 'rgb(' + c.join(',') + ')'; b.title = name; b.dataset.color = name;
+    b.setAttribute('aria-label', (label ? label + ': ' : '') + name); b.setAttribute('aria-pressed', chosen === name ? 'true' : 'false');
+    b.addEventListener('click', () => pick(name));
+    box.appendChild(b);
+  }
+  if (usual) {
+    const b = document.createElement('button');
+    b.className = 'swatch none'; b.textContent = 'the usual'; b.dataset.color = ''; b.setAttribute('aria-pressed', chosen ? 'false' : 'true');
+    b.addEventListener('click', () => pick(''));
+    box.appendChild(b);
+  }
+}
+
+// kit: the helpers of build.js that are needed here ($, each, pressed, options, ids, levelOf, hitLevel, hint)
+function setupEasy(app, kit) {
+  const { $, each, pressed, options, ids, levelOf, hitLevel, hint } = kit, { renderer } = app;
+  const hw = () => app.spine.hardware;
+
+  // ---------------------------------------------------------------- drawing the curve
+  // "drawing" is the plane being drawn in (0: seen from the back, 1: seen from the side) or
+  // null. While it is on, a drag over the view draws a line and does not turn the model.
+  let drawing = null, stroke = null;
+  function setDrawing(plane) {
+    drawing = plane; stroke = null;
+    pressed('[data-draw]', 'draw', drawing === null ? 'none' : drawing);
+    $('drawPad').hidden = drawing === null; $('drawDone').hidden = drawing === null; $('drawLine').setAttribute('points', '');
+    $('stage').classList.toggle('drawing', drawing !== null);
+    if (drawing !== null) {
+      renderer.look(drawing === 0 ? 0 : Math.PI / 2);
+      $('drawSay').textContent = 'Now drag a line over the spine, ' + (drawing === 0 ? 'the way it curves to the left and right' : 'the way it rounds and hollows') + '. Start at the pelvis or at the neck. Draw again to change it.';
+    } else $('drawSay').textContent = 'Press one of the two buttons. Then drag a line over the spine, from the pelvis up or from the neck down.';
+    hint();
+  }
+  each('[data-draw]', (b) => b.addEventListener('click', () => setDrawing(drawing === Number(b.dataset.draw) ? null : Number(b.dataset.draw))));
+  $('drawDone').addEventListener('click', () => setDrawing(null));
+  // the view buttons of the ribbon keep working while drawing: the plane follows the view
+  each('[data-look]', (b) => b.addEventListener('click', () => { if (drawing !== null) { drawing = b.dataset.look === 'left' || b.dataset.look === 'right' ? 1 : 0; pressed('[data-draw]', 'draw', drawing); } }));
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawing !== null) setDrawing(null); });
+
+  // The spot under the pointer on the flat sheet the spine is drawn on: [across, up] in mm.
+  function onSheet(e) {
+    const ray = renderer.ray(e.clientX, e.clientY), axis = drawing === 0 ? 1 : 0, levels = app.spine.levels;
+    const depth = levels.reduce((sum, l) => sum + l.centre[axis], 0) / levels.length;
+    if (Math.abs(ray.direction[axis]) < 0.08) return null;
+    const t = (depth - ray.origin[axis]) / ray.direction[axis];
+    return t > 0 ? [ray.origin[drawing === 0 ? 0 : 1] + ray.direction[drawing === 0 ? 0 : 1] * t, ray.origin[2] + ray.direction[2] * t] : null;
+  }
+  const draw = {
+    on: () => drawing !== null,
+    down(e) { stroke = { screen: [], sheet: [] }; draw.move(e); return true; },
+    move(e) {
+      if (!stroke) return;
+      const box = $('stage').getBoundingClientRect(), p = onSheet(e);
+      stroke.screen.push((e.clientX - box.left).toFixed(1) + ',' + (e.clientY - box.top).toFixed(1));
+      if (p) stroke.sheet.push(p);
+      $('drawLine').setAttribute('points', stroke.screen.join(' '));
+    },
+    up() {
+      const line = stroke ? stroke.sheet : [];
+      stroke = null;
+      if (line.length < 4) { $('drawLine').setAttribute('points', ''); return; }
+      let took = false;
+      const stiff = (app.rig.blocks || []).length > 0;
+      app.change(() => { took = followLine(app.spine, app.rig, drawing, line); });
+      $('drawSay').textContent = took ? 'The spine follows your line' + (stiff ? ', and the fused part kept its shape' : '') + '. Draw again to change it, or press Undo.' : 'That line was too short to follow. Drag a longer line along the spine.';
+      setTimeout(() => { if (!stroke) $('drawLine').setAttribute('points', ''); }, 500);
+    },
+  };
+
+  // ---------------------------------------------------------------- hardware in three questions
+  const guide = { kind: 'screws', links: 1, picking: 0 };
+  let guideFor = '', cardFor = null;
+  each('[data-gkind]', (b) => b.addEventListener('click', () => { guide.kind = b.dataset.gkind; sync(); }));
+  each('[data-glinks]', (b) => b.addEventListener('click', () => { guide.links = Number(b.dataset.glinks); sync(); }));
+  function setPicking(step) {
+    guide.picking = step;
+    $('gPick').setAttribute('aria-pressed', step ? 'true' : 'false');
+    $('stage').classList.toggle('placing', !!step);
+    if (step) app.say(step === 1 ? 'Click the highest vertebra of the fusion on the model.' : 'Now click the lowest one.');
+  }
+  $('gPick').addEventListener('click', () => { setPicking(guide.picking ? 0 : 1); if (!guide.picking) app.say(''); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && guide.picking) { setPicking(0); app.say(''); } });
+  $('gBuild').addEventListener('click', () => {
+    const top = $('gTop').value, bottom = $('gBottom').value;
+    if (top === bottom) { $('gSay').textContent = 'Choose two different vertebrae for the two ends of the fusion.'; return; }
+    let done = false;
+    app.picked = null;
+    app.change(() => { done = fitOut(app.spine, top, bottom, guide.kind, guide.links); }, { ride: false });
+    const list = ids(), a = Math.min(list.indexOf(top), list.indexOf(bottom)), b = Math.max(list.indexOf(top), list.indexOf(bottom)), links = (hw().crosslinks || []).filter((c) => c.below && list.indexOf(c.below) >= a && list.indexOf(c.below) < b).length;
+    $('gSay').textContent = !done ? 'That did not work. Choose two different vertebrae.' : 'Done: ' + list[a] + ' to ' + list[b] + ' is fused and fitted out' + (links < guide.links ? ', with ' + (links || 'no') + ' cross-link' + (links === 1 ? '' : 's') + ' because there was no room for more' : '') + '. To change one vertebra, click it on the model.';
+  });
+
+  // one vertebra at a time: what it carries on each side, and what is in the gap below it
+  const carried = (id, side) => { const kind = cellOf(app.spine, id, side); return kind === 'hook' ? 'hook-' + hookFaces(app.spine, id, side) : kind; };
+  each('[data-gput]', (b) => b.addEventListener('click', () => {
+    const id = app.picked && app.picked.kind === 'level' ? app.picked.id : null, side = b.parentElement.dataset.gside, [kind, faces] = b.dataset.gput.split('-');
+    if (id) app.change(() => setCell(app.spine, id, side, kind, faces || 'down'), { ride: false });
+  }));
+  $('gFused').addEventListener('change', () => { const id = app.picked && app.picked.id; if (id) app.change(() => setFusedBelow(app.spine, id, $('gFused').checked), { ride: false }); });
+  $('gLink').addEventListener('change', () => {
+    const id = app.picked && app.picked.id;
+    if (!id) return;
+    let fits = true;
+    app.change(() => { fits = setLinkBelow(app.spine, id, $('gLink').checked); }, { ride: false });
+    $('gSay').textContent = fits ? '' : 'A cross-link needs a rod on both sides of that gap. Put a screw or a hook on both sides, above and below it, first.';
+  });
+  const step = (by) => () => { const list = ids(), i = list.indexOf(app.picked && app.picked.id) + by; if (i >= 0 && i < list.length) app.pick({ kind: 'level', id: list[i] }); };
+  $('gUp').addEventListener('click', step(-1)); $('gDown').addEventListener('click', step(1));
+
+  // A click on the model while the easy hardware pane is open.
+  function tap(e) {
+    const hit = hitLevel(e), id = hit && hit.level.id;
+    if (guide.picking && id) {
+      if (guide.picking === 1) { $('gTop').value = id; setPicking(2); }
+      else { const list = ids(), other = $('gTop').value, a = list.indexOf(other), b = list.indexOf(id); $('gTop').value = list[Math.min(a, b)]; $('gBottom').value = list[Math.max(a, b)]; setPicking(0); app.say(list[Math.min(a, b)] + ' to ' + list[Math.max(a, b)] + '. Now choose what holds it and press "Put it on the spine".'); }
+      return;
+    }
+    app.pick(id ? { kind: 'level', id } : null);
+  }
+
+  // ---------------------------------------------------------------- colours
+  // The colour of each kind of part is kept in the spine file, so it travels with a saved
+  // file and with a link.
+  const colorNow = (kind) => (hw().colors || {})[kind] || USUAL_FINISH[kind];
+  function setColors(colors) { app.change(() => { hw().colors = { ...(hw().colors || {}), ...colors }; }, { ride: false }); }
+  each('[data-palette]', (b) => b.addEventListener('click', () => setColors(PALETTES[b.dataset.palette])));
+  function colorRows() {
+    const box = $('kindColors');
+    if (!box.children.length) for (const [kind] of KINDS) { const row = document.createElement('div'); row.className = 'swatches'; row.dataset.kind = kind; box.appendChild(row); }
+    for (const [kind, label] of KINDS) swatches(box.querySelector('[data-kind="' + kind + '"]'), label, colorOf(colorNow(kind)) ? colorNow(kind) : '', (name) => setColors({ [kind]: name }));
+    each('[data-palette]', (b) => b.setAttribute('aria-pressed', KINDS.every(([kind]) => colorNow(kind) === PALETTES[b.dataset.palette][kind]) ? 'true' : 'false'));
+  }
+
+  function sync() {
+    const list = ids();
+    if (guideFor !== list.join()) {
+      // a new spine: offer its fused stretch as the place for the hardware, or the usual T4 to L2
+      guideFor = list.join();
+      const fused = (app.spine.fused || [])[0], all = list.filter((id) => id !== 'C1').map((id) => [id, id]);
+      options($('gTop'), all, fused ? fused[0] : list.includes('T4') ? 'T4' : all[0][0]);
+      options($('gBottom'), all, fused ? fused[1] : list.includes('L2') ? 'L2' : all[all.length - 1][0]);
+    }
+    pressed('[data-gkind]', 'gkind', guide.kind); pressed('[data-glinks]', 'glinks', guide.links);
+    const id = app.picked && app.picked.kind === 'level' ? app.picked.id : null, last = id === list[list.length - 1];
+    $('gCard').hidden = !id;
+    if (id && id !== cardFor && !$('easyBox').hidden && $('easyBox').offsetParent) {
+      // a vertebra was just picked: bring its card into view in the panel (the picture stays where it is)
+      const panel = $('panel'), box = $('gCard').getBoundingClientRect(), frame = panel.getBoundingClientRect();
+      if (box.bottom > frame.bottom) panel.scrollTop += Math.min(box.bottom - frame.bottom + 10, box.top - frame.top - 10); else if (box.top < frame.top) panel.scrollTop -= frame.top - box.top + 10;
+    }
+    cardFor = id;
+    if (id) {
+      $('gName').textContent = id;
+      each('[data-gside]', (row) => { row.hidden = id === 'C1'; row.querySelectorAll('[data-gput]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.gput === carried(id, row.dataset.gside) ? 'true' : 'false')); });
+      $('gFusedRow').hidden = $('gLinkRow').hidden = last;
+      $('gFused').checked = fusedBelow(app.spine, id); $('gLink').checked = linkBelow(app.spine, id);
+    }
+    colorRows();
+  }
+
+  return { sync, tap, draw, stopDrawing: () => { if (drawing !== null) setDrawing(null); }, stopPicking: () => { if (guide.picking) setPicking(0); } };
+}
+
+return { swatches, setupEasy };
+})();
+
 // ---- ui/build.js
-M.m17 = (() => {
-// The builder. Shape: pick one vertebra and move, turn or resize it, or pick a stretch between
-// two vertebrae and bow or offset it. Hardware: fit out a stretch in one go or place parts by
-// hand. Pain: mark where it hurts and pin notes. Everything changes the spine through
-// app.change, which redraws, moves the hardware with the bones and keeps the history for Undo.
+M.m18 = (() => {
+// The builder. Shape: draw the curve, or pick one vertebra and move, turn or resize it, or
+// pick a stretch between two vertebrae and bow or offset it. Hardware: answer three questions
+// (the easy way, in easy.js) or place, drag and bend every part by hand. Pain: mark where it
+// hurts and pin notes. Everything changes the spine through app.change, which redraws, moves
+// the hardware with the bones and keeps the history for Undo.
 
 const { sortedLevels, LEVEL_ORDER } = M.m5;
 const { vertebraShape, levelFrame } = M.m6;
 const { ANATOMY } = M.m8;
-const { FINISHES } = M.m10;
-const { pullLevel, moveAlone, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, stiffen, blockOf } = M.m16;
-const { slot, freeScrew, resizeScrew, screwLength, fitRods, crosslinkAt, planFor, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow } = M.m18;
+const { pullLevel, moveAlone, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, stiffen, blockOf, pivotAt } = M.m16;
+const { slot, freeScrew, resizeScrew, screwLength, fitRods, crosslinkAt, planFor, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, putPlanned, moveInLine, settleInLine, placePiece, hookAt, faceHook, bendRod, unbendRod } = M.m17;
 const { rayMesh, rayPoint } = M.m19;
 const { gizmoHit, dragAlong, dragAround } = M.m11;
-const { vAdd, vScale, vLerp, vDist } = M.m3;
+const { vAdd, vSub, vScale, vLerp, vDist, vDot } = M.m3;
+const { setupEasy, swatches } = M.m20;
 
-const PART_NAMES = { screws: 'Screw', hooks: 'Hook', crosslinks: 'Cross-link' };
+const PART_NAMES = { screws: 'Screw', hooks: 'Hook', crosslinks: 'Cross-link', rods: 'Rod' };
 const AXES = { left: [1, 0, 0], back: [0, 1, 0], up: [0, 0, 1] };
 const DEG = 180 / Math.PI;
 
 function setupBuilder(app) {
   const { $, renderer } = app;
-  let tab = 'shape', mode = 'one', hwMode = 'easy', plane = 0, placing = null, marking = null, drag = null, pending = null, hot = null;
+  let tab = 'shape', mode = 'draw', hwMode = 'easy', plane = 0, placing = null, marking = null, drag = null, pending = null, hot = null;
   const tool = { one: 'move', stretch: 'bow' };
   const levels = () => sortedLevels(app.spine), ids = () => levels().map((l) => l.id);
   const levelOf = (id) => app.spine.levels.find((l) => l.id === id);
@@ -2793,10 +3436,18 @@ function setupBuilder(app) {
     tab = name;
     each('[data-tab]', (b) => b.setAttribute('aria-selected', b.dataset.tab === name ? 'true' : 'false'));
     each('[data-pane]', (p) => { p.hidden = p.dataset.pane !== name; });
-    stopPlacing();
+    stopPlacing(); easy.stopDrawing(); easy.stopPicking();
+    app.showStiff = name === 'shape';
     const fits = !app.picked || (name === 'shape' && (app.picked.kind === 'level' || app.picked.kind === 'stretch')) || (name === 'parts' && (PART_NAMES[app.picked.kind] || app.picked.kind === 'level')) || (name === 'marks' && app.picked.kind === 'marks');
-    $('hint').textContent = name === 'shape' ? 'Click a vertebra, then drag its handles. Drag the background to turn. Scroll or pinch to zoom.' : 'Drag to turn. Scroll or pinch to zoom. Right-drag or two fingers to move.';
     if (app.spine) app.pick(fits ? app.picked : null);
+    hint();
+  }
+  // The line under the picture: what the mouse or a finger does there right now.
+  function hint() {
+    const turn = ' Drag the background to turn. Scroll or pinch to zoom.';
+    $('hint').textContent = tab === 'shape' ? (easy.draw.on() ? 'Drag a line along the spine. Scroll or pinch to zoom. Press "Done drawing" to turn the model again.' : mode === 'draw' ? 'Press a Draw button, or click a vertebra to work on it alone.' + turn : mode === 'one' ? 'Click a vertebra, then drag its handles.' + turn : 'Click the two ends of a stretch, then drag its handles.' + turn)
+      : tab === 'parts' ? (hwMode === 'easy' ? 'Click a vertebra to change what it carries.' + turn : 'Drag a screw or a hook to move it. Drag a rod to bend it.' + turn)
+        : 'Drag to turn. Scroll or pinch to zoom. Right-drag or two fingers to move.';
   }
   each('[data-tab]', (b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
   const LOOK = { front: Math.PI, back: 0, left: Math.PI / 2, right: -Math.PI / 2 };
@@ -2804,10 +3455,11 @@ function setupBuilder(app) {
 
   function setMode(next) {
     if (mode === next) return;
-    const was = one(), s = stretch();
+    const was = one(), p = app.picked;
+    easy.stopDrawing();
     mode = next;
     // carry the selection over: the vertebra becomes the top of a stretch, or the other way round
-    app.pick(next === 'stretch' ? (was ? { kind: 'stretch', top: was.id, bottom: null } : null) : s || (app.picked && app.picked.top) ? { kind: 'level', id: app.picked.top } : null);
+    app.pick(next === 'draw' ? null : next === 'stretch' ? (was ? { kind: 'stretch', top: was.id, bottom: null } : null) : p && p.kind === 'stretch' && p.top ? { kind: 'level', id: p.top } : null);
   }
   each('[data-mode]', (b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
   each('[data-tool]', (b) => b.addEventListener('click', () => { tool[b.dataset.tool === 'bow' || b.dataset.tool === 'offset' ? 'stretch' : 'one'] = b.dataset.tool; app.pick(app.picked); }));
@@ -2831,13 +3483,15 @@ function setupBuilder(app) {
   // ---------------------------------------------------------------- shape: one vertebra
   const half = (v) => Math.round(v * 2) / 2;
   const typicalSize = (id) => { const a = ANATOMY[id] || ANATOMY.T6; return [a.w, a.d, half((a.hf + a.hb) / 2) || 9]; };
-  // (a vertebra turned by hand leads the stiff block it is part of)
-  const turnTo = (set) => (v) => { const l = one(); if (l) live(() => { set(l, v); restack(app.spine, app.rig, l.id); }); };
+  // (a vertebra turned by hand leads the stiff block it is part of, and with "The spine above
+  // turns with it" ticked everything above it comes along, as if the spine bent in that place)
+  const turned = (l, set) => { if ($('pivotOn').checked) pivotAt(app.spine, app.rig, l.id, set); else { set(l); restack(app.spine, app.rig, l.id); } };
+  const turnTo = (set) => (v) => { const l = one(); if (l) live(() => turned(l, (x) => set(x, v))); };
   const sizeTo = (axis) => (v) => { const l = one(); if (l) { l.size[axis] = v; live(() => restack(app.spine, app.rig)); } };
   const gapDial = dial('gapR', 'gapN', (v) => { const l = one(); if (l) live(() => liftLevel(app.spine, app.rig, l.id, v - gapUnder(app.spine, app.rig, l.id))); });
   const angleDials = [dial('angF', 'angFn', turnTo((l, v) => { l.tilt[0] = v; })), dial('angS', 'angSn', turnTo((l, v) => { l.tilt[1] = v; })), dial('angT', 'angTn', turnTo((l, v) => { l.turn = v; }))];
   const sizeDials = [dial('sizeW', 'sizeWn', sizeTo(0)), dial('sizeD', 'sizeDn', sizeTo(1)), dial('sizeH', 'sizeHn', sizeTo(2))];
-  $('angZero').addEventListener('click', () => { const l = one(); if (l) app.change(() => { l.tilt[0] = 0; l.turn = 0; restack(app.spine, app.rig, l.id); }); });
+  $('angZero').addEventListener('click', () => { const l = one(); if (l) app.change(() => turned(l, (x) => { x.tilt[0] = 0; x.turn = 0; })); });
   $('stiffOn').addEventListener('change', () => { app.stiff = $('stiffOn').checked; stiffen(app.spine, app.rig, app.stiff); app.redraw(); sync(); });
   $('boneTypical').addEventListener('click', () => { const l = one(); if (l) { l.size = typicalSize(l.id); app.change(() => restack(app.spine, app.rig)); } });
   const step = (by) => () => { const list = ids(), i = list.indexOf(app.picked.id) + by; if (i >= 0 && i < list.length) app.pick({ kind: 'level', id: list[i] }); };
@@ -2858,6 +3512,30 @@ function setupBuilder(app) {
     if (!last) gapDial(round1(gapUnder(app.spine, app.rig, l.id)));
     angleDials[0](round1(l.tilt[0])); angleDials[1](round1(l.tilt[1])); angleDials[2](round1(l.turn));
     sizeDials.forEach((set, i) => set(half(l.size[i]), Math.floor(typ[i] * 0.6), Math.ceil(typ[i] * 1.6)));
+  }
+
+  // ---------------------------------------------------------------- shape: the fused part
+  // Which stretches are fused is said here, before or after the hardware goes on. A fused
+  // stretch keeps its shape while the rest is bent, as long as the box is ticked.
+  let fusedFor = '';
+  const fuseRange = (top, bottom, on) => { const list = ids(), a = list.indexOf(top), b = list.indexOf(bottom); app.change(() => { for (let i = Math.min(a, b); i < Math.max(a, b); i++) setFusedBelow(app.spine, list[i], on); }, { ride: false }); };
+  $('fuseAdd').addEventListener('click', () => { if ($('fuseTop').value !== $('fuseBottom').value) fuseRange($('fuseTop').value, $('fuseBottom').value, true); });
+  function fusedBox() {
+    const list = ids(), fused = app.spine.fused || [], box = $('fusedList');
+    if (fusedFor !== list.join()) {
+      fusedFor = list.join();
+      const all = list.map((id) => [id, id]);
+      options($('fuseTop'), all, list.includes('T4') ? 'T4' : list[0]); options($('fuseBottom'), all, list.includes('L2') ? 'L2' : list[list.length - 1]);
+    }
+    box.textContent = '';
+    for (const [top, bottom] of fused) {
+      const li = document.createElement('li'), b = document.createElement('button');
+      li.textContent = top + ' to ' + bottom + ' is fused. ';
+      b.textContent = 'Not fused'; b.className = 'plain'; b.addEventListener('click', () => fuseRange(top, bottom, false));
+      li.appendChild(b); box.appendChild(li);
+    }
+    $('fusedNone').hidden = fused.length > 0; $('stiffRow').hidden = $('stiffSay').hidden = !fused.length; $('stiffOn').checked = app.stiff;
+    $('stiffSay').textContent = app.stiff ? 'The fused part moves as one block and is drawn in a cooler colour. Bends go into the joints that are still free.' : 'The fused part can be reshaped like the rest. Tick the box once it has the shape it should keep.';
   }
 
   // ---------------------------------------------------------------- shape: a stretch
@@ -2975,13 +3653,13 @@ function setupBuilder(app) {
     if (a < 0 || b < 0) return;
     const plan = pattern === 'clear' ? {} : planFor(list, list[lo], list[hi], pattern);
     app.change(() => {
-      for (let i = lo; i <= hi; i++) for (const side of SIDES) if (list[i] !== 'C1') setCell(app.spine, list[i], side, (plan[list[i]] || {})[side] || '');
+      for (let i = lo; i <= hi; i++) for (const side of SIDES) if (list[i] !== 'C1') putPlanned(app.spine, list[i], side, (plan[list[i]] || {})[side] || '');
       if ($('fillFused').checked) for (let i = lo; i < hi; i++) setFusedBelow(app.spine, list[i], pattern !== 'clear');
     }, { ride: false });
   });
   $('hwClear').addEventListener('click', () => { app.picked = null; app.change(() => { app.spine.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] }; }, { ride: false }); });
   $('rodsFit').addEventListener('click', () => app.change(() => fitRods(app.spine, true), { ride: false }));
-  each('[data-hw]', (b) => b.addEventListener('click', () => { hwMode = b.dataset.hw; stopPlacing(); app.pick(hwMode === 'easy' && pieceOf() ? null : app.picked); }));
+  each('[data-hw]', (b) => b.addEventListener('click', () => { hwMode = b.dataset.hw; stopPlacing(); easy.stopPicking(); app.pick(hwMode === 'easy' && pieceOf() ? null : app.picked); }));
 
   // ---------------------------------------------------------------- hardware: parts by hand
   function spotsFor(kind) {
@@ -3015,7 +3693,7 @@ function setupBuilder(app) {
   $('snapOn').addEventListener('change', () => { if (placing) showPlacing(); });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') stopPlacing();
-    if ((e.key === 'Delete' || e.key === 'Backspace') && (pieceOf() || markOf()) && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) removePicked();
+    if ((e.key === 'Delete' || e.key === 'Backspace') && ((pieceOf() && app.picked.kind !== 'rods') || markOf()) && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) removePicked();
   });
 
   // Put the part being placed where the click landed.
@@ -3034,8 +3712,8 @@ function setupBuilder(app) {
       } else if (hit) {
         if (placing === 'screw') added = { group, piece: { ...freeScrew(hit.level, hit.point), source: 'guessed' } };
         else {
-          const side = toLocal(hit.point, hit.level.centre, levelFrame(hit.level))[0] >= 0 ? 'left' : 'right', spot = slot(hit.level, side).hook, at = vAdd(hit.point, vScale(levelFrame(hit.level).back, 6)), by = [0, 1, 2].map((j) => at[j] - spot.at[j]);
-          added = { group, piece: { level: hit.level.id, side, rod: side, kind: spot.kind, at, mid: vAdd(spot.mid, by), tip: vAdd(spot.tip, by), source: 'guessed' } };
+          const side = toLocal(hit.point, hit.level.centre, levelFrame(hit.level))[0] >= 0 ? 'left' : 'right';
+          added = { group, piece: { rod: side, kind: 'lamina', ...hookAt(hit.level, vAdd(hit.point, vScale(levelFrame(hit.level).back, 6)), side), source: 'guessed' } };
         }
       } else { app.say('Click on a vertebra.'); return; }
       added.piece.rod = (hw().rods.find((r) => r.side === added.piece.side) || { id: added.piece.side }).id;
@@ -3047,8 +3725,16 @@ function setupBuilder(app) {
     if (!added) return;
     const list = hw()[added.group];
     app.picked = { kind: added.group, index: list.length };
-    app.change(() => { list.push(added.piece); if (added.group !== 'crosslinks') fitRods(app.spine); }, { ride: false });
+    let nudged = false;
+    app.change(() => {
+      list.push(added.piece);
+      if (added.group === 'crosslinks') return;
+      // a part dropped out of line with its rod slides in, just far enough for the rod to reach it
+      nudged = app.inLine && !$('snapOn').checked && settleInLine(app.spine, added.piece);
+      fitRods(app.spine);
+    }, { ride: false });
     if (placing) showPlacing();
+    if (nudged) app.say('Moved it a little so that the rod can reach it. Untick "Keep rods believable" to place parts anywhere.');
   }
 
   function removePicked() {
@@ -3056,20 +3742,70 @@ function setupBuilder(app) {
     app.picked = null;
     app.change(() => { list.splice(p.index, 1); if (p.kind === 'screws' || p.kind === 'hooks') fitRods(app.spine); }, { ride: false });
   }
-  $('pieceRemove').addEventListener('click', () => { if (pieceOf()) removePicked(); });
+  $('pieceRemove').addEventListener('click', () => { if (pieceOf() && app.picked.kind !== 'rods') removePicked(); });
   const again = (settle) => app.change(() => {}, { settle, ride: false });
   const thick = dial('pieceThick', 'pieceThickN', (v) => { const s = pieceOf(); if (s) { resizeScrew(s, v, 0); again(false); } });
   const long = dial('pieceLong', 'pieceLongN', (v) => { const s = pieceOf(); if (s) { resizeScrew(s, 0, v); again(false); } });
-  $('pieceColor').addEventListener('change', () => { const p = pieceOf(); if (p) { if ($('pieceColor').value) p.color = $('pieceColor').value; else delete p.color; again(true); } });
+  const rodThick = dial('rodThick', 'rodThickN', (v) => { const r = pieceOf(); if (r && app.picked.kind === 'rods') { r.diameter = v; again(false); } });
+  const colored = (name) => { const p = pieceOf(); if (p) { if (name) p.color = name; else delete p.color; again(true); } };
+  each('[data-face]', (b) => b.addEventListener('click', () => { const h = pieceOf(); if (h && app.picked.kind === 'hooks') app.change(() => faceHook(app.spine, h, b.dataset.face), { ride: false }); }));
+  $('rodUnbend').addEventListener('click', () => { const r = pieceOf(); if (r && app.picked.kind === 'rods') app.change(() => unbendRod(app.spine, r), { ride: false }); });
+  $('inLineOn').addEventListener('change', () => { app.inLine = $('inLineOn').checked; });
 
   function pieceBox() {
     const p = pieceOf(), kind = p ? app.picked.kind : '';
-    $('pieceBox').hidden = !p;
+    $('pieceBox').hidden = !p || kind === 'rods'; $('rodBox').hidden = kind !== 'rods';
     if (!p) return;
+    if (kind === 'rods') {
+      const bends = (p.via || []).length;
+      $('rodName').textContent = 'Rod, ' + p.side + ' side' + (!p.auto ? ', traced from a scan' : bends ? ', bent by hand in ' + bends + (bends === 1 ? ' place' : ' places') : '');
+      rodThick(p.diameter || 5.5);
+      swatches($('rodColors'), '', p.color || '', colored, true);
+      $('rodUnbend').disabled = !bends;
+      return;
+    }
     $('pieceName').textContent = PART_NAMES[kind] + (p.level ? ' at ' + p.level : '') + (p.side ? ', ' + p.side + ' side' : '');
     $('pieceThickRow').hidden = $('pieceLongRow').hidden = kind !== 'screws';
     if (kind === 'screws') { thick(p.diameter || 5); long(screwLength(p)); }
-    options($('pieceColor'), [['', 'the usual'], ...Object.keys(FINISHES).map((k) => [k, k])], p.color || '');
+    $('pieceFaceRow').hidden = kind !== 'hooks';
+    pressed('[data-face]', 'face', p.faces || 'down');
+    swatches($('pieceColors'), '', p.color || '', colored, true);
+  }
+
+  // Dragging a screw or a hook over the bone. With snapping it hops from one usual spot to
+  // the next. Without, it sits where the pointer is on the bone.
+  function dragPart(e) {
+    const { kind, index } = drag.part, part = hw()[kind][index], hit = hitLevel({ clientX: e.clientX - drag.off[0], clientY: e.clientY - drag.off[1] });
+    if (!part || !hit) return;
+    const frame = levelFrame(hit.level), side = toLocal(hit.point, hit.level.centre, frame)[0] >= 0 ? 'left' : 'right';
+    let next;
+    if ($('snapOn').checked) {
+      if (hit.level.id === 'C1' || (part.level === hit.level.id && part.side === side) || [...hw().screws, ...hw().hooks].some((p) => p !== part && p.level === hit.level.id && p.side === side)) return;
+      const spot = slot(hit.level, side, part.faces || 'down');
+      next = kind === 'screws' ? { level: hit.level.id, side, ...spot.screw, diameter: part.diameter } : { level: hit.level.id, side, ...spot.hook };
+    } else if (kind === 'screws') {
+      const f = freeScrew(hit.level, hit.point);
+      next = { level: f.level, side: f.side, head: f.head, entry: f.entry, tip: f.tip };
+    } else next = hookAt(hit.level, vAdd(hit.point, vScale(frame.back, 6)), side, part.faces || 'down');
+    app.picked = { kind, index };
+    let went = true;
+    live(() => { went = placePiece(app.spine, part, next, app.inLine); }, false);
+    app.say(went ? '' : 'The rod could not follow it there. Untick "Keep rods believable" to place it anyway.');
+  }
+  // Dragging a rod between two of its parts bends it there: the rod is made to pass through
+  // the spot under the pointer.
+  function dragRod(e) {
+    const rod = hw().rods.find((r) => r.id === drag.rod);
+    if (!rod) return;
+    const ray = renderer.ray(e.clientX, e.clientY), t = vDot(vSub(drag.at, ray.origin), drag.facing) / vDot(ray.direction, drag.facing);
+    if (!(t > 0)) return;
+    const at = vAdd(ray.origin, vScale(ray.direction, t));
+    let via = -1;
+    live(() => { via = bendRod(app.spine, rod, at, drag.via, app.inLine); }, false);
+    drag.via = via;
+    const now = hw().rods.find((r) => r.id === drag.rod);
+    app.picked = { kind: 'rods', index: hw().rods.indexOf(now) };
+    app.say(via < 0 ? 'A rod can be bent between its two ends, not beyond them.' : vDist(now.via[via], at) > 1.5 ? 'That is as far as a rod bends there. Untick "Keep rods believable" to bend it further.' : '');
   }
 
   // ---------------------------------------------------------------- pain points and notes
@@ -3122,7 +3858,7 @@ function setupBuilder(app) {
     if (tab === 'shape' && s) return set(tool.stretch === 'bow' ? middle(s).centre : levelOf(s.top).centre, { left: 'double', back: 'double' });
     if (tab === 'marks' && m) return set(markSpot(m), { left: 'double', back: 'double', up: 'double' });
     const part = pieceOf();
-    if (tab === 'parts' && hwMode === 'hand' && part) return app.picked.kind === 'crosslinks' ? set(vLerp(part.from, part.to, 0.5), { up: 'double' }) : set(part.head || part.at, { left: 'double', back: 'double', up: 'double' });
+    if (tab === 'parts' && hwMode === 'hand' && part && app.picked.kind !== 'rods') return app.picked.kind === 'crosslinks' ? set(vLerp(part.from, part.to, 0.5), { up: 'double' }) : set(part.head || part.at, { left: 'double', back: 'double', up: 'double' });
     return null;
   }
 
@@ -3138,7 +3874,10 @@ function setupBuilder(app) {
           const link = crosslinkAt(spine, (part.from[2] + part.to[2]) / 2 + by);
           if (link) { part.from = link.from; part.to = link.to; part.level = link.level; delete part.below; }
         } else {
-          for (const key of ['head', 'entry', 'tip', 'at', 'mid']) if (part[key]) part[key] = part[key].map((v, k) => (k === j ? round1(v + by) : v));
+          const step = [0, 0, 0];
+          step[j] = by;
+          if (app.inLine) moveInLine(spine, part, step);
+          else for (const key of ['head', 'entry', 'tip', 'at', 'mid']) if (part[key]) part[key] = part[key].map((v, k) => round1(v + step[k]));
           fitRods(spine);
         }
       }, false);
@@ -3149,7 +3888,7 @@ function setupBuilder(app) {
       const soft = $('softOn').checked;
       live(() => { if (name === 'up') liftLevel(spine, rig, l.id, by); else if (soft) pullLevel(spine, rig, l.id, name === 'left' ? by : 0, name === 'back' ? by : 0); else moveAlone(spine, rig, l.id, name === 'left' ? by : 0, name === 'back' ? by : 0); });
     } else if (l && tool.one === 'turn') {
-      live(() => { if (name === 'up') l.turn += turn; else if (name === 'back') l.tilt[0] = Math.max(-80, Math.min(80, l.tilt[0] + turn)); else l.tilt[1] = Math.max(-80, Math.min(80, l.tilt[1] - turn)); restack(spine, rig, l.id); });
+      live(() => turned(l, (x) => { if (name === 'up') x.turn += turn; else if (name === 'back') x.tilt[0] = Math.max(-80, Math.min(80, x.tilt[0] + turn)); else x.tilt[1] = Math.max(-80, Math.min(80, x.tilt[1] - turn)); }));
     } else if (l && tool.one === 'size') {
       const j = { left: 0, back: 1, up: 2 }[name], typ = typicalSize(l.id);
       l.size[j] = Math.max(typ[j] * 0.5, Math.min(typ[j] * 1.8, l.size[j] + 2 * by));
@@ -3182,10 +3921,12 @@ function setupBuilder(app) {
       hw().screws.forEach((s, index) => at.push({ kind: 'screws', index, p: s.head, r: 9 }));
       hw().hooks.forEach((h, index) => at.push({ kind: 'hooks', index, p: h.at, r: 9 }));
       hw().crosslinks.forEach((c, index) => { for (const t of [0.25, 0.5, 0.75]) at.push({ kind: 'crosslinks', index, p: vLerp(c.from, c.to, t), r: 6 }); });
+      // a rod is thin and runs behind its screws: it is only taken when nothing else is under the pointer
+      hw().rods.forEach((rod, index) => rod.points.forEach((p) => at.push({ kind: 'rods', index, p, r: 4.2, behind: 14 })));
     }
     let best = null;
-    for (const c of at) { const near = rayPoint(ray.origin, ray.direction, c.p); if (near.off <= c.r && near.along > 0 && (!best || near.along < best.along)) best = { ...c, along: near.along }; }
-    return best && { kind: best.kind, index: best.index };
+    for (const c of at) { const near = rayPoint(ray.origin, ray.direction, c.p), rank = near.along + (c.behind || 0); if (near.off <= c.r && near.along > 0 && (!best || rank < best.rank)) best = { ...c, rank }; }
+    return best && { kind: best.kind, index: best.index, at: best.p };
   }
 
   function tap(e) {
@@ -3193,17 +3934,23 @@ function setupBuilder(app) {
     if (placing) { place(e); return; }
     if (marking) { addMark(e); return; }
     if (tab === 'parts' && hwMode === 'easy') {
-      // the sheet and the model point at each other: a click on a vertebra finds its row
-      const hit = hitLevel(e);
-      app.pick(hit ? { kind: 'level', id: hit.level.id } : null);
-      const row = hit && document.querySelector('#sheet tr[data-level="' + hit.level.id + '"]');
+      // the easy way: a click picks the vertebra whose hardware is to be changed
+      easy.tap(e);
+      return;
+    }
+    if (tab === 'parts') {
+      const what = hitThing(e, false), hit = what ? null : hitLevel(e);
+      // a click on bone with the sheet open finds that vertebra's row
+      const row = hit && $('sheetFold').open && document.querySelector('#sheet tr[data-level="' + hit.level.id + '"]');
+      app.pick(what ? { kind: what.kind, index: what.index } : row ? { kind: 'level', id: hit.level.id } : null);
       if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       return;
     }
-    if (tab === 'parts') { app.pick(hitThing(e, false)); return; }
-    if (tab === 'marks') { app.pick(hitThing(e, true)); return; }
+    if (tab === 'marks') { const m = hitThing(e, true); app.pick(m && { kind: m.kind, index: m.index }); return; }
     if (tab !== 'shape') return;
     const hit = hitLevel(e), id = hit && hit.level.id, list = ids(), p = app.picked || {};
+    // while the curve is being drawn in broad strokes, a click on a vertebra opens the fine work on it
+    if (mode === 'draw') { if (id) { mode = 'one'; app.pick({ kind: 'level', id }); } return; }
     if (!id) { app.pick(null); return; }
     if (mode === 'one' && e.shiftKey && p.kind === 'level' && p.id !== id) { mode = 'stretch'; app.pick({ kind: 'stretch', top: list.indexOf(p.id) < list.indexOf(id) ? p.id : id, bottom: list.indexOf(p.id) < list.indexOf(id) ? id : p.id }); return; }
     if (mode === 'one') { app.pick({ kind: 'level', id }); return; }
@@ -3215,9 +3962,30 @@ function setupBuilder(app) {
     // A press on a handle grabs it. A press on the selected vertebra (or inside the selected
     // stretch) grabs that: it then follows the pointer.
     down(e) {
-      if (!app.spine || placing || marking) return false;
-      const h = handles(), grabbed = h && gizmoHit(h.spec, renderer, e.clientX, e.clientY, e.pointerType === 'touch' ? 24 : 13);
+      if (!app.spine) return false;
+      if (easy.draw.on()) return easy.draw.down(e);
+      if (placing || marking) return false;
+      // (a press right on the picked screw or hook drags the part itself, not one of its arrows)
+      const h = handles(), box = renderer.canvas.getBoundingClientRect(), mid = h && tab === 'parts' && hwMode === 'hand' && renderer.project(h.spec.at);
+      const onPart = mid && Math.hypot(mid[0] + box.left - e.clientX, mid[1] + box.top - e.clientY) < (e.pointerType === 'touch' ? 16 : 10);
+      const grabbed = h && !onPart && gizmoHit(h.spec, renderer, e.clientX, e.clientY, e.pointerType === 'touch' ? 24 : 13);
       if (grabbed) { drag = { name: grabbed.handle.name, ring: grabbed.handle.kind === 'ring', grab: grabbed.grab, dx: 0, dy: 0, moved: false }; app.redraw(); return true; }
+      if (tab === 'parts' && hwMode === 'hand') {
+        // a press on a screw or a hook grabs it, a press on a rod grabs the rod there
+        const what = hitThing(e, false), ray = renderer.ray(e.clientX, e.clientY);
+        if (what && (what.kind === 'screws' || what.kind === 'hooks')) {
+          // (the part keeps its place under the pointer: the spot where it meets the bone stays as far from the pointer as it was at the press)
+          const part = hw()[what.kind][what.index], foot = renderer.project(part.entry || part.at);
+          drag = { part: what, off: foot ? [e.clientX - foot[0] - box.left, e.clientY - foot[1] - box.top] : [0, 0], dx: 0, dy: 0, moved: false };
+          return true;
+        }
+        if (what && what.kind === 'rods' && hw().rods[what.index].auto) {
+          const rod = hw().rods[what.index], via = (rod.via || []).findIndex((p) => rayPoint(ray.origin, ray.direction, p).off < 6);
+          drag = { rod: rod.id, via, at: via >= 0 ? rod.via[via] : what.at, facing: ray.direction, dx: 0, dy: 0, moved: false };
+          return true;
+        }
+        return false;
+      }
       if (tab !== 'shape') return false;
       const hit = hitLevel(e), l = one(), s = stretch(), list = ids();
       if (!hit) return false;
@@ -3227,8 +3995,9 @@ function setupBuilder(app) {
       return true;
     },
     move(e, dx, dy) {
+      if (easy.draw.on()) { easy.draw.move(e); return; }
       if (!drag) return;
-      drag.dx += dx; drag.dy += dy;
+      drag.dx += dx; drag.dy += dy; drag.e = e;
       if (Math.abs(drag.dx) + Math.abs(drag.dy) < 3 && !drag.moved) return;
       if (pending) return;
       pending = requestAnimationFrame(() => {
@@ -3236,7 +4005,9 @@ function setupBuilder(app) {
         if (!drag) return;
         const h = handles(), dx2 = drag.dx, dy2 = drag.dy;
         drag.dx = drag.dy = 0; drag.moved = true;
-        if (drag.name) {
+        if (drag.part) dragPart(drag.e);
+        else if (drag.rod) dragRod(drag.e);
+        else if (drag.name) {
           const handle = h && h.spec.handles.find((x) => x.name === drag.name);
           if (!handle) return;
           if (drag.ring) pull(drag.name, 0, dragAround(h.spec, handle, renderer, drag.grab, dx2, dy2)); else pull(drag.name, dragAlong(h.spec, handle, renderer, dx2, dy2), 0);
@@ -3251,6 +4022,7 @@ function setupBuilder(app) {
       });
     },
     up(e) {
+      if (easy.draw.on()) { easy.draw.up(e); return; }
       const was = drag; drag = null;
       if (was && was.moved) app.settle(); else { if (was && was.name) app.redraw(); if (e.type === 'pointerup' && !(was && was.name)) tap(e); }
     },
@@ -3265,19 +4037,21 @@ function setupBuilder(app) {
   function sync() {
     if (!app.spine) return;
     pressed('[data-mode]', 'mode', mode);
-    $('oneBox').hidden = mode !== 'one'; $('stretchBox').hidden = mode !== 'stretch';
-    $('stiffRow').hidden = !(app.spine.fused || []).length; $('stiffOn').checked = app.stiff;
+    $('drawBox').hidden = mode !== 'draw'; $('oneBox').hidden = mode !== 'one'; $('stretchBox').hidden = mode !== 'stretch';
     pressed('[data-hw]', 'hw', hwMode);
     $('easyBox').hidden = hwMode !== 'easy'; $('handBox').hidden = hwMode !== 'hand';
-    oneBox(); stretchBox(); sheet(); pieceBox(); markBox();
+    oneBox(); stretchBox(); fusedBox(); sheet(); pieceBox(); markBox(); easy.sync(); hint();
   }
 
+  const easy = setupEasy(app, { $, each, pressed, options, ids, levelOf, hitLevel, hint });
   showTab('shape');
   return {
     sync, handles,
     // a new spine was opened, or Undo went back: drop whatever was being placed
-    reset() { placing = marking = null; hot = null; pressed('[data-part]', 'part', null); pressed('[data-mark]', 'mark', null); $('stage').classList.remove('placing'); },
+    reset() { easy.stopDrawing(); easy.stopPicking(); placing = marking = null; hot = null; pressed('[data-part]', 'part', null); pressed('[data-mark]', 'mark', null); $('stage').classList.remove('placing'); },
     // select a stretch and open the Shape tab on it (the list of curves does this)
+    // the vertebra under a point of the page, if there is one (the checks in a browser use this)
+    levelAt(clientX, clientY) { const hit = hitLevel({ clientX, clientY }); return hit ? hit.level.id : null; },
     workOn(top, bottom, which) { mode = 'stretch'; tool.stretch = 'bow'; plane = which; if (tab !== 'shape') showTab('shape'); app.pick({ kind: 'stretch', top, bottom }); },
   };
 }
@@ -3300,9 +4074,10 @@ const { readSpineFile, saveSpineFile, loadExample, listExamples, download, fileN
 const { packSpine, unpackSpine, linkFor, packedIn } = M.m14;
 const { stlOf } = M.m15;
 const { rigOf, carry, stiffen, blockOf } = M.m16;
+const { fitRods } = M.m17;
 const { setBoneStyle } = M.m6;
 const { SHAPE_CREDIT } = M.m9;
-const { setupBuilder } = M.m17;
+const { setupBuilder } = M.m18;
 
 const $ = (id) => document.getElementById(id);
 // phones get a slightly coarser grid for the bones so they appear sooner
@@ -3324,6 +4099,8 @@ try { look = { ...USUAL, ...JSON.parse(localStorage.getItem('spineBuilderLook') 
 const app = {
   $, renderer, DETAIL, rig: null, picked: null, spots: [],
   stiff: true,                         // fused stretches move as blocks (the switch in the Shape tab)
+  inLine: true,                        // a part stops where its rod could not follow (the switch under By hand)
+  showStiff: true,                     // tint the stiff blocks (while the Shape tab is open)
   get spine() { return spine; },
   say(text) { $('status').textContent = text || ''; },
 
@@ -3332,7 +4109,10 @@ const app = {
     if (!spine) return;
     // the vertebrae fused to the picked one are tinted too: they move with it
     const block = app.picked && app.picked.kind === 'level' && app.rig ? blockOf(spine, app.rig, app.picked.id) : null;
-    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
+    // while the spine is being shaped, the stretches that are held stiff are drawn in a cooler colour
+    const order = sortedLevels(spine).map((l) => l.id), stiff = [];
+    if (app.showStiff && app.stiff && app.rig) for (const b of app.rig.blocks || []) stiff.push(...order.slice(b.from, b.to + 1));
+    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, stiff, spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
     const handles = builder && builder.handles();
     renderer.setItems(handles ? items.concat(gizmoItems(handles.spec, handles.active)) : items);
     applyToggles();
@@ -3348,7 +4128,9 @@ const app = {
   //   ride:   false when the change is to the hardware or the marks themselves
   change(fn, { settle = true, ride = true } = {}) {
     if (!spine) return;
-    if (ride) carry(spine, fn); else fn();
+    // (after the bones have moved, the rods are strung through their parts again, so they stay smooth)
+    if (ride) { carry(spine, fn); if (((spine.hardware || {}).rods || []).some((r) => r.auto)) fitRods(spine); } else fn();
+    if (settle) stiffen(spine, app.rig, app.stiff);   // before drawing, so a stretch that was just fused shows as stiff at once
     app.redraw();
     if (settle) app.settle();
   },
@@ -3619,7 +4401,7 @@ function applyLook(save = true) {
   document.querySelectorAll('[data-back]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.back === look.back ? 'true' : 'false'));
   renderer.setShading(look.shade);
   document.querySelectorAll('[data-shade]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.shade === look.shade ? 'true' : 'false'));
-  $('colBone').value = look.bone; $('colDisc').value = look.disc; $('colHw').value = look.hardware || '#9a9ea8'; $('hwByLevel').checked = !!look.byLevel;
+  $('colBone').value = look.bone; $('colDisc').value = look.disc; $('hwByLevel').checked = !!look.byLevel;
   $('simpleBones').checked = !!look.simple; setBoneStyle(look.simple ? 'drawn' : 'real');
   if (save) { try { localStorage.setItem('spineBuilderLook', JSON.stringify(look)); } catch (e) { /* not kept, that is all */ } }
   app.redraw();
@@ -3657,7 +4439,6 @@ if (!renderer) {
   document.querySelectorAll('[data-shade]').forEach((b) => b.addEventListener('click', () => { look.shade = b.dataset.shade; applyLook(); }));
   $('colBone').addEventListener('input', () => { look.bone = $('colBone').value; applyLook(); });
   $('colDisc').addEventListener('input', () => { look.disc = $('colDisc').value; applyLook(); });
-  $('colHw').addEventListener('input', () => { look.hardware = $('colHw').value; applyLook(); });
   $('hwByLevel').addEventListener('change', () => { look.byLevel = $('hwByLevel').checked; applyLook(); });
   $('simpleBones').addEventListener('change', () => { look.simple = $('simpleBones').checked; applyLook(); });
   // the bone shapes come from an open anatomy collection that asks to be named

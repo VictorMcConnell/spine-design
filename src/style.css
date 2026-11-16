@@ -102,6 +102,30 @@ input[type="color"] { width: 34px; height: 26px; padding: 0; border: 1px solid v
 #sheet tr.picked td:first-child button { color: #ffc84d; }
 #sheet button[data-col] { touch-action: none; }
 .note { margin: 6px 0; padding: 6px 9px; border-left: 3px solid #d2b55a; background: rgba(210, 181, 90, 0.09); border-radius: 0 6px 6px 0; color: var(--ink); }
+/* a boxed group of controls, big choices, colour swatches */
+.box { margin: 10px 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255, 255, 255, 0.025); }
+.box h3 { margin-top: 0; }
+.check.strong { margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: rgba(170, 180, 255, 0.12); border: 1px solid rgba(170, 180, 255, 0.4); color: var(--ink); font-weight: 600; }
+.choices { display: grid; gap: 5px; margin: 6px 0; }
+.choices button { display: block; text-align: left; padding: 7px 10px; line-height: 1.3; }
+.choices button strong { display: block; }
+.choices button span { font-size: 12px; color: var(--muted); }
+.choices button[aria-pressed="true"] { border-color: var(--accent); background: #30345a; }
+.sideRow { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 6px; margin: 6px 0; }
+.sideRow .seg { margin: 0; }
+.seg.four button { padding: 6px 2px; font-size: 12px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin: 6px 0; }
+.swatches > span { flex: 0 0 100%; font-size: 12.5px; color: var(--muted); }
+.swatch { width: 17px; height: 17px; padding: 0; border-radius: 50%; border: 2px solid transparent; outline: 1px solid rgba(255, 255, 255, 0.25); cursor: pointer; }
+.swatch[aria-pressed="true"] { border-color: #fff; outline: 2px solid var(--accent); }
+.swatch.none { width: auto; height: auto; border-radius: 6px; padding: 2px 7px; font-size: 12px; outline: 0; border: 1px solid var(--line); }
+details#sheetFold { margin: 10px 0; }
+details#sheetFold summary { cursor: pointer; padding: 6px 0; color: var(--ink); font-weight: 600; }
+/* the pad to draw the curve on: dots over the view, and the line being drawn */
+#drawPad { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(170, 180, 255, 0.5) 1.2px, transparent 1.6px); background-size: 26px 26px; }
+#drawSvg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#drawLine { stroke: #ffc84d; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+#stage.drawing canvas { cursor: crosshair; }
 /* the note shown when the app opens */
 #welcome { width: min(560px, 94vw); max-height: 92vh; overflow: auto; padding: 20px 22px; border: 1px solid var(--line); border-radius: 14px; background: #1b1c22; color: var(--ink); box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55); }
 #welcome::backdrop { background: rgba(8, 9, 12, 0.72); }
