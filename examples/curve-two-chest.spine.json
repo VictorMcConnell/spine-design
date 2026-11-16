@@ -1,0 +1,493 @@
+{
+ "schema": 1,
+ "name": "Two curves in the chest",
+ "units": "mm",
+ "frame": "x = patient left, y = back, z = up, origin at the centre of S1, standing",
+ "about": "A short curve of 30° to the left high in the chest and a larger one of 50° to the right below it.",
+ "levels": [
+  {
+   "id": "C1",
+   "centre": [
+    0.1,
+    -70.3,
+    592.6
+   ],
+   "tilt": [
+    0,
+    6
+   ],
+   "turn": 0,
+   "size": [
+    20,
+    15,
+    9
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C2",
+   "centre": [
+    0.1,
+    -71.6,
+    579.9
+   ],
+   "tilt": [
+    0,
+    6
+   ],
+   "turn": 0,
+   "size": [
+    16.5,
+    15.5,
+    14.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C3",
+   "centre": [
+    0.1,
+    -72.6,
+    562.4
+   ],
+   "tilt": [
+    0,
+    0
+   ],
+   "turn": 0,
+   "size": [
+    16,
+    15.5,
+    12.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C4",
+   "centre": [
+    0.1,
+    -71.7,
+    545.7
+   ],
+   "tilt": [
+    0,
+    -6
+   ],
+   "turn": 0,
+   "size": [
+    16.5,
+    15.5,
+    13
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C5",
+   "centre": [
+    0.2,
+    -69,
+    528.7
+   ],
+   "tilt": [
+    -0.58,
+    -12
+   ],
+   "turn": 0,
+   "size": [
+    17.5,
+    16,
+    13.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C6",
+   "centre": [
+    0.5,
+    -64.4,
+    511.6
+   ],
+   "tilt": [
+    -1.15,
+    -18
+   ],
+   "turn": 0,
+   "size": [
+    19,
+    16.5,
+    14
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C7",
+   "centre": [
+    0.9,
+    -57.8,
+    494.6
+   ],
+   "tilt": [
+    -1.73,
+    -24
+   ],
+   "turn": 0,
+   "size": [
+    22,
+    17,
+    14.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T1",
+   "centre": [
+    1.5,
+    -49.1,
+    476.9
+   ],
+   "tilt": [
+    -2.32,
+    -28
+   ],
+   "turn": 0,
+   "size": [
+    27,
+    18.5,
+    17
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T2",
+   "centre": [
+    0.9,
+    -39.2,
+    456.5
+   ],
+   "tilt": [
+    5.25,
+    -24.4
+   ],
+   "turn": 3,
+   "size": [
+    26,
+    19.5,
+    17.8
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T3",
+   "centre": [
+    -2.5,
+    -30.3,
+    435.2
+   ],
+   "tilt": [
+    12.82,
+    -20.7
+   ],
+   "turn": 6,
+   "size": [
+    25.5,
+    21,
+    18.6
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T4",
+   "centre": [
+    -9.1,
+    -22.7,
+    413.2
+   ],
+   "tilt": [
+    20.37,
+    -17.1
+   ],
+   "turn": 3,
+   "size": [
+    26,
+    22.5,
+    19.4
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T5",
+   "centre": [
+    -19.1,
+    -16.7,
+    391.1
+   ],
+   "tilt": [
+    27.93,
+    -13.5
+   ],
+   "turn": 0,
+   "size": [
+    27,
+    24,
+    20.2
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T6",
+   "centre": [
+    -29.5,
+    -12,
+    368
+   ],
+   "tilt": [
+    20.65,
+    -9.8
+   ],
+   "turn": -3.17,
+   "size": [
+    28,
+    26,
+    21
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T7",
+   "centre": [
+    -37.2,
+    -8.5,
+    342.8
+   ],
+   "tilt": [
+    13.35,
+    -6.2
+   ],
+   "turn": -10.29,
+   "size": [
+    29.5,
+    27.5,
+    21.8
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T8",
+   "centre": [
+    -41.8,
+    -6.4,
+    315.9
+   ],
+   "tilt": [
+    6.06,
+    -2.5
+   ],
+   "turn": -16,
+   "size": [
+    31,
+    28.5,
+    22.6
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T9",
+   "centre": [
+    -42.9,
+    -6,
+    287.7
+   ],
+   "tilt": [
+    -1.24,
+    1.1
+   ],
+   "turn": -16,
+   "size": [
+    33,
+    29.5,
+    23.4
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T10",
+   "centre": [
+    -40.5,
+    -7.5,
+    258.9
+   ],
+   "tilt": [
+    -8.18,
+    4.7
+   ],
+   "turn": -10.29,
+   "size": [
+    35,
+    30.5,
+    24.2
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T11",
+   "centre": [
+    -34.5,
+    -10.8,
+    230
+   ],
+   "tilt": [
+    -15.13,
+    8.4
+   ],
+   "turn": -3.17,
+   "size": [
+    38,
+    31.5,
+    25
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T12",
+   "centre": [
+    -24.9,
+    -16,
+    201.4
+   ],
+   "tilt": [
+    -22.07,
+    12
+   ],
+   "turn": 0,
+   "size": [
+    41,
+    32.5,
+    25.8
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L1",
+   "centre": [
+    -14.9,
+    -21.6,
+    172.8
+   ],
+   "tilt": [
+    -16.54,
+    10
+   ],
+   "turn": 0,
+   "size": [
+    43,
+    33,
+    25.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L2",
+   "centre": [
+    -6.8,
+    -26.6,
+    139.7
+   ],
+   "tilt": [
+    -11.02,
+    7.5
+   ],
+   "turn": 0,
+   "size": [
+    45,
+    34,
+    26.6
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L3",
+   "centre": [
+    -1.7,
+    -29.8,
+    104.6
+   ],
+   "tilt": [
+    -5.51,
+    3
+   ],
+   "turn": 0,
+   "size": [
+    47,
+    35,
+    27.7
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L4",
+   "centre": [
+    0,
+    -28.8,
+    68.1
+   ],
+   "tilt": [
+    0,
+    -6
+   ],
+   "turn": 0,
+   "size": [
+    49,
+    35.5,
+    28.8
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L5",
+   "centre": [
+    0,
+    -19.4,
+    31.8
+   ],
+   "tilt": [
+    0,
+    -23
+   ],
+   "turn": 0,
+   "size": [
+    51,
+    35.5,
+    29.9
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "S1",
+   "centre": [
+    0,
+    0,
+    0
+   ],
+   "tilt": [
+    0,
+    -40
+   ],
+   "turn": 0,
+   "size": [
+    50,
+    33,
+    28.5
+   ],
+   "source": "typical"
+  }
+ ],
+ "fused": [],
+ "hardware": {
+  "rods": [],
+  "screws": [],
+  "hooks": [],
+  "crosslinks": []
+ },
+ "marks": [],
+ "pictures": []
+}

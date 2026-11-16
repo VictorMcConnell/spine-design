@@ -3,7 +3,7 @@
  "name": "One curve in the chest",
  "units": "mm",
  "frame": "x = patient left, y = back, z = up, origin at the centre of S1, standing",
- "about": "A single sideways curve of 45° from T5 to T12, bowing to the right, with the bodies turned. A place to start if your curve is in the upper back.",
+ "about": "A single curve of 45° to the right from T5 to T12, with the bodies turned. The most common pattern in teenagers with scoliosis.",
  "levels": [
   {
    "id": "C1",

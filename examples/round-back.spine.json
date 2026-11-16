@@ -1,0 +1,493 @@
+{
+ "schema": 1,
+ "name": "Round upper back",
+ "units": "mm",
+ "frame": "x = patient left, y = back, z = up, origin at the centre of S1, standing",
+ "about": "The chest part rounds backward by about 65°, where 20° to 40° is usual. Seen from the side. This is the shape that goes with Scheuermann's kyphosis.",
+ "levels": [
+  {
+   "id": "C1",
+   "centre": [
+    0,
+    -71.1,
+    583
+   ],
+   "tilt": [
+    0,
+    6
+   ],
+   "turn": 0,
+   "size": [
+    20,
+    15,
+    9
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C2",
+   "centre": [
+    0,
+    -72.4,
+    570.3
+   ],
+   "tilt": [
+    0,
+    6
+   ],
+   "turn": 0,
+   "size": [
+    16.5,
+    15.5,
+    14.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C3",
+   "centre": [
+    0,
+    -73.4,
+    552.8
+   ],
+   "tilt": [
+    0,
+    0
+   ],
+   "turn": 0,
+   "size": [
+    16,
+    15.5,
+    12.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C4",
+   "centre": [
+    0,
+    -72.5,
+    536.1
+   ],
+   "tilt": [
+    0,
+    -6
+   ],
+   "turn": 0,
+   "size": [
+    16.5,
+    15.5,
+    13
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C5",
+   "centre": [
+    0,
+    -69.8,
+    519.1
+   ],
+   "tilt": [
+    0,
+    -12
+   ],
+   "turn": 0,
+   "size": [
+    17.5,
+    16,
+    13.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C6",
+   "centre": [
+    0,
+    -65.2,
+    502
+   ],
+   "tilt": [
+    0,
+    -18
+   ],
+   "turn": 0,
+   "size": [
+    19,
+    16.5,
+    14
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "C7",
+   "centre": [
+    0,
+    -58.6,
+    485
+   ],
+   "tilt": [
+    0,
+    -24
+   ],
+   "turn": 0,
+   "size": [
+    22,
+    17,
+    14.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T1",
+   "centre": [
+    0,
+    -49.9,
+    467.3
+   ],
+   "tilt": [
+    0,
+    -28
+   ],
+   "turn": 0,
+   "size": [
+    27,
+    18.5,
+    17
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T2",
+   "centre": [
+    0,
+    -39,
+    447.4
+   ],
+   "tilt": [
+    0,
+    -29.78
+   ],
+   "turn": 0,
+   "size": [
+    26,
+    19.5,
+    17.8
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T3",
+   "centre": [
+    0,
+    -27,
+    427.3
+   ],
+   "tilt": [
+    0,
+    -31.47
+   ],
+   "turn": 0,
+   "size": [
+    25.5,
+    21,
+    18.6
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T4",
+   "centre": [
+    0,
+    -14,
+    406.9
+   ],
+   "tilt": [
+    0,
+    -33.25
+   ],
+   "turn": 0,
+   "size": [
+    26,
+    22.5,
+    19.4
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T5",
+   "centre": [
+    0,
+    0,
+    386.1
+   ],
+   "tilt": [
+    0,
+    -35.03
+   ],
+   "turn": 0,
+   "size": [
+    27,
+    24,
+    20.2
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T6",
+   "centre": [
+    0,
+    13,
+    363.9
+   ],
+   "tilt": [
+    0,
+    -25.69
+   ],
+   "turn": 0,
+   "size": [
+    28,
+    26,
+    21
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T7",
+   "centre": [
+    0,
+    22.5,
+    339.1
+   ],
+   "tilt": [
+    0,
+    -16.44
+   ],
+   "turn": 0,
+   "size": [
+    29.5,
+    27.5,
+    21.8
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T8",
+   "centre": [
+    0,
+    28.1,
+    312.4
+   ],
+   "tilt": [
+    0,
+    -7.1
+   ],
+   "turn": 0,
+   "size": [
+    31,
+    28.5,
+    22.6
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T9",
+   "centre": [
+    0,
+    29.4,
+    284.2
+   ],
+   "tilt": [
+    0,
+    2.14
+   ],
+   "turn": 0,
+   "size": [
+    33,
+    29.5,
+    23.4
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T10",
+   "centre": [
+    0,
+    25.9,
+    255.4
+   ],
+   "tilt": [
+    0,
+    11.38
+   ],
+   "turn": 0,
+   "size": [
+    35,
+    30.5,
+    24.2
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T11",
+   "centre": [
+    0,
+    17.7,
+    226.9
+   ],
+   "tilt": [
+    0,
+    20.73
+   ],
+   "turn": 0,
+   "size": [
+    38,
+    31.5,
+    25
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "T12",
+   "centre": [
+    0,
+    4.5,
+    199.3
+   ],
+   "tilt": [
+    0,
+    29.97
+   ],
+   "turn": 0,
+   "size": [
+    41,
+    32.5,
+    25.8
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L1",
+   "centre": [
+    0,
+    -9.4,
+    171.8
+   ],
+   "tilt": [
+    0,
+    23.48
+   ],
+   "turn": 0,
+   "size": [
+    43,
+    33,
+    25.5
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L2",
+   "centre": [
+    0,
+    -21.1,
+    139.4
+   ],
+   "tilt": [
+    0,
+    16.48
+   ],
+   "turn": 0,
+   "size": [
+    45,
+    34,
+    26.6
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L3",
+   "centre": [
+    0,
+    -28.4,
+    104.6
+   ],
+   "tilt": [
+    0,
+    7.49
+   ],
+   "turn": 0,
+   "size": [
+    47,
+    35,
+    27.7
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L4",
+   "centre": [
+    0,
+    -28.8,
+    68.1
+   ],
+   "tilt": [
+    0,
+    -6
+   ],
+   "turn": 0,
+   "size": [
+    49,
+    35.5,
+    28.8
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "L5",
+   "centre": [
+    0,
+    -19.4,
+    31.8
+   ],
+   "tilt": [
+    0,
+    -23
+   ],
+   "turn": 0,
+   "size": [
+    51,
+    35.5,
+    29.9
+   ],
+   "source": "typical"
+  },
+  {
+   "id": "S1",
+   "centre": [
+    0,
+    0,
+    0
+   ],
+   "tilt": [
+    0,
+    -40
+   ],
+   "turn": 0,
+   "size": [
+    50,
+    33,
+    28.5
+   ],
+   "source": "typical"
+  }
+ ],
+ "fused": [],
+ "hardware": {
+  "rods": [],
+  "screws": [],
+  "hooks": [],
+  "crosslinks": []
+ },
+ "marks": [],
+ "pictures": []
+}

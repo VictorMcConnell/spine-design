@@ -18,7 +18,10 @@ import { slot, planFor, buildHardware, fitRods, crosslinkAt, freeScrew, resizeSc
 import { rayMesh } from '../src/core/pick.js';
 import { ball } from '../src/core/mesh.js';
 import { packSpine, unpackSpine, linkFor, packedIn } from '../src/io/share.js';
-import { stlOf } from '../src/io/print.js';
+import { stlOf, objOf } from '../src/io/print.js';
+import { zipOf, crc32 } from '../src/io/zip.js';
+import { standFor } from '../src/core/stand.js';
+import zlib from 'node:zlib';
 import { buildScene } from '../src/view/scene.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -612,9 +615,85 @@ ok('the website at the top of the repository: the page allows its own scripts an
   // a host that serves the top of the repository must find no folder it would treat as code to run
   assert.ok(!fs.existsSync(path.join(root, 'functions')) && !fs.existsSync(path.join(root, '_worker.js')) && page.startsWith('<!doctype html>\n<!-- Built by tools/build.mjs'));
 });
+ok('a frozen part stays where it is, and the file says so', () => {
+  const s = copy(average);
+  s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
+  assert.equal(setCell(s, 'T6', 'left', 'screw'), true); assert.equal(setCell(s, 'T8', 'left', 'screw'), true);
+  s.hardware.screws[0].locked = true;
+  // nothing replaces or erases it, and the rest goes on as before
+  assert.equal(setCell(s, 'T6', 'left', 'hook', 'up'), false); assert.equal(setCell(s, 'T6', 'left', ''), false);
+  assert.ok(s.hardware.screws.some((p) => p.level === 'T6' && p.locked) && s.hardware.hooks.length === 0);
+  assert.equal(setCell(s, 'T8', 'left', ''), true);
+  assert.deepEqual(validateSpine(s), []);
+  s.hardware.screws[0].locked = 'yes';
+  assert.ok(validateSpine(s).some((line) => /frozen/.test(line)));
+});
+ok('hardware put on by hand is drawn as solid as any other', () => {
+  const s = copy(average);
+  buildHardware(s, planFor(s.levels.map((l) => l.id), 'T4', 'T8', 'screws'), 1);
+  for (const kind of ['screws', 'rods', 'crosslinks']) s.hardware[kind][0].source = 'guessed';
+  const items = buildScene(s, 2.2, {}).filter((it) => ['screws', 'rods', 'hooks', 'crosslinks'].includes(it.group));
+  assert.ok(items.length > 10 && items.every((it) => it.opacity === 1), 'some hardware is see-through');
+  // parts selected together are all shown as picked, and every shape carries a name for the files that are saved
+  const lit = buildScene(s, 2.2, { picked: { kind: 'screws', index: 0 }, also: [{ kind: 'screws', index: 3 }] }).filter((it) => it.group === 'screws').map((it) => it.color.join());
+  assert.equal(lit.filter((c) => c === lit[0]).length, 4);
+  assert.ok(buildScene(s, 2.2, {}).filter((it) => it.group !== 'marks').every((it) => typeof it.name === 'string' && it.name.length > 1));
+});
+ok('a stand for printing: a base with a post the spine plugs onto, or a hanger', () => {
+  const s = copy(average), levels = sortedLevels(s), sacrum = levels[levels.length - 1], atlas = levels[0];
+  const span = (mesh, j) => { let lo = Infinity, hi = -Infinity; for (let i = j; i < mesh.positions.length; i += 3) { lo = Math.min(lo, mesh.positions[i]); hi = Math.max(hi, mesh.positions[i]); } return [lo, hi]; };
+  for (const scale of [1, 1 / 3]) {
+    const post = standFor('post', s, scale, 2.2), [base, pole] = post.stand, peg = post.onSpine[0];
+    const [pegLow, pegHigh] = span(peg, 2), [poleLow, poleHigh] = span(pole, 2), [baseLow, baseHigh] = span(base, 2), pegWide = (span(peg, 0)[1] - span(peg, 0)[0]) * scale, poleWide = (span(pole, 0)[1] - span(pole, 0)[0]) * scale;
+    // the peg starts inside the bone and comes out below it; the post reaches up around the peg and stands in the base
+    assert.ok(pegHigh > poleHigh + 5 && pegLow < poleHigh - 10 / scale && poleLow < baseHigh && poleLow > baseLow - 0.01, 'peg ' + pegLow.toFixed(1) + ' to ' + pegHigh.toFixed(1) + ', post ' + poleLow.toFixed(1) + ' to ' + poleHigh.toFixed(1));
+    // sizes that matter for a print are the same at every print size: a peg of 6 mm or more and a wall around it
+    assert.ok(pegWide >= 5.9 && poleWide - pegWide >= 4.5 && (baseHigh - baseLow) * scale >= 3.9, 'peg ' + pegWide.toFixed(1) + ' mm, post ' + poleWide.toFixed(1) + ' mm');
+    // the hole in the post is wider than the peg, and deeper
+    const inner = []; for (let i = 0; i < pole.positions.length; i += 3) if (pole.positions[i + 2] < poleHigh - 1) inner.push(Math.hypot(pole.positions[i] - sacrum.centre[0], pole.positions[i + 1] - (span(peg, 1)[0] + span(peg, 1)[1]) / 2));
+    const hole = Math.min(...inner.filter((r) => r > 0.01)) * 2 * scale, floor = Math.min(...Array.from({ length: pole.positions.length / 3 }, (_, i) => i).filter((i) => Math.abs(Math.hypot(pole.positions[i * 3] - sacrum.centre[0], pole.positions[i * 3 + 1] - (span(peg, 1)[0] + span(peg, 1)[1]) / 2) * 2 * scale - hole) < 0.01).map((i) => pole.positions[i * 3 + 2]));
+    assert.ok(hole > pegWide + 0.4 && hole < pegWide + 1 && floor < pegLow, 'hole ' + hole.toFixed(2) + ' mm for a peg of ' + pegWide.toFixed(2) + ' mm');
+    // the base is flat, lies under the lowest bone and reaches under the post
+    assert.ok(baseHigh < sacrum.centre[2] - 60 && span(base, 0)[1] - span(base, 0)[0] > 200);
+    const hang = standFor('hanger', s, scale, 2.2), ring = hang.onSpine[0], frame = hang.stand[1];
+    // the ring sits on the top vertebra, the arm comes from behind the spine, runs through the ring and ends past it
+    const middle = (span(ring, 2)[0] + span(ring, 2)[1]) / 2;
+    assert.ok(span(ring, 2)[0] < atlas.centre[2] + atlas.size[2] && span(ring, 2)[1] > atlas.centre[2] + 8 && span(frame, 2)[1] > middle && span(frame, 1)[0] < span(ring, 1)[0] && span(frame, 1)[1] > Math.max(...levels.map((l) => l.centre[1])) + 30, 'ring ' + span(ring, 2).map((v) => v.toFixed(1)));
+    assert.ok(span(hang.stand[0], 2)[1] < span(sacrum && buildScene(s, 2.2, {}).find((it) => it.name === 'S1').mesh, 2)[0] + sacrum.centre[2] + 40);
+  }
+  assert.equal(standFor('', s, 1), null); assert.ok(/peg/.test(standFor('post', s, 1, 2.2).says) && /ring/.test(standFor('hanger', s, 1, 2.2).says));
+});
 ok('a ray finds the front of a ball', () => {
   const t = rayMesh([0, -100, 0], [0, 1, 0], ball([0, 0, 0], 10));
   assert.ok(Math.abs(t - 90) < 0.3 && rayMesh([30, -100, 0], [0, 1, 0], ball([0, 0, 0], 10)) === null, 'hit at ' + t);
 });
+later.push(['files go into a zip that other programs can open, and the model into an OBJ with colours', async () => {
+  assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
+  const s = copy(average);
+  buildHardware(s, planFor(s.levels.map((l) => l.id), 'T4', 'T6', 'screws'), 0);
+  const items = buildScene(s, 2.4, {}).filter((it) => it.group !== 'marks'), files = objOf(items, 0.5, 'a note', 'spine.mtl'), lines = files.obj.split('\n');
+  const count = (start) => lines.filter((l) => l.startsWith(start)).length, vertices = items.reduce((sum, it) => sum + it.mesh.positions.length / 3, 0), faces = items.reduce((sum, it) => sum + it.mesh.indices.length / 3, 0);
+  assert.ok(count('v ') === vertices && count('f ') === faces && count('o ') === items.length && lines[2] === 'mtllib spine.mtl', count('v ') + ' of ' + vertices + ' corners');
+  const names = lines.filter((l) => l.startsWith('o ')).map((l) => l.slice(2));
+  assert.ok(new Set(names).size === names.length && names.includes('T5') && names.includes('screw_T4_left') && names.includes('screw_T4_left_2') && names.includes('rod_left'));
+  // it stands upright for programs that take y as up: the top vertebra has the largest y, at half size
+  const top = s.levels[0].centre[2] * 0.5, ys = lines.filter((l) => l.startsWith('v ')).map((l) => Number(l.split(' ')[2]));
+  assert.ok(Math.abs(Math.max(...ys) - top) < 25 && files.mtl.split('newmtl').length - 1 >= 3 && /Kd 0\.\d+ 0\.\d+ 0\.\d+/.test(files.mtl));
+  // the zip: every file comes out again as it went in
+  const big = new TextEncoder().encode(files.obj), small = new Uint8Array([1, 2, 3]), zip = await zipOf([{ name: 'model/spine.obj', bytes: files.obj }, { name: 'tiny.bin', bytes: small }]), view = new DataView(zip.buffer);
+  const end = zip.length - 22;
+  assert.equal(view.getUint32(end, true), 0x06054b50); assert.equal(view.getUint16(end + 10, true), 2);
+  let at = view.getUint32(end + 16, true);
+  for (const want of [['model/spine.obj', big], ['tiny.bin', small]]) {
+    assert.equal(view.getUint32(at, true), 0x02014b50);
+    const method = view.getUint16(at + 10, true), crc = view.getUint32(at + 16, true), packed = view.getUint32(at + 20, true), size = view.getUint32(at + 24, true), nameLength = view.getUint16(at + 28, true), from = view.getUint32(at + 42, true);
+    assert.equal(new TextDecoder().decode(zip.subarray(at + 46, at + 46 + nameLength)), want[0]);
+    assert.equal(view.getUint32(from, true), 0x04034b50);
+    const body = zip.subarray(from + 30 + view.getUint16(from + 26, true), from + 30 + view.getUint16(from + 26, true) + packed), out = method === 8 ? new Uint8Array(zlib.inflateRawSync(body)) : body;
+    assert.ok(size === want[1].length && out.length === size && crc === crc32(want[1]) && out.every((v, i) => v === want[1][i]), want[0] + ' did not come out as it went in');
+    at += 46 + nameLength;
+  }
+  assert.ok(zip.length < big.length / 2, 'the zip is not smaller than the text in it');
+}]);
 for (const [name, fn] of later) { await fn(); checks++; console.log('ok   ' + name); }
 console.log(checks + ' checks passed');

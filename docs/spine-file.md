@@ -67,6 +67,8 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
   `green`, `lime`, `gold`, `orange`, `red`, `pink` or `purple`, or a colour written as `#rrggbb`.
 - `colors` is optional. It gives a colour to each kind of part. A piece's own `color` wins
   over it.
+- A screw, a hook or a cross-link can carry `"locked": true`. The builder calls that frozen:
+  it does not move, change or remove such a piece until the person unfreezes it.
 - A hook's `kind` is `pedicle`, `lamina` or `transverse process`. It sets the width of the blade.
 - A rod or a cross-link drawn by the builder carries `"auto": true`. The builder redraws such a
   rod whenever a screw or hook on its side is added or removed. A rod without it (traced from a

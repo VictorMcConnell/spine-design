@@ -3,7 +3,7 @@
  "name": "One curve in the lower back",
  "units": "mm",
  "frame": "x = patient left, y = back, z = up, origin at the centre of S1, standing",
- "about": "A single sideways curve of 35° from T11 to L4, bowing to the left.",
+ "about": "A single curve of 35° to the left from T11 to L4.",
  "levels": [
   {
    "id": "C1",

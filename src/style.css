@@ -3,11 +3,11 @@
 html, body { height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; }
 /* the ribbon: one bar of tools across the top. On a narrow screen it scrolls sideways. */
-#ribbon { display: flex; align-items: center; gap: 6px 14px; padding: 7px 12px; border-bottom: 1px solid var(--line); background: var(--panel); overflow-x: auto; white-space: nowrap; }
+#ribbon { display: flex; align-items: center; gap: 6px 10px; padding: 7px 10px; border-bottom: 1px solid var(--line); background: var(--panel); overflow-x: auto; white-space: nowrap; }
 #ribbon h1 { margin: 0 6px 0 0; font-size: 16px; }
-#ribbon .group { display: flex; align-items: center; gap: 4px; padding-left: 14px; border-left: 1px solid var(--line); }
+#ribbon .group { display: flex; align-items: center; gap: 4px; padding-left: 10px; border-left: 1px solid var(--line); }
 #ribbon .group span { color: var(--muted); font-size: 13px; margin-right: 2px; }
-#ribbon button { padding: 5px 10px; }
+#ribbon button { padding: 5px 8px; }
 #ribbon .switch { display: flex; align-items: center; gap: 5px; margin-right: 4px; }
 #ribbon button[aria-expanded="true"] { border-color: var(--accent); background: #30345a; }
 .menu h3 { margin: 10px 0 4px; }
@@ -119,8 +119,45 @@ input[type="color"] { width: 34px; height: 26px; padding: 0; border: 1px solid v
 .swatch { width: 17px; height: 17px; padding: 0; border-radius: 50%; border: 2px solid transparent; outline: 1px solid rgba(255, 255, 255, 0.25); cursor: pointer; }
 .swatch[aria-pressed="true"] { border-color: #fff; outline: 2px solid var(--accent); }
 .swatch.none { width: auto; height: auto; border-radius: 6px; padding: 2px 7px; font-size: 12px; outline: 0; border: 1px solid var(--line); }
-details#sheetFold { margin: 10px 0; }
-details#sheetFold summary { cursor: pointer; padding: 6px 0; color: var(--ink); font-weight: 600; }
+details.fold { margin: 10px 0; }
+details.fold summary { cursor: pointer; padding: 6px 0; color: var(--ink); font-weight: 600; }
+/* the three levels of control: a thing marked data-for shows only at the levels it names */
+body.level-easy [data-for]:not([data-for~="easy"]), body.level-standard [data-for]:not([data-for~="standard"]), body.level-full [data-for]:not([data-for~="full"]) { display: none !important; }
+.seg.levels { margin: 4px 0 2px; }
+.seg.levels button[aria-pressed="true"] { background: var(--accent); color: #14151c; font-weight: 600; }
+.pair.trio span { display: flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--muted); }
+.pair.trio input { width: 62px; }
+.pair.trio b { flex: 0 0 100%; font-weight: 400; }
+/* the tray of parts and the flat map of the spine */
+.tray { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: 6px 0; }
+.tray button { display: flex; align-items: center; gap: 5px; padding: 7px 6px; font-size: 12.5px; white-space: nowrap; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.tray button[aria-pressed="true"] { border-color: var(--accent); background: #30345a; }
+.ic { flex: none; width: 16px; height: 16px; border-radius: 50%; background: #9a9ea8; position: relative; }
+.ic.down, .ic.up { border-radius: 4px; background: #8a63c9; }
+.ic.down::after, .ic.up::after { content: ""; position: absolute; left: 4px; border: 4px solid transparent; }
+.ic.down::after { top: 6px; border-top-color: #fff; }
+.ic.up::after { top: -2px; border-bottom-color: #fff; }
+.ic.screw::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: #2a2c34; }
+.ic.link { height: 6px; border-radius: 3px; background: #d2a23a; }
+.ic.fused { border-radius: 4px; background: #9fb6d8; }
+.ic.erase { background: none; border: 2px dashed var(--muted); }
+#mapWrap { margin: 4px 0; border: 1px solid var(--line); border-radius: 9px; background: #15161b; overflow: hidden; touch-action: none; }
+#map { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; }
+#map text { font: 600 11px system-ui, sans-serif; fill: #2b2618; pointer-events: none; }
+#map .bone { fill: #c7ad85; }
+#map .bone.stiff { fill: #a9b8cc; }
+#map .bone.picked { stroke: #ffc94d; stroke-width: 2.5; }
+#map .bridge { fill: #8ea3c2; }
+#map .empty { fill: rgba(255, 255, 255, 0.03); stroke: #5d606c; stroke-dasharray: 3 3; }
+#map .hit { fill: transparent; cursor: pointer; }
+#map .hit:hover + .empty, #map g:hover > .empty { stroke: var(--accent); }
+#map .gapline { stroke: #4a4d58; stroke-dasharray: 2 4; }
+#map g[data-gap]:hover .gapline { stroke: var(--accent); }
+#map .ring { fill: none; stroke: #ffc94d; stroke-width: 2.5; }
+#map .lock { fill: none; stroke: #fff; stroke-width: 1.5; stroke-dasharray: 2 2; }
+#map .side { font-size: 11px; fill: #8d8f99; font-weight: 500; }
+#ghost { position: fixed; z-index: 20; pointer-events: none; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--accent); background: #30345a; color: var(--ink); font-size: 13px; transform: translate(-50%, -130%); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); }
+#galleryList h3 { grid-column: 1 / -1; margin: 10px 0 0; }
 /* the pad to draw the curve on: dots over the view, and the line being drawn */
 #drawPad { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(170, 180, 255, 0.5) 1.2px, transparent 1.6px); background-size: 26px 26px; }
 #drawSvg { position: absolute; inset: 0; width: 100%; height: 100%; }

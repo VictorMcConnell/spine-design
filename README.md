@@ -3,7 +3,7 @@
 A free tool for people with scoliosis or a spinal fusion to build a 3D sketch of their own spine,
 in the browser, on their own device.
 
-![The builder: a curved spine with hooks, screws, rods and cross-links, and the three questions that put them on](docs/pictures/builder.png)
+![The builder: a curved spine with hooks, screws, rods and cross-links, and the flat map that puts them on](docs/pictures/builder.png)
 
 You start from a basic spine and shape it until it looks like yours: the curve, the fused part,
 the rods, screws and hooks. The result is something to look at, turn around and show to other
@@ -49,11 +49,18 @@ Milestone 2 of 5, the builder, is done. What works today:
 
 - The **spine file**, one small JSON document that holds a whole spine (see
   [docs/spine-file.md](docs/spine-file.md)).
-- It **opens on a normal spine**. A gallery of examples offers other places to start: one
-  curve in the chest, one in the lower back, an S shape, a made-up fusion with rods and one
-  real spine.
-- A **ribbon** along the top holds what is needed all the time: new, examples, open, save,
-  undo and redo, the four views, level names, what is shown and how it looks.
+- It **opens on a normal spine**. A gallery of **presets** offers sixteen other places to
+  start, in groups: the common patterns of sideways curves (one curve in the chest, two, an S
+  shape, three, one in the lower back, a long C shape), round and flat backs seen from the
+  side, and spines after surgery, with screws, with hooks and screws, with one old-style rod,
+  and one real spine. They are made-up shapes of common patterns, not a diagnosis.
+  [docs/sources.md](docs/sources.md) says where the patterns were looked up.
+- **Three levels of control**, one switch at the top of the panel. **Easy** has the simple
+  tools and keeps the rules on. **Standard** adds the tools for fine work under the same
+  rules. **Full control** shows everything, lets every rule be switched off and lets parts be
+  frozen in place. You can break the model there, and that is the point of it.
+- A **ribbon** along the top holds what is needed all the time: new, presets, open, save,
+  share, export, undo and redo, the four views, level names, what is shown and how it looks.
 - **Real bone shapes.** The vertebrae and the sacrum are real anatomy, from the open
   BodyParts3D models, resized to the body size of each level. The simple bones drawn from
   measurements are still there, one tick away under Appearance, and stand in for any level
@@ -74,23 +81,29 @@ Milestone 2 of 5, the builder, is done. What works today:
   is any hardware. That stretch is drawn in a cooler colour, keeps its shape and moves as one
   block. Bend the spine and the bend goes into the joints that are still free, which shows
   what a fusion leaves to move. One tick frees the stretch again for reshaping.
-- **Hardware, the easy way:** three questions. Where is the fusion, what holds it (screws,
+- **Hardware on a flat map.** The Hardware tab shows the spine from the back as a simple map
+  with a tray of parts: screw, hook down, hook up, cross-link, fused and an eraser. Pick a
+  part and tap the spots on the map, drag over several to fill them, or drag the part from
+  the tray onto the map or straight onto the model. The model follows every tap.
+- **Or have it filled in:** three questions. Where is the fusion, what holds it (screws,
   hooks on top, screws on every other vertebra or hooks) and how many cross-links. One button
-  puts it all on. After that, click any vertebra for a small card that sets its left and its
-  right side to a screw, a hook pointing down, a hook pointing up or nothing.
-- **Hardware, by hand:** pick a screw, hook or cross-link and click the spine. Parts snap to
-  the usual spot on each vertebra, or go exactly where you click with snapping off. Drag a
-  part to move it over the bone, or click it for handles, size, colour, the direction of a
-  hook and removal. Drag a rod between two parts to bend it there. A sheet with a row for
-  each vertebra is folded away here for those who like to see every level at once. It also
-  sets where the rods end, so a spine can carry several separate sets of rods.
+  puts it all on.
+- **Select and change.** Click any part, on the model or on the map, to select it. Give that
+  one part its own colour or change the colour of all parts of its kind, turn a hook up or
+  down, drag it over the bone, or remove it. Click a vertebra for a small card that sets what
+  its left and its right side carry. From Standard up, Shift-click selects several parts at
+  once, a selected part has arrows for small steps, and a rod can be dragged to bend it.
+- **Full control** adds free placing off the usual spots, the place of a part as numbers, a
+  table with a row for each vertebra that also sets where the rods end, and **frozen** parts:
+  a frozen part cannot be moved, changed or removed until it is unfrozen.
 - **Rods that stay believable.** A rod is drawn as one smooth bar through its screws and
   hooks, in their order along the spine, so it cannot zigzag. A part that is dragged out of
   line stops where the rod could no longer follow, and a bend made by hand stops at what a
   rod could take. One switch turns these limits off.
 - **Colours for telling parts apart.** Fourteen colours for rods, screws, hooks and
   cross-links, as ready-made sets or one kind at a time, and any single part can have its
-  own. The colours are kept in the spine file, so they travel with a link.
+  own. The colours are kept in the spine file, so they travel with a link. Hardware is always
+  drawn solid, however it was put on.
 - On the real bones the usual spot for a screw is the way through the pedicle that was found
   on that bone, so screws start out inside bone.
 - **Pain points and notes:** click the spot, then set a label, how strong it is from 1 to 10
@@ -100,8 +113,13 @@ Milestone 2 of 5, the builder, is done. What works today:
   see-through bone. Kept on the device between visits.
 - Hardware and marks **move with the vertebrae** when the spine is bent afterwards.
 - **Undo and Redo** for every step. **Open** and **Save** for spine files.
-- **Share:** a link that holds the whole sketch, the view as a picture and an STL file for 3D
-  printing at full size, half size or a third.
+- **Share:** a link that holds the whole sketch.
+- **Export:** the view as a picture (PNG), an STL file for 3D printing at full size, a half,
+  a third or a quarter, and an OBJ file with colours for other 3D programs, in which every
+  vertebra and every part is its own named object.
+- **A stand for the print.** Choose a round base with a post, or a tall hanger. The stand is
+  shown with the spine and saved as a part of its own: the spine gets a peg that plugs into
+  the post, or a ring that hangs from the arm of the hanger.
 - **Hardware drawn from measurements.** Rods, screws, hooks and cross-links are made by code
   from plain numbers (see [docs/measurements.md](docs/measurements.md)). Open data sets that
   could improve the numbers, with their licences, are listed in
@@ -113,7 +131,9 @@ Known rough edges: parts can overlap each other and the bone a little. The limit
 are rules of thumb for a sketch, not engineering. A real bone is one
 person's bone stretched to the size asked for, so it is a likeness and not a measurement.
 The STL file is made of separate shapes that overlap, which slicers join but which has not
-been tried on a printer yet. The X-ray tools do not exist yet. See the roadmap below.
+been tried on a printer yet. The same goes for the stand: its fit was worked out, not tried.
+Several selected parts can be coloured, turned and removed together but not yet moved
+together. The X-ray tools do not exist yet. See the roadmap below.
 
 ## What this is not
 
@@ -144,14 +164,16 @@ those scripts. [CONTRIBUTING.md](CONTRIBUTING.md) has the few house rules.
 ## How the code is laid out
 
     src/core/    spine maths, size tables, the shapes of bones and hardware, the numbers,
-                 bending the spine (shape.js) and placing hardware (place.js). No screen code.
+                 bending the spine (shape.js), placing hardware (place.js) and the stand for
+                 a print (stand.js). No screen code.
     src/shapes/  the real bone shapes, written by tools/make-shapes.mjs
     src/view/    a small WebGL renderer with its shadings, the scene built from a spine file
                  and the handles drawn on the model (gizmo.js)
-    src/io/      opening and saving spine files, share links, the STL file for printing
+    src/io/      opening and saving spine files, share links, the STL and OBJ files, the zip
+                 they are saved in
     src/ui/      the page (app.js), the builder panel (build.js) and its easy ways in (easy.js)
     src/page.html, src/style.css   the page and its looks, as written
-    examples/    spine files that ship with the app
+    examples/    the presets: spine files that ship with the app
     docs/        the spine file format, the measurements, the open data sets and hosting
     tools/       build and test scripts
     site.json    the address of the hosted copy and of the source, both optional
@@ -175,10 +197,11 @@ still drawn.
 ## Roadmap
 
 1. **Done:** spine file, example, viewer.
-2. **Done:** the builder. Drawing the curve, handles, sliders and number boxes for one
-   vertebra and for a stretch, stiff fused parts, hardware in three questions and by hand,
-   rods that can be bent and stay believable, real bones, pain points and notes, shadings
-   and looks, examples, undo, share link, picture and STL.
+2. **Done:** the builder. Three levels of control, drawing the curve, handles, sliders and
+   number boxes for one vertebra and for a stretch, stiff fused parts, hardware on a flat
+   map, in three questions and by hand, rods that can be bent and stay believable, real
+   bones, pain points and notes, shadings and looks, presets, undo, share link, picture, STL
+   with a stand and OBJ.
 3. **X-ray:** put your own X-ray behind the model, set its scale, find the metal on it
    automatically, and a score that rises as model and X-ray line up.
 4. **Polish:** guided steps in plain words, a glossary, phone layout.

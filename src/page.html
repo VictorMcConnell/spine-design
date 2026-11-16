@@ -16,7 +16,7 @@
 <header id="ribbon">
   <h1>Spine Builder</h1>
   <div class="group" aria-label="File">
-    <button id="newBtn">New</button><button id="galleryBtn">Examples</button><button id="openBtn">Open</button><button id="saveBtn">Save</button><button id="shareBtn" data-menu="shareMenu" aria-expanded="false">Share</button>
+    <button id="newBtn">New</button><button id="galleryBtn">Presets</button><button id="openBtn">Open</button><button id="saveBtn">Save</button><button id="shareBtn" data-menu="shareMenu" aria-expanded="false">Share</button><button id="exportBtn" data-menu="exportMenu" aria-expanded="false">Export</button>
     <input id="openFile" type="file" accept=".json,application/json" hidden>
   </div>
   <div class="group" aria-label="Undo and redo"><button id="undoBtn" disabled>Undo</button><button id="redoBtn" disabled>Redo</button></div>
@@ -35,12 +35,19 @@
   <div class="row"><button id="linkBtn">Copy a link to this sketch</button></div>
   <input id="linkText" type="text" readonly hidden aria-label="The link to this sketch">
   <p class="small" id="linkSay"></p>
+</div>
+<div id="exportMenu" class="menu" hidden>
   <h3>A picture</h3>
-  <div class="row"><button id="pictureBtn">Save the view as a picture</button></div>
-  <h3>A file for 3D printing</h3>
-  <label class="pair">Size<select id="stlScale"><option value="1">full size</option><option value="0.5" selected>half size</option><option value="0.3333">a third</option></select></label>
-  <div class="row"><button id="stlBtn">Save an STL file</button></div>
+  <div class="row"><button id="pictureBtn">Save the view as a picture (PNG)</button></div>
+  <h3>For 3D printing</h3>
+  <label class="pair">Size<select id="stlScale"><option value="1">full size</option><option value="0.5" selected>half size</option><option value="0.3333">a third</option><option value="0.25">a quarter</option></select></label>
+  <label class="pair">Stand<select id="standKind"><option value="">none</option><option value="post">round base with a post</option><option value="hanger">tall hanger</option></select></label>
+  <p class="small" id="standSay"></p>
+  <div class="row"><button id="stlBtn">Save for printing (STL)</button></div>
   <p class="small" id="stlSay">The file holds what is shown now. Its parts are separate shapes that overlap, and slicers join them on their own.</p>
+  <h3>For other 3D programs</h3>
+  <div class="row"><button id="objBtn">Save a 3D model with colours (OBJ)</button></div>
+  <p class="small" id="objSay">A zip with an OBJ file and its colours. Every vertebra and every part is its own named object.</p>
 </div>
 <div id="showMenu" class="menu" hidden>
   <div class="checks">
@@ -74,6 +81,10 @@
     <h2 id="name">Loading</h2>
     <p id="about" class="small"></p>
     <div id="problemBox" class="warn" hidden><strong>This file has problems</strong><ul id="problems"></ul></div>
+    <div class="seg levels" role="group" aria-label="How much control">
+      <button data-level="easy" aria-pressed="true">Easy</button><button data-level="standard" aria-pressed="false">Standard</button><button data-level="full" aria-pressed="false">Full control</button>
+    </div>
+    <p class="small" id="levelSay"></p>
     <p id="status" class="small" role="status"></p>
     <nav class="tabs" role="tablist" aria-label="What to work on">
       <button role="tab" data-tab="shape" aria-selected="true">Shape</button>
@@ -82,7 +93,8 @@
     </nav>
 
     <section data-pane="shape">
-      <div class="seg" role="group" aria-label="How to shape it">
+      <div class="row" data-for="easy"><button id="presetBtn">Start from a ready-made shape</button></div>
+      <div class="seg" role="group" aria-label="How to shape it" data-for="standard full">
         <button data-mode="draw" aria-pressed="true">Draw it</button><button data-mode="one" aria-pressed="false">One vertebra</button><button data-mode="stretch" aria-pressed="false">A stretch</button>
       </div>
 
@@ -101,12 +113,12 @@
           <p class="small note" id="oneFused" hidden></p>
           <div data-toolpane="move">
             <p class="small">Drag an arrow on the model, or drag the vertebra itself.</p>
-            <label class="check"><input type="checkbox" id="softOn" checked>Neighbours follow, so the spine bends</label>
+            <label class="check" data-for="full"><input type="checkbox" id="softOn" checked>Neighbours follow, so the spine bends</label>
             <label class="dial" id="gapRow">Space to the vertebra below<span><input type="range" id="gapR" min="0.5" max="20" step="0.5"><input type="number" id="gapN" min="0.5" max="20" step="0.5"> mm</span></label>
           </div>
           <div data-toolpane="turn" hidden>
             <p class="small">Drag a ring on the model, or set the angles.</p>
-            <label class="check"><input type="checkbox" id="pivotOn" checked>The spine above turns with it</label>
+            <label class="check" data-for="full"><input type="checkbox" id="pivotOn" checked>The spine above turns with it</label>
             <label class="dial">Top leans to the left<span><input type="range" id="angF" min="-60" max="60" step="0.5"><input type="number" id="angFn" min="-60" max="60" step="0.5">°</span></label>
             <label class="dial">Top leans back<span><input type="range" id="angS" min="-60" max="60" step="0.5"><input type="number" id="angSn" min="-60" max="60" step="0.5">°</span></label>
             <label class="dial">Front turned to the left<span><input type="range" id="angT" min="-60" max="60" step="0.5"><input type="number" id="angTn" min="-60" max="60" step="0.5">°</span></label>
@@ -147,18 +159,62 @@
         <p class="small" id="fusedNone">Is part of this spine fused? Say where, and that part keeps its shape while you bend the rest.</p>
         <ul id="fusedList" class="picks"></ul>
         <label class="pair">From<select id="fuseTop"></select>to<select id="fuseBottom"></select><button id="fuseAdd">Add</button></label>
-        <label class="check strong" id="stiffRow" hidden><input type="checkbox" id="stiffOn" checked>Fused parts stay stiff</label>
+        <div data-for="full"><label class="check strong" id="stiffRow" hidden><input type="checkbox" id="stiffOn" checked>Fused parts stay stiff</label></div>
         <p class="small" id="stiffSay" hidden></p>
       </div>
       <div class="row"><button id="straighten">Take out everything sideways</button></div>
     </section>
 
     <section data-pane="parts" hidden>
-      <div class="seg" role="group" aria-label="How to add hardware">
-        <button data-hw="easy" aria-pressed="true">The easy way</button><button data-hw="hand" aria-pressed="false">By hand</button>
+      <p class="small" id="pickHint">Click a part on the model to select it, or a vertebra to change what it carries.</p>
+      <div id="pieceBox" class="box" hidden>
+        <h3 id="pieceName"></h3>
+        <p class="small" id="pieceHow">Drag it over the bone to move it.</p>
+        <div class="seg" id="pieceFaceRow" role="group" aria-label="Which way the hook points"><button data-face="down">Points down</button><button data-face="up">Points up</button></div>
+        <div class="swatches" id="pieceColors" aria-label="Colour of this part"></div>
+        <div class="swatches" id="pieceKindColors" aria-label="Colour of all parts of this kind"></div>
+        <div data-for="standard full">
+          <label class="dial" id="pieceThickRow">Thickness<span><input type="range" id="pieceThick" min="3.5" max="8" step="0.5"><input type="number" id="pieceThickN" min="3.5" max="8" step="0.5"> mm</span></label>
+          <label class="dial" id="pieceLongRow">Length<span><input type="range" id="pieceLong" min="10" max="65"><input type="number" id="pieceLongN" min="10" max="65"> mm</span></label>
+        </div>
+        <div data-for="full" id="piecePlace">
+          <label class="pair trio"><b>Where it sits, in mm</b><span>left <input type="number" id="posX" step="0.5"></span><span>back <input type="number" id="posY" step="0.5"></span><span>up <input type="number" id="posZ" step="0.5"></span></label>
+          <label class="check"><input type="checkbox" id="pieceLocked">Frozen: nothing moves or removes it until this is unticked</label>
+        </div>
+        <div class="row"><button id="pieceRemove">Remove</button><button id="pieceDone">Done</button></div>
       </div>
-      <div id="easyBox">
-        <p class="small">Three questions, and the hardware is put on for you. You can change any vertebra afterwards.</p>
+      <div id="rodBox" class="box" hidden>
+        <h3 id="rodName"></h3>
+        <p class="small" data-for="standard full">Drag the rod between two parts to bend it there. Drag a knob to move that bend.</p>
+        <div class="swatches" id="rodColors" aria-label="Colour of this rod"></div>
+        <div class="swatches" id="rodKindColors" aria-label="Colour of all rods"></div>
+        <div data-for="standard full">
+          <label class="dial">Thickness<span><input type="range" id="rodThick" min="3.5" max="7" step="0.5"><input type="number" id="rodThickN" min="3.5" max="7" step="0.5"> mm</span></label>
+          <div class="row"><button id="rodUnbend">Take the bends out</button></div>
+        </div>
+      </div>
+      <div id="gCard" class="box" hidden>
+        <div class="row between"><button id="gUp">One up</button><strong id="gName"></strong><button id="gDown">One down</button></div>
+        <div class="sideRow"><span>Left</span><div class="seg four" data-gside="left"><button data-gput="screw">Screw</button><button data-gput="hook-down">Hook down</button><button data-gput="hook-up">Hook up</button><button data-gput="">Nothing</button></div></div>
+        <div class="sideRow"><span>Right</span><div class="seg four" data-gside="right"><button data-gput="screw">Screw</button><button data-gput="hook-down">Hook down</button><button data-gput="hook-up">Hook up</button><button data-gput="">Nothing</button></div></div>
+        <label class="check" id="gFusedRow"><input type="checkbox" id="gFused">Fused to the vertebra below</label>
+        <label class="check" id="gLinkRow"><input type="checkbox" id="gLink">Cross-link below it</label>
+      </div>
+      <label class="check" data-for="standard full"><input type="checkbox" id="multiOn">Select several parts at once (or hold Shift)</label>
+
+      <h3>Put parts on</h3>
+      <p class="small">Pick a part, then tap the map, or drag the part onto the map or the model. The map is the spine seen from the back.</p>
+      <div class="tray" id="tray" role="group" aria-label="Parts">
+        <button data-tray="screw" aria-pressed="true"><i class="ic screw"></i>Screw</button><button data-tray="hook-down" aria-pressed="false"><i class="ic down"></i>Hook down</button><button data-tray="hook-up" aria-pressed="false"><i class="ic up"></i>Hook up</button><button data-tray="link" aria-pressed="false"><i class="ic link"></i>Link</button><button data-tray="fused" aria-pressed="false"><i class="ic fused"></i>Fused</button><button data-tray="erase" aria-pressed="false"><i class="ic erase"></i>Eraser</button>
+      </div>
+      <p class="say" id="traySay"></p>
+      <div id="mapWrap"><svg id="map" role="group" aria-label="Map of the spine from the back"></svg></div>
+      <label class="check"><input type="checkbox" id="mapNeck">Show the neck on the map</label>
+
+      <details id="guideFold" class="fold">
+        <summary>Or have it filled in for you</summary>
+        <div id="easyBox">
+        <p class="small">Three questions, and the hardware is put on. You can change any spot afterwards.</p>
         <h3>1. Where is the fusion?</h3>
         <label class="pair">From<select id="gTop"></select>to<select id="gBottom"></select></label>
         <div class="row"><button id="gPick" aria-pressed="false">Or click its two ends on the model</button></div>
@@ -172,40 +228,20 @@
         <h3>3. Cross-links between the rods</h3>
         <div class="seg" role="group" aria-label="Cross-links"><button data-glinks="0" aria-pressed="false">None</button><button data-glinks="1" aria-pressed="true">One</button><button data-glinks="2" aria-pressed="false">Two</button></div>
         <div class="row"><button id="gBuild" class="main">Put it on the spine</button></div>
-        <p class="say" id="gSay">To change one vertebra afterwards, click it on the model.</p>
-        <div id="gCard" class="box" hidden>
-          <div class="row between"><button id="gUp">One up</button><strong id="gName"></strong><button id="gDown">One down</button></div>
-          <div class="sideRow"><span>Left</span><div class="seg four" data-gside="left"><button data-gput="screw">Screw</button><button data-gput="hook-down">Hook down</button><button data-gput="hook-up">Hook up</button><button data-gput="">Nothing</button></div></div>
-          <div class="sideRow"><span>Right</span><div class="seg four" data-gside="right"><button data-gput="screw">Screw</button><button data-gput="hook-down">Hook down</button><button data-gput="hook-up">Hook up</button><button data-gput="">Nothing</button></div></div>
-          <label class="check" id="gFusedRow"><input type="checkbox" id="gFused">Fused to the vertebra below</label>
-          <label class="check" id="gLinkRow"><input type="checkbox" id="gLink">Cross-link below it</label>
+        <p class="say" id="gSay"></p>
         </div>
-      </div>
-      <div id="handBox" hidden>
-        <p class="small">Full control. Pick a part and click the spine to add it. Drag a part to move it over the bone. Drag a rod between two parts to bend it. Click a part or a rod for its settings.</p>
+      </details>
+
+      <div id="handBox" data-for="full">
+        <h3>Place freely</h3>
+        <p class="small">Pick a part and click the model to add it. With snapping off it goes exactly where you click.</p>
         <div class="row" id="inventory">
           <button data-part="screw" aria-pressed="false">Screw</button><button data-part="hook" aria-pressed="false">Hook</button><button data-part="crosslink" aria-pressed="false">Cross-link</button>
         </div>
         <label class="check"><input type="checkbox" id="snapOn" checked>Snap to the usual spots</label>
         <label class="check"><input type="checkbox" id="inLineOn" checked>Keep rods believable: a part stops where its rod could not follow</label>
-        <div id="pieceBox" class="box" hidden>
-          <h3 id="pieceName"></h3>
-          <p class="small">Drag it over the bone, or drag the arrows for small steps.</p>
-          <label class="dial" id="pieceThickRow">Thickness<span><input type="range" id="pieceThick" min="3.5" max="8" step="0.5"><input type="number" id="pieceThickN" min="3.5" max="8" step="0.5"> mm</span></label>
-          <label class="dial" id="pieceLongRow">Length<span><input type="range" id="pieceLong" min="10" max="65"><input type="number" id="pieceLongN" min="10" max="65"> mm</span></label>
-          <div class="seg" id="pieceFaceRow" role="group" aria-label="Which way the hook points"><button data-face="down">Points down</button><button data-face="up">Points up</button></div>
-          <div class="swatches" id="pieceColors" aria-label="Colour of this part"></div>
-          <div class="row"><button id="pieceRemove">Remove this part</button></div>
-        </div>
-        <div id="rodBox" class="box" hidden>
-          <h3 id="rodName"></h3>
-          <p class="small">Drag the rod between two parts to bend it there. Drag a knob to move that bend.</p>
-          <label class="dial">Thickness<span><input type="range" id="rodThick" min="3.5" max="7" step="0.5"><input type="number" id="rodThickN" min="3.5" max="7" step="0.5"> mm</span></label>
-          <div class="swatches" id="rodColors" aria-label="Colour of this rod"></div>
-          <div class="row"><button id="rodUnbend">Take the bends out</button></div>
-        </div>
-        <details id="sheetFold">
-          <summary>All levels at a glance</summary>
+        <details id="sheetFold" class="fold">
+          <summary>All levels as a table</summary>
         <p class="small">Each row is a vertebra, top to bottom. Tap a cell to change it, or drag down a column to fill several. The model follows as you go.</p>
         <table id="sheet" aria-label="Hardware and fusion, level by level">
           <thead><tr><th>Level</th><th>Left</th><th>Right</th><th title="This vertebra is fused to the one below">Fused below</th><th title="A cross-link between the rods, below this vertebra">Link below</th><th title="The rods stop below this vertebra and start again further down">Rods end</th></tr></thead>
@@ -222,8 +258,8 @@
         <label class="check"><input type="checkbox" id="fillFused" checked>and mark that stretch as fused</label>
         <div class="row"><button id="hwFill">Fill</button></div>
         </details>
-        <div class="row"><button id="rodsFit">Redraw the rods through the parts</button></div>
       </div>
+      <div class="row" data-for="standard full"><button id="rodsFit">Redraw the rods through the parts</button></div>
       <h3>Colours</h3>
       <div class="row looks" id="paletteRow" aria-label="Sets of colours"><span class="small">Sets</span><button data-palette="classic">Classic</button><button data-palette="metal">Metal</button><button data-palette="bright">Bright</button><button data-palette="bold">Bold</button></div>
       <div id="kindColors"></div>
@@ -260,9 +296,9 @@
     <label class="check"><input type="checkbox" id="welcomeSkip">Do not show this again on this device</label>
     <div class="row"><button id="welcomeGo" class="main" autofocus>Start building</button></div>
   </dialog>
-  <dialog id="gallery" aria-label="Examples">
-    <div class="row between"><h2>Examples</h2><button id="galleryClose">Close</button></div>
-    <p class="small">Pick one to start from. It replaces what is on screen, so save a copy first if you want to keep that.</p>
+  <dialog id="gallery" aria-label="Presets">
+    <div class="row between"><h2>Presets</h2><button id="galleryClose">Close</button></div>
+    <p class="small">Pick the one nearest to your own spine and shape it from there. It replaces what is on screen, so save a copy first if you want to keep that. These are made-up shapes of common patterns. They are not a diagnosis.</p>
     <div id="galleryList"></div>
   </dialog>
 </main>

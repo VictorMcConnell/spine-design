@@ -325,16 +325,19 @@ export function hookFaces(spine, id, side) {
 
 // Put a screw, a hook or nothing on one side of a vertebra, at the usual spot.
 //   faces: for a hook, which way its blade points ('down' or 'up')
+// Returns false, and changes nothing, if the part that sits there is frozen ("locked").
 export function setCell(spine, id, side, kind, faces = 'down') {
   const hw = spine.hardware = spine.hardware || {}, level = spine.levels.find((l) => l.id === id);
   for (const key of ['rods', 'screws', 'hooks', 'crosslinks']) hw[key] = hw[key] || [];
-  if (!level || (cellOf(spine, id, side) === kind && (kind !== 'hook' || hookFaces(spine, id, side) === faces))) return;
+  if (!level || (cellOf(spine, id, side) === kind && (kind !== 'hook' || hookFaces(spine, id, side) === faces))) return true;
+  if ([...hw.screws, ...hw.hooks].some((p) => p.level === id && p.side === side && p.locked)) return false;
   hw.screws = hw.screws.filter((p) => !(p.level === id && p.side === side));
   hw.hooks = hw.hooks.filter((p) => !(p.level === id && p.side === side));
   const spot = slot(level, side, faces);
   if (kind === 'screw') hw.screws.push({ level: id, side, rod: side, ...spot.screw, source: 'typical' });
   if (kind === 'hook') hw.hooks.push({ level: id, side, rod: side, ...spot.hook, source: 'typical' });
   fitRods(spine);
+  return true;
 }
 
 // Put on one side of a vertebra what a plan asks for there ('screw', 'hook', 'hook-up' or '').

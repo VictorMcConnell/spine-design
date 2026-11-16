@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "name": "Fusion with rods and screws",
+ "name": "Fusion with hooks on top and screws below",
  "units": "mm",
  "frame": "x = patient left, y = back, z = up, origin at the centre of S1, standing",
  "about": "What is left of an S shape after surgery: fused from T4 to L4, with hooks on the top two levels, screws below, two rods and two cross-links. Made up, not a real person.",

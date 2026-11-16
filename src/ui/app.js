@@ -9,7 +9,9 @@ import { validateSpine, sortedLevels } from '../core/spinefile.js';
 import { measureSpine } from '../core/measures.js';
 import { readSpineFile, saveSpineFile, loadExample, listExamples, download, fileNameFor } from '../io/files.js';
 import { packSpine, unpackSpine, linkFor, packedIn } from '../io/share.js';
-import { stlOf } from '../io/print.js';
+import { stlOf, objOf } from '../io/print.js';
+import { zipOf } from '../io/zip.js';
+import { standFor } from '../core/stand.js';
 import { rigOf, carry, stiffen, blockOf } from '../core/shape.js';
 import { fitRods } from '../core/place.js';
 import { setBoneStyle } from '../core/bones.js';
@@ -26,7 +28,7 @@ let past = [], future = [];          // spine files as text, for Undo and Redo
 
 // ---- how things look (kept on this device between visits)
 const BACKS = { dark: [0.075, 0.08, 0.1], grey: [0.43, 0.44, 0.47], light: [0.93, 0.92, 0.89], white: [1, 1, 1], black: [0, 0, 0] };
-const USUAL = { back: 'dark', shade: 'soft', bone: '#c7ad85', disc: '#5485bd', hardware: '', byLevel: false, simple: false };
+const USUAL = { back: 'dark', shade: 'soft', bone: '#c7ad85', disc: '#5485bd', hardware: '', byLevel: false, simple: false, level: 'easy' };
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 let look = { ...USUAL };
 try { look = { ...USUAL, ...JSON.parse(localStorage.getItem('spineBuilderLook') || '{}') }; } catch (e) { /* no storage here: use the usual look */ }
@@ -34,7 +36,10 @@ try { look = { ...USUAL, ...JSON.parse(localStorage.getItem('spineBuilderLook') 
 // What the builder works with. "rig" is the spine as a chain (see core/shape.js). "picked" is
 // what is selected, "spots" the dots shown while a part is being placed.
 const app = {
-  $, renderer, DETAIL, rig: null, picked: null, spots: [],
+  $, renderer, DETAIL, rig: null, picked: null, also: [], spots: [],
+  // how much control the panel offers: 'easy', 'standard' or 'full' (kept with the look, on this device)
+  get level() { return ['easy', 'standard', 'full'].includes(look.level) ? look.level : 'easy'; },
+  set level(name) { if (look.level !== name) { look.level = name; try { localStorage.setItem('spineBuilderLook', JSON.stringify(look)); } catch (e) { /* not kept, that is all */ } } },
   stiff: true,                         // fused stretches move as blocks (the switch in the Shape tab)
   inLine: true,                        // a part stops where its rod could not follow (the switch under By hand)
   showStiff: true,                     // tint the stiff blocks (while the Shape tab is open)
@@ -49,7 +54,10 @@ const app = {
     // while the spine is being shaped, the stretches that are held stiff are drawn in a cooler colour
     const order = sortedLevels(spine).map((l) => l.id), stiff = [];
     if (app.showStiff && app.stiff && app.rig) for (const b of app.rig.blocks || []) stiff.push(...order.slice(b.from, b.to + 1));
-    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, stiff, spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
+    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, also: app.also, stiff, spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
+    // the stand chosen for printing is shown with the spine, so that what is saved is what is seen
+    const stand = standNow();
+    if (stand) for (const [list, name] of [[stand.onSpine, 'stand_fitting_on_spine'], [stand.stand, 'stand']]) for (const mesh of list) items.push({ group: 'stand', mesh, color: STAND_COLOR, opacity: 1, baseOpacity: 1, visible: true, name });
     const handles = builder && builder.handles();
     renderer.setItems(handles ? items.concat(gizmoItems(handles.spec, handles.active)) : items);
     applyToggles();
@@ -81,8 +89,9 @@ const app = {
     if (builder) builder.sync();
   },
 
-  pick(what) {
-    app.picked = what;
+  // Select something. "also" lists more parts selected along with it.
+  pick(what, also = []) {
+    app.picked = what; app.also = what ? also : [];
     app.redraw();
     if (builder) builder.sync();
   },
@@ -92,7 +101,7 @@ function restore(text) {
   spine = JSON.parse(text);
   // a picked vertebra or stretch stays picked; a picked part may no longer exist
   const p = app.picked, has = (id) => spine.levels.some((l) => l.id === id);
-  app.rig = rigOf(spine, app.stiff); app.picked = p && ((p.kind === 'level' && has(p.id)) || (p.kind === 'stretch' && has(p.top) && (!p.bottom || has(p.bottom)))) ? p : null; app.spots = [];
+  app.rig = rigOf(spine, app.stiff); app.picked = p && ((p.kind === 'level' && has(p.id)) || (p.kind === 'stretch' && has(p.top) && (!p.bottom || has(p.bottom)))) ? p : null; app.also = []; app.spots = [];
   if (builder) builder.reset();
   buildLabels(); app.redraw(); syncHistory();
   if (builder) builder.sync();
@@ -129,7 +138,7 @@ function show(next, problems) {
   app.say('Drawing the bones');
   // give the notice a moment to appear before the shapes are worked out
   setTimeout(() => {
-    app.rig = rigOf(spine, app.stiff); app.picked = null; app.spots = [];
+    app.rig = rigOf(spine, app.stiff); app.picked = null; app.also = []; app.spots = [];
     past = [JSON.stringify(spine)]; future = [];
     if (builder) builder.reset();
     buildLabels();
@@ -210,11 +219,14 @@ function showNumbers() {
 // ---- the gallery of examples
 
 // A small picture of a spine seen from behind, drawn from its file.
-function sketch(s) {
-  const xs = s.levels.map((l) => -l.centre[0]), zs = s.levels.map((l) => l.centre[2]), lowX = Math.min(...xs) - 30, highX = Math.max(...xs) + 30, lowZ = Math.min(...zs) - 25, highZ = Math.max(...zs) + 15;
+// A small flat drawing of a spine for the gallery: seen from the back, or from the side
+// (the back of the person to the right) for the shapes that only show from there.
+function sketch(s, side = false) {
+  const across = (p) => (side ? p[1] : -p[0]), j = side ? 1 : 0;
+  const xs = s.levels.map((l) => across(l.centre)), zs = s.levels.map((l) => l.centre[2]), lowX = Math.min(...xs) - 30, highX = Math.max(...xs) + 30, lowZ = Math.min(...zs) - 25, highZ = Math.max(...zs) + 15;
   let body = '';
-  for (const l of s.levels) body += '<rect x="' + (-l.centre[0] - l.size[0] / 2).toFixed(1) + '" y="' + (-l.centre[2] - l.size[2] / 2).toFixed(1) + '" width="' + l.size[0] + '" height="' + l.size[2] + '" rx="3" transform="rotate(' + l.tilt[0].toFixed(1) + ' ' + (-l.centre[0]).toFixed(1) + ' ' + (-l.centre[2]).toFixed(1) + ')" fill="#c7ad85"/>';
-  for (const r of (s.hardware || {}).rods || []) body += '<polyline points="' + r.points.map((p) => (-p[0]).toFixed(1) + ',' + (-p[2]).toFixed(1)).join(' ') + '" fill="none" stroke="#6f8fe0" stroke-width="5" stroke-linecap="round"/>';
+  for (const l of s.levels) body += '<rect x="' + (across(l.centre) - l.size[j] / 2).toFixed(1) + '" y="' + (-l.centre[2] - l.size[2] / 2).toFixed(1) + '" width="' + l.size[j] + '" height="' + l.size[2] + '" rx="3" transform="rotate(' + l.tilt[j].toFixed(1) + ' ' + across(l.centre).toFixed(1) + ' ' + (-l.centre[2]).toFixed(1) + ')" fill="#c7ad85"/>';
+  for (const r of (s.hardware || {}).rods || []) body += '<polyline points="' + r.points.map((p) => across(p).toFixed(1) + ',' + (-p[2]).toFixed(1)).join(' ') + '" fill="none" stroke="#6f8fe0" stroke-width="5" stroke-linecap="round"/>';
   return '<svg viewBox="' + [lowX, -highZ, highX - lowX, highZ - lowZ].map((v) => v.toFixed(0)).join(' ') + '" aria-hidden="true">' + body + '</svg>';
 }
 
@@ -223,10 +235,13 @@ function openGallery() {
   box.textContent = '';
   $('gallery').showModal();
   listExamples().then((list) => Promise.all(list.map((e) => loadExample(e.file).then((s) => ({ ...e, spine: s }))))).then((list) => {
+    let group = '';
     for (const e of list) {
+      // the presets come in groups, each under its own heading
+      if (e.group && e.group !== group) { group = e.group; const h = document.createElement('h3'); h.textContent = group; box.appendChild(h); }
       const b = document.createElement('button');
       b.dataset.file = e.file;
-      b.innerHTML = sketch(e.spine) + '<div><strong></strong><span></span></div>';
+      b.innerHTML = sketch(e.spine, e.group === 'Round and flat backs') + '<div><strong></strong><span></span></div>';
       b.querySelector('strong').textContent = e.name; b.querySelector('span').textContent = e.about;
       b.addEventListener('click', () => { $('gallery').close(); openExample(e.file); });
       box.appendChild(b);
@@ -316,18 +331,63 @@ function pictureOf() {
   return out;
 }
 
-const PRINTED = ['vertebrae', 'discs', 'rods', 'screws', 'hooks', 'crosslinks'];
-function saveStl() {
+const PRINTED = ['vertebrae', 'discs', 'rods', 'screws', 'hooks', 'crosslinks'], STAND_COLOR = [0.56, 0.58, 0.63];
+const CREDIT = 'Bones: BodyParts3D (c) DBCLS, CC BY 4.0';
+const printScale = () => parseFloat($('stlScale').value) || 1;
+// The stand for the spine as it is now, at the print size chosen, or null. Worked out again only when the spine has changed shape.
+let standKept = { key: '', stand: null };
+function standNow() {
+  const kind = $('standKind').value;
+  if (!kind || !spine) return null;
+  const key = kind + printScale() + look.simple + JSON.stringify(spine.levels.map((l) => [l.id, l.centre, l.tilt, l.turn, l.size]));
+  if (standKept.key !== key) standKept = { key, stand: standFor(kind, spine, printScale(), DETAIL) };
+  return standKept.stand;
+}
+// Bring the whole model into view, with its stand if one is shown.
+function fitView() {
   if (!spine) return;
-  const scale = parseFloat($('stlScale').value) || 1, items = renderer.items().filter((it) => PRINTED.includes(it.group) && it.visible !== false);
+  const b = boundsOf(spine), stand = standNow();
+  if (stand) for (const mesh of stand.stand) for (let i = 0; i < mesh.positions.length; i += 3) for (let j = 0; j < 3; j++) { b.low[j] = Math.min(b.low[j], mesh.positions[i + j]); b.high[j] = Math.max(b.high[j], mesh.positions[i + j]); }
+  renderer.frame(b.low, b.high);
+}
+function showStand() {
+  const stand = standNow();
+  let wide = 0;
+  if (stand) { const p = stand.stand[0].positions; let lo = Infinity, hi = -Infinity; for (let i = 0; i < p.length; i += 3) { lo = Math.min(lo, p[i]); hi = Math.max(hi, p[i]); } wide = Math.round((hi - lo) * printScale()); }
+  $('standSay').textContent = stand ? stand.says + ' The stand is a part of its own, with a base about ' + wide + ' mm across at this size. It is shown with the spine now.' : '';
+  app.redraw();
+  if (stand) fitView();
+}
+const READ_ME = (lines) => ['Made with Spine Builder. A sketch of a spine, not a medical image and not a measurement.', ''].concat(lines, look.simple ? [] : ['', 'The bone shapes are from BodyParts3D, (c) The Database Center for Life Science, licensed under CC Attribution 4.0 International.', 'Pass this credit on with the files.']).join('\r\n') + '\r\n';
+const shownParts = () => renderer.items().filter((it) => PRINTED.includes(it.group) && it.visible !== false);
+
+async function saveStl() {
+  if (!spine) return;
+  const scale = printScale(), items = shownParts(), stand = standNow();
   if (!items.length) { $('stlSay').textContent = 'Nothing is shown, so there is nothing to print. Tick some parts under Show.'; return; }
-  const bytes = stlOf(items, scale, 'Spine Builder sketch. Bones: BodyParts3D (c) DBCLS, CC BY 4.0'), view = new DataView(bytes.buffer);
+  const bytes = stlOf(items.concat(stand ? stand.onSpine.map((mesh) => ({ mesh })) : []), scale, 'Spine Builder sketch. ' + (look.simple ? '' : CREDIT)), view = new DataView(bytes.buffer);
   // how tall the print will be: the highest and the lowest corner in the file
   let low = Infinity, high = -Infinity;
   for (let at = 84; at < bytes.length; at += 50) for (const k of [20, 32, 44]) { const z = view.getFloat32(at + k, true); if (z < low) low = z; if (z > high) high = z; }
-  const tall = Math.round(high - low);
-  download(new Blob([bytes], { type: 'model/stl' }), fileNameFor(spine) + (scale === 1 ? '' : '-' + Math.round(scale * 100) + 'pct') + '.stl');
-  $('stlSay').textContent = 'Saved: about ' + tall + ' mm tall, ' + (bytes.length / 1e6).toFixed(1) + ' MB. Its parts are separate shapes that overlap, and slicers join them on their own. If you pass the file on, name BodyParts3D as the source of the bone shapes.';
+  const tall = Math.round(high - low), name = fileNameFor(spine) + (scale === 1 ? '' : '-' + Math.round(scale * 100) + 'pct');
+  const told = 'about ' + tall + ' mm tall. Its parts are separate shapes that overlap, and slicers join them on their own.' + (look.simple ? '' : ' If you pass the file on, name BodyParts3D as the source of the bone shapes.');
+  if (!stand) { download(new Blob([bytes], { type: 'model/stl' }), name + '.stl'); $('stlSay').textContent = 'Saved: ' + (bytes.length / 1e6).toFixed(1) + ' MB, ' + told; return; }
+  const zip = await zipOf([
+    { name: name + '.stl', bytes },
+    { name: name + '-stand.stl', bytes: stlOf(stand.stand.map((mesh) => ({ mesh })), scale, 'Stand for a Spine Builder sketch') },
+    { name: 'READ ME.txt', bytes: READ_ME([name + '.stl: the spine, about ' + tall + ' mm tall, in millimetres.', name + '-stand.stl: its stand. Print it as it is, with the round base on the bed.', stand.says, 'Each file holds separate shapes that overlap. Slicers join them on their own.', 'The fit between the two was worked out, not tried on a printer. If it is tight, sand the peg or the arm a little.']) },
+  ]);
+  download(new Blob([zip], { type: 'application/zip' }), name + '-print.zip');
+  $('stlSay').textContent = 'Saved a zip with the spine and its stand as two STL files: ' + (zip.length / 1e6).toFixed(1) + ' MB, the spine ' + told;
+}
+async function saveObj() {
+  if (!spine) return;
+  const items = shownParts().concat(renderer.items().filter((it) => it.group === 'stand'));
+  if (!items.length) { $('objSay').textContent = 'Nothing is shown, so there is nothing to save. Tick some parts under Show.'; return; }
+  const name = fileNameFor(spine), files = objOf(items, 1, 'Spine Builder sketch. ' + (look.simple ? '' : CREDIT), name + '.mtl');
+  const zip = await zipOf([{ name: name + '.obj', bytes: files.obj }, { name: name + '.mtl', bytes: files.mtl }, { name: 'READ ME.txt', bytes: READ_ME([name + '.obj: the model at full size, in millimetres, standing upright (y is up).', name + '.mtl: its colours. Keep the two files together.', 'Every vertebra, disc and part is an object of its own, named after what it is.']) }]);
+  download(new Blob([zip], { type: 'application/zip' }), name + '-3d.zip');
+  $('objSay').textContent = 'Saved a zip with the OBJ file and its colours: ' + items.length + ' objects, ' + (zip.length / 1e6).toFixed(1) + ' MB.';
 }
 
 // ---- the look
@@ -365,11 +425,13 @@ if (!renderer) {
   $('linkBtn').addEventListener('click', copyLink);
   $('pictureBtn').addEventListener('click', () => { if (spine) pictureOf().toBlob((blob) => download(blob, fileNameFor(spine) + '.png'), 'image/png'); });
   $('stlBtn').addEventListener('click', saveStl);
+  $('objBtn').addEventListener('click', saveObj);
+  $('standKind').addEventListener('change', showStand); $('stlScale').addEventListener('change', showStand);
   window.addEventListener('hashchange', openLink);
   $('newBtn').addEventListener('click', () => openExample(START));
   $('galleryBtn').addEventListener('click', openGallery);
   $('galleryClose').addEventListener('click', () => $('gallery').close());
-  $('fitBtn').addEventListener('click', () => { if (spine) { const b = boundsOf(spine); renderer.frame(b.low, b.high); } });
+  $('fitBtn').addEventListener('click', fitView);
   $('undoBtn').addEventListener('click', undo);
   $('redoBtn').addEventListener('click', redo);
   document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { look.back = b.dataset.back; applyLook(); }));
@@ -380,7 +442,7 @@ if (!renderer) {
   $('simpleBones').addEventListener('change', () => { look.simple = $('simpleBones').checked; applyLook(); });
   // the bone shapes come from an open anatomy collection that asks to be named
   $('credit').textContent = 'Bone shapes: ' + SHAPE_CREDIT + '. Resized and placed for this app.';
-  $('lookReset').addEventListener('click', () => { look = { ...USUAL }; $('boneOpacity').value = 100; applyLook(); });
+  $('lookReset').addEventListener('click', () => { look = { ...USUAL, level: look.level }; $('boneOpacity').value = 100; applyLook(); });
   // the menus of the ribbon: a button opens its menu, a click elsewhere or Esc closes it
   const closeMenus = (but) => document.querySelectorAll('[data-menu]').forEach((b) => { if (b !== but) { b.setAttribute('aria-expanded', 'false'); $(b.dataset.menu).hidden = true; } });
   document.querySelectorAll('[data-menu]').forEach((b) => b.addEventListener('click', (e) => {

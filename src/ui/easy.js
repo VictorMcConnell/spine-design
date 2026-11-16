@@ -1,10 +1,13 @@
 // The easy ways into the builder, for people who do not want to learn a 3D program:
 //   - draw the curve of the spine as a line over the model,
+//   - a flat map of the spine with a tray of parts: tap or paint spots on the map, or drag
+//     a part from the tray onto the map or onto the model,
 //   - answer three questions and have the hardware put on, then change one vertebra at a time,
 //   - pick colours for the hardware from swatches.
 // The detailed tools are in build.js, which calls in here.
 
-import { followLine } from '../core/shape.js';
+import { followLine, toLocal } from '../core/shape.js';
+import { levelFrame } from '../core/bones.js';
 import { fitOut, cellOf, hookFaces, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow } from '../core/place.js';
 import { FINISHES, PALETTES, USUAL_FINISH, colorOf } from '../core/hardware.js';
 
@@ -33,7 +36,7 @@ export function swatches(box, label, chosen, pick, usual = false) {
 
 // kit: the helpers of build.js that are needed here ($, each, pressed, options, ids, levelOf, hitLevel, hint)
 export function setupEasy(app, kit) {
-  const { $, each, pressed, options, ids, levelOf, hitLevel, hint } = kit, { renderer } = app;
+  const { $, each, pressed, options, ids, levelOf, hitLevel, hint, chosen, pickPart } = kit, { renderer } = app;
   const hw = () => app.spine.hardware;
 
   // ---------------------------------------------------------------- drawing the curve
@@ -88,6 +91,7 @@ export function setupEasy(app, kit) {
   };
 
   // ---------------------------------------------------------------- hardware in three questions
+  const NEEDS_RODS = 'A cross-link needs a rod on both sides of that gap. Put a screw or a hook on both sides, above and below it, first.';
   const guide = { kind: 'screws', links: 1, picking: 0 };
   let guideFor = '', cardFor = null;
   each('[data-gkind]', (b) => b.addEventListener('click', () => { guide.kind = b.dataset.gkind; sync(); }));
@@ -122,7 +126,7 @@ export function setupEasy(app, kit) {
     if (!id) return;
     let fits = true;
     app.change(() => { fits = setLinkBelow(app.spine, id, $('gLink').checked); }, { ride: false });
-    $('gSay').textContent = fits ? '' : 'A cross-link needs a rod on both sides of that gap. Put a screw or a hook on both sides, above and below it, first.';
+    app.say(fits ? '' : NEEDS_RODS);
   });
   const step = (by) => () => { const list = ids(), i = list.indexOf(app.picked && app.picked.id) + by; if (i >= 0 && i < list.length) app.pick({ kind: 'level', id: list[i] }); };
   $('gUp').addEventListener('click', step(-1)); $('gDown').addEventListener('click', step(1));
@@ -138,11 +142,187 @@ export function setupEasy(app, kit) {
     app.pick(id ? { kind: 'level', id } : null);
   }
 
+  // ---------------------------------------------------------------- the flat map and the tray
+  // The map shows the spine from the back as a column of blocks, one for each vertebra, with
+  // a round spot on its left and its right for a screw or a hook, and the gap to the next
+  // vertebra for a cross-link or for "fused". The tool picked in the tray is what a tap puts
+  // there. The model follows every tap.
+  const NS = 'http://www.w3.org/2000/svg', ROW = 26, WIDE = 300, REACH = 62;
+  const TOOL_SAYS = {
+    screw: 'Tap a round spot to put a screw there. Drag over several to fill them.',
+    'hook-down': 'Tap a round spot for a hook whose blade points down.',
+    'hook-up': 'Tap a round spot for a hook whose blade points up.',
+    link: 'Tap between two vertebrae to put a cross-link there. It needs a rod on both sides.',
+    fused: 'Tap between two vertebrae to mark them as fused to each other, or to undo that.',
+    erase: 'Tap a part or a cross-link on the map to take it off.',
+  };
+  let mapTool = 'screw', painting = null, carrying = null;
+  const el = (name, attrs, parent) => { const e = document.createElementNS(NS, name); for (const k of Object.keys(attrs)) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+  const css = (c) => 'rgb(' + c.map((v) => Math.round(v * 255)).join(',') + ')';
+  const tint = (kind, piece) => css(colorOf(piece && piece.color) || colorOf((hw().colors || {})[kind]) || colorOf(USUAL_FINISH[kind]));
+  const partAt = (id, side) => { for (const kind of ['screws', 'hooks']) { const index = hw()[kind].findIndex((p) => p.level === id && p.side === side); if (index >= 0) return { kind, index, piece: hw()[kind][index] }; } return null; };
+  function mapRows() {
+    const neck = $('mapNeck').checked || [...hw().screws, ...hw().hooks].some((p) => /^C/.test(p.level));
+    return ids().filter((id) => (neck ? id !== 'C1' : !/^C/.test(id)));
+  }
+  // the gap a cross-link sits in: the one it was put in, or the one at its height
+  function gapOf(link, rows) {
+    if (link.below) return rows.indexOf(link.below);
+    const z = (link.from[2] + link.to[2]) / 2;
+    for (let i = 0; i < rows.length - 1; i++) if (z <= levelOf(rows[i]).centre[2] && z >= levelOf(rows[i + 1]).centre[2]) return i;
+    return -1;
+  }
+  function drawMap() {
+    const svg = $('map');
+    if (!$('mapWrap').offsetParent && svg.childNodes.length) return;      // not on screen: it is drawn when it is next shown
+    const rows = mapRows(), list = ids(), n = rows.length, last = levelOf(rows[n - 1]).centre[0];
+    const X = (i) => WIDE / 2 - Math.max(-48, Math.min(48, (levelOf(rows[i]).centre[0] - last) * 0.55)), Y = (i) => 24 + i * ROW + ROW / 2, slotX = (i, side) => X(i) + (side === 'left' ? -REACH : REACH);
+    const stiff = new Set(), picked = app.picked || {}, sel = chosen();
+    if (app.stiff) for (const b of app.rig.blocks || []) list.slice(b.from, b.to + 1).forEach((id) => stiff.add(id));
+    svg.setAttribute('viewBox', '0 0 ' + WIDE + ' ' + (n * ROW + 34)); svg.textContent = '';
+    el('text', { x: WIDE / 2 - REACH, y: 14, class: 'side', 'text-anchor': 'middle' }, svg).textContent = 'Left';
+    el('text', { x: WIDE / 2 + REACH, y: 14, class: 'side', 'text-anchor': 'middle' }, svg).textContent = 'Right';
+    // fused gaps join their two blocks
+    rows.forEach((id, i) => { if (i < n - 1 && fusedBelow(app.spine, id)) el('rect', { x: (X(i) + X(i + 1)) / 2 - 27, y: Y(i) + 7, width: 54, height: ROW - 14, class: 'bridge' }, svg); });
+    // rods: a line down each side through the spots of its parts
+    for (const rod of hw().rods) {
+      const at = [...hw().screws, ...hw().hooks].filter((p) => p.rod === rod.id).map((p) => rows.indexOf(p.level)).filter((i) => i >= 0);
+      if (at.length < 2) continue;
+      const points = [];
+      for (let i = Math.min(...at); i <= Math.max(...at); i++) points.push(slotX(i, rod.side) + ',' + Y(i));
+      el('polyline', { points: points.join(' '), fill: 'none', stroke: tint('rods', rod), 'stroke-width': 4.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svg);
+    }
+    rows.forEach((id, i) => {
+      el('rect', { x: X(i) - 40, y: Y(i) - 10, width: 80, height: 20, rx: 6, class: 'bone' + (stiff.has(id) ? ' stiff' : '') + (picked.kind === 'level' && picked.id === id ? ' picked' : '') }, svg);
+      el('text', { x: X(i), y: Y(i) + 4, 'text-anchor': 'middle' }, svg).textContent = id;
+    });
+    // the gaps: a place to tap, and the cross-link if one is there
+    for (let i = 0; i < n - 1; i++) {
+      const g = el('g', { 'data-gap': rows[i] }, svg), x = (X(i) + X(i + 1)) / 2, y = Y(i) + ROW / 2;
+      el('rect', { x: x - REACH - 4, y: y - 6, width: 2 * REACH + 8, height: 12, class: 'hit' }, g);
+      el('line', { x1: x - 30, y1: y, x2: x + 30, y2: y, class: 'gapline' }, g);
+    }
+    hw().crosslinks.forEach((link, index) => {
+      const i = gapOf(link, rows);
+      if (i < 0) return;
+      const x = (X(i) + X(i + 1)) / 2, y = Y(i) + ROW / 2, on = sel.some((c) => c.kind === 'crosslinks' && c.index === index);
+      el('line', { x1: x - REACH, y1: y, x2: x + REACH, y2: y, stroke: tint('crosslinks', link), 'stroke-width': 5, 'stroke-linecap': 'round', 'pointer-events': 'none' }, svg);
+      if (on) el('rect', { x: x - REACH - 5, y: y - 6, width: 2 * REACH + 10, height: 12, rx: 6, class: 'ring', 'pointer-events': 'none' }, svg);
+    });
+    // the spots beside each vertebra
+    rows.forEach((id, i) => {
+      for (const side of ['left', 'right']) {
+        const g = el('g', { 'data-slot': id + ':' + side }, svg), x = slotX(i, side), y = Y(i), part = partAt(id, side);
+        el('circle', { cx: x, cy: y, r: 13, class: 'hit' }, g);
+        if (!part) { el('circle', { cx: x, cy: y, r: 8.5, class: 'empty' }, g); continue; }
+        if (part.kind === 'screws') { el('circle', { cx: x, cy: y, r: 9, fill: tint('screws', part.piece) }, g); el('circle', { cx: x, cy: y, r: 3, fill: '#22242b' }, g); }
+        else {
+          const up = part.piece.faces === 'up', k = up ? -1 : 1;
+          el('rect', { x: x - 9, y: y - 9, width: 18, height: 18, rx: 4, fill: tint('hooks', part.piece) }, g);
+          el('path', { d: 'M' + (x - 5) + ' ' + (y - 2.5 * k) + ' L' + (x + 5) + ' ' + (y - 2.5 * k) + ' L' + x + ' ' + (y + 4.5 * k) + ' Z', fill: '#fff' }, g);
+        }
+        if (part.piece.locked) el('circle', { cx: x, cy: y, r: 11.5, class: 'lock' }, g);
+        if (sel.some((c) => c.piece === part.piece)) el('circle', { cx: x, cy: y, r: 12.5, class: 'ring' }, g);
+      }
+    });
+  }
+  // what one tap, or one step of a drag over the map, does. "run" remembers what the first
+  // gap of a drag was switched to, so the rest of the drag does the same.
+  const live = (fn) => app.change(fn, { settle: false, ride: false });
+  function putOnSlot(id, side) {
+    if (mapTool === 'link' || mapTool === 'fused') { $('traySay').textContent = 'That goes between two vertebrae: tap the gap.'; return false; }
+    const want = mapTool === 'erase' ? '' : mapTool, [kind, faces] = want.split('-');
+    if (id === 'C1' || carried(id, side) === want) return false;
+    let done = true;
+    live(() => { done = setCell(app.spine, id, side, kind, faces || 'down'); });
+    if (!done) $('traySay').textContent = 'That part is frozen. Untick "Frozen" under Full control to change it.';
+    return done;
+  }
+  function putOnGap(id, run) {
+    const list = ids();
+    if (list.indexOf(id) < 0 || list.indexOf(id) >= list.length - 1) return false;
+    if (mapTool === 'fused') {
+      if (run.on === undefined) run.on = !fusedBelow(app.spine, id);
+      if (fusedBelow(app.spine, id) === run.on) return false;
+      live(() => setFusedBelow(app.spine, id, run.on));
+      return true;
+    }
+    if (mapTool === 'link' || mapTool === 'erase') {
+      if (run.on === undefined) run.on = mapTool === 'link' && !linkBelow(app.spine, id);
+      if (linkBelow(app.spine, id) === run.on) return false;
+      let fits = true;
+      live(() => { fits = setLinkBelow(app.spine, id, run.on); });
+      if (!fits) $('traySay').textContent = NEEDS_RODS;
+      return fits;
+    }
+    $('traySay').textContent = 'That goes on a round spot beside a vertebra.';
+    return false;
+  }
+  const spotUnder = (x, y) => { const e = document.elementFromPoint(x, y), g = e && e.closest ? e.closest('[data-slot],[data-gap]') : null; return g && $('map').contains(g) ? g : null; };
+  function putOn(g, run) {
+    const key = g.dataset.slot || 'gap ' + g.dataset.gap;
+    if (run.last === key) return;
+    run.last = key;
+    const did = g.dataset.slot ? putOnSlot(...g.dataset.slot.split(':')) : putOnGap(g.dataset.gap, run);
+    if (did) { run.changed = true; drawMap(); }
+  }
+  function setTool(name) { mapTool = name; pressed('[data-tray]', 'tray', name); $('traySay').textContent = TOOL_SAYS[name]; }
+  $('map').addEventListener('pointerdown', (e) => {
+    const g = spotUnder(e.clientX, e.clientY);
+    if (!g || !app.spine) return;
+    e.preventDefault(); app.say('');
+    $('traySay').textContent = TOOL_SAYS[mapTool];
+    painting = { first: g };
+    putOn(g, painting);
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (painting) { const g = spotUnder(e.clientX, e.clientY); if (g) putOn(g, painting); }
+    if (carrying) {
+      if (!carrying.ghost && Math.hypot(e.clientX - carrying.x, e.clientY - carrying.y) > 8) { carrying.ghost = document.createElement('div'); carrying.ghost.id = 'ghost'; carrying.ghost.textContent = carrying.label; document.body.appendChild(carrying.ghost); }
+      if (carrying.ghost) { carrying.ghost.style.left = e.clientX + 'px'; carrying.ghost.style.top = e.clientY + 'px'; }
+    }
+  });
+  const letGo = (e) => {
+    if (painting) {
+      const run = painting, slot = run.first.dataset.slot;
+      painting = null;
+      if (run.changed) app.settle();
+      // a tap on a part that was not changed selects that part
+      else if (slot && run.last === slot && e.type === 'pointerup') { const part = partAt(...slot.split(':')); if (part) pickPart(part, false); }
+    }
+    if (carrying) {
+      const c = carrying;
+      carrying = null;
+      if (!c.ghost) return;
+      c.ghost.remove();
+      if (e.type !== 'pointerup' || !app.spine) return;
+      // dropped on the map, or on the model: on the side of the vertebra under the pointer
+      const run = {}, g = spotUnder(e.clientX, e.clientY), over = document.elementFromPoint(e.clientX, e.clientY);
+      if (g) putOn(g, run);
+      else if (over === $('view')) {
+        const hit = hitLevel(e);
+        if (!hit) { $('traySay').textContent = 'Drop it on a vertebra.'; return; }
+        const id = hit.level.id, side = toLocal(hit.point, hit.level.centre, levelFrame(hit.level))[0] >= 0 ? 'left' : 'right';
+        if (mapTool === 'fused' || mapTool === 'link') { const list = ids(), i = list.indexOf(id), up = hit.point[2] > hit.level.centre[2] && i > 0; run.changed = putOnGap(up ? list[i - 1] : id, run) || (mapTool === 'link' && putOnGap(up ? id : list[i - 1], run)); }
+        else run.changed = putOnSlot(id, side);
+      }
+      if (run.changed) app.settle();
+    }
+  };
+  window.addEventListener('pointerup', letGo); window.addEventListener('pointercancel', letGo);
+  each('[data-tray]', (b) => {
+    b.addEventListener('pointerdown', (e) => { setTool(b.dataset.tray); carrying = { x: e.clientX, y: e.clientY, label: b.textContent, ghost: null }; });
+    b.addEventListener('click', () => setTool(b.dataset.tray));
+  });
+  $('mapNeck').addEventListener('change', drawMap);
+  setTool('screw');
+
   // ---------------------------------------------------------------- colours
   // The colour of each kind of part is kept in the spine file, so it travels with a saved
   // file and with a link.
   const colorNow = (kind) => (hw().colors || {})[kind] || USUAL_FINISH[kind];
   function setColors(colors) { app.change(() => { hw().colors = { ...(hw().colors || {}), ...colors }; }, { ride: false }); }
+  const kindColor = (kind) => (colorOf(colorNow(kind)) ? colorNow(kind) : '');
   each('[data-palette]', (b) => b.addEventListener('click', () => setColors(PALETTES[b.dataset.palette])));
   function colorRows() {
     const box = $('kindColors');
@@ -163,7 +343,7 @@ export function setupEasy(app, kit) {
     pressed('[data-gkind]', 'gkind', guide.kind); pressed('[data-glinks]', 'glinks', guide.links);
     const id = app.picked && app.picked.kind === 'level' ? app.picked.id : null, last = id === list[list.length - 1];
     $('gCard').hidden = !id;
-    if (id && id !== cardFor && !$('easyBox').hidden && $('easyBox').offsetParent) {
+    if (id && id !== cardFor && $('gCard').offsetParent) {
       // a vertebra was just picked: bring its card into view in the panel (the picture stays where it is)
       const panel = $('panel'), box = $('gCard').getBoundingClientRect(), frame = panel.getBoundingClientRect();
       if (box.bottom > frame.bottom) panel.scrollTop += Math.min(box.bottom - frame.bottom + 10, box.top - frame.top - 10); else if (box.top < frame.top) panel.scrollTop -= frame.top - box.top + 10;
@@ -176,7 +356,8 @@ export function setupEasy(app, kit) {
       $('gFused').checked = fusedBelow(app.spine, id); $('gLink').checked = linkBelow(app.spine, id);
     }
     colorRows();
+    drawMap();
   }
 
-  return { sync, tap, draw, stopDrawing: () => { if (drawing !== null) setDrawing(null); }, stopPicking: () => { if (guide.picking) setPicking(0); } };
+  return { sync, tap, draw, kindColor, setKindColor: (kind, name) => setColors({ [kind]: name }), picking: () => !!guide.picking, stopDrawing: () => { if (drawing !== null) setDrawing(null); }, stopPicking: () => { if (guide.picking) setPicking(0); } };
 }

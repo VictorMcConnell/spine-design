@@ -37,6 +37,41 @@ The head that swivels on the screw has been a common design for decades. Its fir
 (US 4,946,459, granted in 1990) is reported to have run out. That is background, not a
 reason the shapes are allowed. They are allowed because they are plain shapes of their kind.
 
+## Where the presets come from
+
+The presets in the gallery are made-up spines, written by `tools/make-examples.mjs` from the
+average spine. Their curve patterns follow the six types of the Lenke system, which sorts
+scoliosis in teenagers by which of three curves are stiff: one high in the chest, the main
+one in the chest and one where the chest meets the lower back. The angles and the levels in
+each preset were chosen for this project so that the pattern is easy to see. They were not
+measured from people. These pages were read on 15 November 2026:
+
+- The six types and which curves each one has: the Lenke table at
+  [Orthobullets](https://www.orthobullets.com/spine/2076/lenke-classification-of-ais).
+  Presets: one curve in the chest (type 1), two curves in the chest (type 2), two curves in an
+  S shape (type 3), three curves (type 4), one curve in the lower back (type 5), a large
+  curve low down with a smaller one above (type 6).
+- How common each type is among operated teenagers: a review of 606 cases found 51 percent
+  type 1, 20 percent type 2, 11 percent type 3, 3 percent type 4, 12 percent type 5 and
+  3 percent type 6
+  ([abstract](https://scholars.mssm.edu/en/publications/curve-prevalence-of-a-new-classification-of-operative-adolescent--2/)).
+  That is the ground for calling the single curve in the chest the most common pattern.
+- Which way the common curve bows: "the most common idiopathic curve pattern is a right
+  thoracic curve"
+  ([National Spine Health Foundation](https://spinehealth.org/article/adolescent-idiopathic-scoliosis/)).
+  The presets bow to the right in the chest and to the left in the lower back.
+- The round upper back: 20 to 40 degrees of rounding is the usual range, more than 40 counts
+  as too much, and in Scheuermann's disease it is usually 45 to 75 degrees with the peak at
+  T7 to T9 ([AAPM&R](https://now.aapmr.org/scheuermanns-disease/)). The preset has 65 degrees.
+- The single rod with a hook at each end: the Harrington rod, put in from the early 1960s to
+  the late 1990s, and the flat lower back that can follow when such a rod reaches low
+  ([Wikipedia](https://en.wikipedia.org/wiki/Harrington_rod)). In the preset the upper hook
+  points up and the lower one points down, the way two hooks are set to be pushed apart. That
+  detail is how the builder draws it and was not taken from a source.
+
+The long C shape, the flat lower back and the deep hollow are common descriptions of shapes
+and were not tied to a source.
+
 ## Left out on purpose
 
 - Bench test standards for implants (ASTM F1717) and strength figures. Spine Builder shows
