@@ -259,7 +259,7 @@ export function createRenderer(canvas) {
     gl.viewport(0, 0, w, h); gl.clearColor(xray ? 0 : back[0], xray ? 0 : back[1], xray ? 0.01 : back[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST); gl.useProgram(program);
     gl.uniformMatrix4fv(loc.uView, false, view); gl.uniformMatrix4fv(loc.uProj, false, proj); gl.uniform1i(loc.uMode, shading.mode);
-    const shown = items.filter((it) => it.visible !== false && it.opacity > 0.01);
+    const shown = items.filter((it) => it.visible !== false && it.opacity > 0.01 && !(bare && it.hint));
     const kind = (it) => (it.group in KINDS ? KINDS[it.group] : 3);
     // on an X-ray, bone and disc are a glow that adds up; everywhere else they are solid unless made see-through
     const glows = (it) => xray && kind(it) < 2, solid = (it) => !it.overlay && !glows(it) && it.opacity >= 0.995;

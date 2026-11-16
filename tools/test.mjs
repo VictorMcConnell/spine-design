@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { frameFromTilt, tiltFromFrame, vDot, vLen } from '../src/core/vec.js';
 import { validateSpine, sortedLevels, isFused, isHeld } from '../src/core/spinefile.js';
-import { vertebraMesh, discMesh, vertebraShape, setBoneStyle, boneStyle, screwEntryFor } from '../src/core/bones.js';
+import { vertebraMesh, discMesh, vertebraShape, setBoneStyle, boneStyle, screwEntryFor, boneSurface, levelFrame } from '../src/core/bones.js';
 import { SHAPES, SHAPE_CREDIT } from '../src/shapes/bodyparts3d.js';
 import { rodMesh, screwMesh, hookMesh, crosslinkMesh, rodDirectionNear, TYPICAL, screwRegion, typicalScrew, FINISHES, PALETTES, USUAL_FINISH, colorOf } from '../src/core/hardware.js';
 import { meshFromDistance } from '../src/core/solid.js';
@@ -14,7 +14,7 @@ import { ANATOMY } from '../src/core/anatomy.js';
 import { LEVEL_ORDER } from '../src/core/spinefile.js';
 import { measureSpine } from '../src/core/measures.js';
 import { JOINT_MOST, lineOf, slideLevel, rigOf, restack, carry, readShape, applyShape, pullLevel, toLocal, frameOf, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, gapUnder, straighten, stiffen, blockOf, pivotAt, followLine } from '../src/core/shape.js';
-import { slot, planFor, buildHardware, fitRods, crosslinkAt, freeScrew, resizeScrew, screwLength, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, ROD_RULES, strainAt, moveInLine, settleInLine, bendRod, unbendRod, faceHook } from '../src/core/place.js';
+import { slot, planFor, buildHardware, fitRods, crosslinkAt, freeScrew, resizeScrew, screwLength, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, gapsOf, setRodCut, drawRod, splitAtGaps, rodSets, cutAll, rodsThroughAll, cutRodAt, linkFits, linkSpot, shiftParts, fitOut, ROD_RULES, strainAt, moveInLine, settleInLine, bendRod, unbendRod, faceHook } from '../src/core/place.js';
 import { rayMesh } from '../src/core/pick.js';
 import { ball } from '../src/core/mesh.js';
 import { packSpine, unpackSpine, linkFor, packedIn } from '../src/io/share.js';
@@ -564,7 +564,10 @@ ok('the sheet: cells, separate fusions, cross-links in gaps and rods that end pa
   const s = copy(average), hw = () => s.hardware;
   s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
   for (const id of ['T4', 'T5', 'T6', 'T10', 'T11', 'T12']) for (const side of ['left', 'right']) setCell(s, id, side, id === 'T4' ? 'hook' : 'screw');
-  assert.deepEqual([hw().screws.length, hw().hooks.length, hw().rods.length, cellOf(s, 'T4', 'left'), cellOf(s, 'T5', 'right'), cellOf(s, 'T7', 'left')], [10, 2, 2, 'hook', 'screw', '']);
+  // (two groups of parts with three bare vertebrae between them are two fusions, each with its own rods)
+  assert.deepEqual([hw().screws.length, hw().hooks.length, hw().rods.length, cellOf(s, 'T4', 'left'), cellOf(s, 'T5', 'right'), cellOf(s, 'T7', 'left'), rodsEndBelow(s, 'T6')], [10, 2, 4, 'hook', 'screw', '', true]);
+  setRodsEndBelow(s, 'T6', false);
+  assert.deepEqual([hw().rods.length, rodsEndBelow(s, 'T6')], [2, false]);
   setRodsEndBelow(s, 'T6', true);
   assert.deepEqual([hw().rods.length, rodsEndBelow(s, 'T6'), hw().screws.find((p) => p.level === 'T10' && p.side === 'left').rod], [4, true, 'left-2']);
   for (const id of ['T4', 'T5', 'T10', 'T11']) setFusedBelow(s, id, true);
@@ -577,6 +580,116 @@ ok('the sheet: cells, separate fusions, cross-links in gaps and rods that end pa
   assert.equal(hw().crosslinks.length, 0, 'the cross-link should go when its rod is gone');
   setRodsEndBelow(s, 'T6', false); setCell(s, 'T6', 'left', 'screw'); setCell(s, 'T6', 'left', 'screw');
   assert.deepEqual([hw().rods.length, hw().screws.filter((p) => p.level === 'T6' && p.side === 'left').length], [2, 1]);
+  assert.deepEqual(validateSpine(s), []);
+});
+ok('a hook sits on the lamina, on the bone, at every level of the chest and the lower back', () => {
+  const s = copy(average);
+  for (const l of s.levels.filter((x) => /^[TL]/.test(x.id))) for (const side of ['left', 'right']) for (const faces of ['down', 'up']) {
+    const spot = slot(l, side, faces), f = levelFrame(l), local = (p) => toLocal(p, l.centre, f), head = local(spot.hook.at), heel = local(spot.hook.mid), toe = local(spot.hook.tip), name = l.id + ' ' + side + ' ' + faces;
+    // no further out than the lamina is wide, also where the screws go in far out to the side
+    assert.ok(Math.abs(head[0]) <= 13.5 && Math.sign(head[0]) === (side === 'left' ? 1 : -1), name + ' is ' + head[0].toFixed(1) + ' mm out');
+    const above = (p) => p[1] - boneSurface(l.id, l.size, p[0], p[2]);
+    assert.ok(above(head) > 7.5 && above(head) < 9.7, name + ': the head is ' + above(head).toFixed(1) + ' mm off the bone');
+    // the heel rests on the bone and the toe points the way the hook faces
+    assert.ok(above(heel) > 0 && above(heel) < 3, name + ': the heel is ' + above(heel).toFixed(1) + ' mm off the bone');
+    assert.ok((toe[2] - head[2]) * (faces === 'up' ? 1 : -1) > 9, name + ' points the wrong way');
+    if (!(l.id === 'L5' && faces === 'up')) assert.ok(above(toe) < 1.5 && above(toe) > -4, name + ': the toe is ' + above(toe).toFixed(1) + ' mm off the bone');
+  }
+  // in the lower back a screw goes in well out to the side, a hook does not
+  const l2 = s.levels.find((l) => l.id === 'L2'), far = toLocal(slot(l2, 'left').screw.head, l2.centre, levelFrame(l2))[0];
+  assert.ok(far > 20, 'the L2 screw head is ' + far.toFixed(1) + ' mm out');
+  // with the drawn bones there is no surface to look for: the hook sits where a screw head would
+  setBoneStyle('drawn');
+  assert.deepEqual(slot(l2, 'left').hook.at, slot(l2, 'left').screw.head);
+  setBoneStyle('real');
+});
+ok('a cross-link goes where rods run across the gap on both sides, in the middle of the gap', () => {
+  const s = copy(average), hw = () => s.hardware, zOf = (id, side) => hw().screws.find((p) => p.level === id && p.side === side).head[2];
+  s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
+  for (const id of ['T5', 'T6', 'T7', 'T9']) for (const side of ['left', 'right']) setCell(s, id, side, 'screw');
+  // above the top screws and below the bottom ones no rod runs across the gap
+  assert.deepEqual(['T4', 'T5', 'T6', 'T7', 'T8', 'T9'].map((id) => linkFits(s, id)), [false, true, true, true, true, false]);
+  const link = linkSpot(s, 'T5'), mid = (zOf('T5', 'left') + zOf('T5', 'right') + zOf('T6', 'left') + zOf('T6', 'right')) / 4;
+  assert.ok(Math.abs((link.from[2] + link.to[2]) / 2 - mid) < 0.6 && Math.abs(link.from[2] - zOf('T5', 'right')) > 7 && Math.abs(link.from[2] - zOf('T6', 'right')) > 7, 'the cross-link is not in the middle of the gap');
+  // a rod on one side only is not enough
+  setCell(s, 'T5', 'left', ''); 
+  assert.equal(linkFits(s, 'T5'), false); assert.equal(setLinkBelow(s, 'T5', true), false);
+  setCell(s, 'T5', 'left', 'screw');
+  // a cross-link keeps its own colour and stays frozen when the rods are fitted again
+  assert.ok(setLinkBelow(s, 'T6', true));
+  hw().crosslinks[0].color = 'red'; hw().crosslinks[0].locked = true;
+  setCell(s, 'T10', 'left', 'screw');
+  assert.deepEqual([hw().crosslinks.length, hw().crosslinks[0].color, hw().crosslinks[0].locked, hw().crosslinks[0].below], [1, 'red', true, 'T6']);
+  // a frozen one is not taken off, and is not doubled
+  assert.equal(setLinkBelow(s, 'T6', false), false); assert.equal(setLinkBelow(s, 'T6', true), true); assert.equal(hw().crosslinks.length, 1);
+  delete hw().crosslinks[0].locked;
+  // one that was placed by hand or traced has no gap written on it: it is found by its height
+  delete hw().crosslinks[0].below; delete hw().crosslinks[0].auto;
+  assert.deepEqual(['T5', 'T6', 'T7'].map((id) => linkBelow(s, id)), [false, true, false]);
+  assert.equal(setLinkBelow(s, 'T6', false), true); assert.equal(hw().crosslinks.length, 0);
+  // the traced cross-links of the real example can be taken off the same way
+  const real = copy(spine), ids = sortedLevels(real).map((l) => l.id), there = ids.filter((id) => linkBelow(real, id));
+  assert.equal(there.length, real.hardware.crosslinks.length);
+  for (const id of there) setLinkBelow(real, id, false);
+  assert.equal(real.hardware.crosslinks.length, 0);
+});
+ok('every preset is sound: its parts sit where they should and it is what its words say', () => {
+  const list = JSON.parse(fs.readFileSync(path.join(root, 'examples', 'index.json'), 'utf8')), open = (file) => JSON.parse(fs.readFileSync(path.join(root, 'examples', file), 'utf8'));
+  assert.equal(list.length, 16);
+  for (const e of list) {
+    const s = open(e.file), hw = s.hardware || {}, parts = [...(hw.screws || []), ...(hw.hooks || [])];
+    assert.deepEqual(validateSpine(s), [], e.file);
+    assert.ok(e.name && e.about && e.group && s.about === e.about, e.file + ': the list and the file say different things');
+    if (e.file === 'fusion-t4-l2.spine.json') continue;                 // the real one is as it was traced
+    for (const c of hw.crosslinks || []) {
+      // in a gap, and clear of the heads of the screws and hooks next to it
+      const near = Math.min(...parts.map((p) => Math.abs((p.head || p.at)[2] - (c.from[2] + c.to[2]) / 2)));
+      assert.ok(c.below && near > 7, e.file + ': a cross-link sits ' + near.toFixed(1) + ' mm from a screw head');
+    }
+    for (const h of hw.hooks || []) { const l = s.levels.find((x) => x.id === h.level), x = toLocal(h.at, l.centre, levelFrame(l))[0]; assert.ok(Math.abs(x) <= 13.5, e.file + ': the hook on ' + h.level + ' is ' + x.toFixed(1) + ' mm out'); }
+    // every part is on a rod, and the rods keep to the rules of thumb
+    for (const p of parts) { assert.ok((hw.rods || []).some((r) => r.id === p.rod), e.file + ': a part on ' + p.level + ' has no rod'); const strain = strainAt(s, p); assert.ok(!strain || strain.corner <= ROD_RULES.sharpest + 0.01, e.file + ': the rod turns ' + (strain && strain.corner.toFixed(0)) + '° at ' + p.level); }
+  }
+  // no made-up preset bends sideways more sharply between two neighbours than a drawn line is allowed to bend the spine
+  for (const e of list) {
+    if (e.file === 'fusion-t4-l2.spine.json') continue;
+    const levels = sortedLevels(open(e.file));
+    for (let i = 1; i < levels.length; i++) { const bend = Math.abs(levels[i].tilt[0] - levels[i - 1].tilt[0]); assert.ok(bend <= JOINT_MOST[0] + 0.5, e.file + ': ' + levels[i - 1].id + ' and ' + levels[i].id + ' lean ' + bend.toFixed(0) + '° apart'); }
+  }
+  const curvesOf = (file) => measureSpine(open(file)).curves, top = (file) => curvesOf(file)[0].degrees;
+  // the preset with two curves in the chest is not a twin of the one with one curve
+  assert.ok(top('curve-two-chest.spine.json') >= 36 && top('curve-chest-45.spine.json') <= 28 && curvesOf('curve-two-chest.spine.json')[1].degrees === 55);
+  assert.deepEqual([open('fusion-one-rod.spine.json').hardware.rods.length, open('fusion-one-rod.spine.json').hardware.hooks.length], [1, 2]);
+});
+ok('several screws and hooks move along the spine together, with their rods, cross-links and rod ends', () => {
+  const s = copy(average), hw = () => s.hardware, where = () => [...hw().screws, ...hw().hooks].map((p) => p.level + p.side[0]).sort().join(' ');
+  s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
+  for (const id of ['T4', 'T5', 'T6']) for (const side of ['left', 'right']) setCell(s, id, side, id === 'T4' ? 'hook' : 'screw', 'up');
+  for (const id of ['L1', 'L2']) for (const side of ['left', 'right']) setCell(s, id, side, 'screw');
+  assert.ok(setLinkBelow(s, 'T5', true));
+  assert.equal(hw().rods.length, 4);
+  const upper = [...hw().screws, ...hw().hooks].filter((p) => /^T/.test(p.level));
+  // two vertebrae down: every part to the usual spot of its new vertebra, hooks still pointing up
+  assert.equal(shiftParts(s, upper, 2), true);
+  assert.equal(where(), 'L1l L1r L2l L2r T6l T6r T7l T7r T8l T8r');
+  assert.deepEqual(hw().hooks.map((h) => h.level + h.faces).sort(), ['T6up', 'T6up']);
+  const t8 = s.levels.find((l) => l.id === 'T8'), sc = hw().screws.find((p) => p.level === 'T8' && p.side === 'left');
+  assert.deepEqual(sc.head, slot(t8, 'left').screw.head);
+  // the cross-link went along, and the two fusions still have their own rods (the break moved with the parts)
+  assert.deepEqual([hw().crosslinks.length, hw().crosslinks[0].below, hw().rods.length], [1, 'T7', 4]);
+  assert.deepEqual(gapsOf(s, 'left').map((g) => g.upper + (g.cut ? '|' : '-') + g.lower), ['T6-T7', 'T7-T8', 'T8|L1', 'L1-L2']);
+  // no room: the lower fusion is in the way, or the spine ends. Then nothing moves at all.
+  const was = JSON.stringify(s);
+  assert.equal(shiftParts(s, upper, 5), false); assert.equal(shiftParts(s, upper, -30), false); assert.equal(shiftParts(s, upper, 0), false);
+  assert.equal(JSON.stringify(s), was);
+  // a frozen part holds the whole group
+  upper[0].locked = true;
+  assert.equal(shiftParts(s, upper, -1), false);
+  delete upper[0].locked;
+  // back up again, and everything is where it started
+  assert.equal(shiftParts(s, upper, -2), true);
+  assert.equal(where(), 'L1l L1r L2l L2r T4l T4r T5l T5r T6l T6r');
+  assert.deepEqual([hw().crosslinks[0].below, hw().rods.length], ['T5', 4]);
   assert.deepEqual(validateSpine(s), []);
 });
 // (the checks below wait for an answer, so they are run one after the other at the end)
@@ -644,6 +757,82 @@ ok('the website at the top of the repository: the page allows its own scripts an
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version, /"version":"([^"]+)"/.exec(scripts[0])[1]);
   // a host that serves the top of the repository must find no folder it would treat as code to run
   assert.ok(!fs.existsSync(path.join(root, 'functions')) && !fs.existsSync(path.join(root, '_worker.js')) && page.startsWith('<!doctype html>\n<!-- Built by tools/build.mjs'));
+});
+ok('two fusions get rods of their own, and a rod can be cut, joined and drawn on one side', () => {
+  const s = copy(average), ids = s.levels.map((l) => l.id), rods = () => s.hardware.rods.map((r) => r.id).sort().join();
+  s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
+  for (const id of ['T4', 'T5', 'T6', 'T7', 'L1', 'L2', 'L3', 'L4']) for (const side of ['left', 'right']) setCell(s, id, side, 'screw');
+  // as placed, the second group is far from the first, so it has rods of its own
+  assert.equal(rods(), 'left,left-2,right,right-2');
+  assert.deepEqual(gapsOf(s, 'left').map((g) => g.bare + (g.cut ? 'x' : '')), ['0', '0', '0', '5x', '0', '0', '0']);
+  // joined by hand they are one long rod on each side. "Rods through all parts" finds the two fusions again.
+  setRodCut(s, 'left', 'T7', 'L1', false); setRodCut(s, 'right', 'T7', 'L1', false);
+  assert.equal(rods(), 'left,right');
+  assert.equal(rodsThroughAll(s), 2);
+  assert.equal(rods(), 'left,left-2,right,right-2');
+  assert.deepEqual(rodSets(s), [['T4', 'T7'], ['L1', 'L4']]);
+  assert.deepEqual(validateSpine(s), []);
+  const reach = (id) => { const z = s.hardware.rods.find((r) => r.id === id).points.map((p) => p[2]); return [Math.max(...z), Math.min(...z)]; }, zOf = (id) => s.levels.find((l) => l.id === id).centre[2];
+  assert.ok(reach('left')[1] > zOf('T9') && reach('left-2')[0] < zOf('T11'), 'the two rods of one side overlap');
+  assert.equal(splitAtGaps(s), 0);
+  // one side is joined again: only that side has a long rod
+  setRodCut(s, 'left', 'T7', 'L1', false);
+  assert.equal(rods(), 'left,right,right-2');
+  // a rod drawn from T5 to T7 on the left is a rod of its own: cut above T5 and below T7
+  assert.equal(drawRod(s, 'left', 'T7', 'T5'), true);
+  assert.deepEqual(gapsOf(s, 'left').map((g) => (g.cut ? 'x' : '-')).join(''), 'x--x---');
+  // (T4 is alone now and holds no rod: the left side has two rods, and neither reaches up to T4)
+  const lefts = s.hardware.rods.filter((r) => r.side === 'left');
+  assert.ok(lefts.length === 2 && lefts.every((r) => r.points.every((p) => p[2] < zOf('T4') + 2)) && s.hardware.rods.length === 4, rods());
+  // a cut for both sides (the table of Full control) and a cut for one side live together
+  setRodsEndBelow(s, 'L2', true);
+  assert.ok(gapsOf(s, 'right').find((g) => g.upper === 'L2').cut && gapsOf(s, 'left').find((g) => g.upper === 'L2').cut);
+  setRodCut(s, 'right', 'L2', 'L3', false);
+  assert.ok(!gapsOf(s, 'right').find((g) => g.upper === 'L2').cut && gapsOf(s, 'left').find((g) => g.upper === 'L2').cut && s.hardware.splits.includes('L2:left'));
+  assert.deepEqual(validateSpine(s), []);
+  s.hardware.splits.push('T9:up'); assert.equal(validateSpine(s).length, 1); s.hardware.splits.pop();
+  // one hook at each end of a long rod: nothing is cut, the rod stays whole
+  const h = copy(average);
+  h.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
+  setCell(h, 'T4', 'left', 'hook', 'up'); setCell(h, 'L2', 'left', 'hook', 'down');
+  // (put on one by one, the far hook stands alone at first: a rod drawn from one to the other joins them)
+  assert.equal(h.hardware.rods.length, 0);
+  assert.equal(drawRod(h, 'left', 'T4', 'L2'), true); assert.equal(h.hardware.rods.length, 1);
+  assert.equal(rodsThroughAll(h), 0); assert.equal(h.hardware.rods.length, 1);
+  // new parts: next to a rod they make it longer, far away they start their own, and in a break they join what is near
+  const n = copy(average), nr = () => n.hardware.rods.filter((r) => r.side === 'left').length, cuts = () => gapsOf(n, 'left').map((g) => g.upper + (g.cut ? '|' : '-') + g.lower).join(' ');
+  n.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
+  for (const id of ['T4', 'T5']) setCell(n, id, 'left', 'screw');
+  setCell(n, 'T7', 'left', 'screw');                                   // one bare vertebra between: the same rod
+  assert.equal(cuts(), 'T4-T5 T5-T7');
+  setCell(n, 'L3', 'left', 'screw'); setCell(n, 'L4', 'left', 'screw'); // far down: a second fusion
+  assert.equal(cuts(), 'T4-T5 T5-T7 T7|L3 L3-L4'); assert.equal(nr(), 2);
+  setCell(n, 'T11', 'left', 'screw');                                  // in the break, three bare vertebrae from either: alone
+  assert.equal(cuts(), 'T4-T5 T5-T7 T7|T11 T11|L3 L3-L4'); assert.equal(nr(), 2);
+  setCell(n, 'T9', 'left', 'screw');                                   // near T7 and near T11: it joins both
+  assert.equal(cuts(), 'T4-T5 T5-T7 T7-T9 T9-T11 T11|L3 L3-L4'); assert.equal(nr(), 2);
+  setCell(n, 'T6', 'left', 'hook');                                    // a rod already ran past this spot
+  assert.equal(cuts(), 'T4-T5 T5-T6 T6-T7 T7-T9 T9-T11 T11|L3 L3-L4');
+  setCell(n, 'T6', 'left', 'screw');                                   // a hook swapped for a screw changes no rod
+  assert.equal(cuts(), 'T4-T5 T5-T6 T6-T7 T7-T9 T9-T11 T11|L3 L3-L4');
+  // no rods at all, then one drawn from part to part
+  cutAll(n);
+  assert.equal(nr(), 0);
+  drawRod(n, 'left', 'T9', 'L3');
+  assert.equal(cuts(), 'T4|T5 T5|T6 T6|T7 T7|T9 T9-T11 T11-L3 L3|L4'); assert.equal(nr(), 1);
+  // a rod cut at a height: between the two parts around it
+  const zMid = (n.levels.find((l) => l.id === 'T12').centre[2] + n.levels.find((l) => l.id === 'L1').centre[2]) / 2;
+  assert.deepEqual(cutRodAt(n, 'left', zMid), ['T11', 'L3']); assert.equal(cutRodAt(n, 'left', zMid), null);
+  assert.equal(cuts(), 'T4|T5 T5|T6 T6|T7 T7|T9 T9-T11 T11|L3 L3|L4');
+  assert.deepEqual(validateSpine(n), []);
+  // filling in a second stretch makes it a fusion of its own
+  const f = copy(average);
+  fitOut(f, 'T4', 'T7', 'screws', 1); fitOut(f, 'L1', 'L4', 'screws', 1);
+  assert.deepEqual(rodSets(f), [['T4', 'T7'], ['L1', 'L4']]);
+  assert.equal(f.hardware.rods.length, 4); assert.equal(f.hardware.crosslinks.length, 2); assert.deepEqual(f.fused, [['T4', 'T7'], ['L1', 'L4']]);
+  // a stretch filled in right next to another one joins it
+  fitOut(f, 'T8', 'T10', 'screws', 0);
+  assert.deepEqual(rodSets(f), [['T4', 'T10'], ['L1', 'L4']]);
 });
 ok('a frozen part stays where it is, and the file says so', () => {
   const s = copy(average);

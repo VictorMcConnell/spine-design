@@ -4,7 +4,7 @@
 # site inside a frame on another site. The others tell the browser not to guess file types,
 # not to pass on where a visitor came from and not to offer camera, microphone or location.
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-nYALGs2EBOfgfWIIs1/mefzxsd5JaKoRoxn8M9yG6iE=' 'sha256-UXzuUsOwdckUHaL7kLm/qNsdEN8PQtPJqVnDSHc/9NI='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-kthZsexeYF6hFblDyJUoODvyFq8hRNZ7694qsJYc/o0=' 'sha256-3Bsz0wXzUUEJM8Fq1kgy+Tk+VwyJdDOXbcfaVKGjVqw='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer

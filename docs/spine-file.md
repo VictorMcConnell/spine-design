@@ -49,7 +49,7 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
     "hooks":      [{ "level": "T4", "side": "left", "rod": "left", "kind": "transverse process",
                      "at": [x, y, z], "mid": [x, y, z], "tip": [x, y, z], "faces": "down" }]
     "crosslinks": [{ "level": "T8", "from": [x, y, z], "to": [x, y, z] }]
-    "splits":     ["T10"]
+    "splits":     ["T10", "T7:left"]
     "colors":     { "rods": "blue", "screws": "titanium", "hooks": "purple", "crosslinks": "gold" }
 
 - A rod is a path of points along its middle.
@@ -77,11 +77,21 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
 - A rod or a cross-link drawn by the builder carries `"auto": true`. The builder redraws such a
   rod whenever a screw or hook on its side is added or removed. A rod without it (traced from a
   scan, say) is left alone until the person asks for the rods to be redrawn.
-- A cross-link put in from the hardware sheet carries `"below": "T6"`: it sits in the gap
-  under that vertebra and is set again there when the rods are redrawn.
-- `splits` is optional. It lists the vertebrae below which the rods end. The screws and hooks
-  further down get rods of their own, with the ids `left-2` and `right-2` and so on. This is
-  how a file holds two separate constructs.
+- A cross-link put in by the builder carries `"below": "T6"`: it sits in the gap under that
+  vertebra, halfway between the parts of the two vertebrae, and is set again there when the
+  rods are redrawn. A cross-link without it (placed by hand or traced) stays where it is. The
+  builder then takes it to be in the gap it is nearest to.
+- `splits` is optional. It lists where rods end. An entry is the id of a vertebra, `"T7"`,
+  for both sides, or an id and a side, `"T7:left"`, for one side: the rod of that side ends
+  below that vertebra, and the screws and hooks further down get a rod of their own, with the
+  ids `left-2` and `right-2` and so on. A part that is cut off on both sides of itself has no
+  rod at all. This is how a file holds two or more separate fusions, each with its own rods:
+
+      "splits": ["T7:left", "T7:right"]
+
+  The builder writes these entries when a rod is drawn from one part to another, when a rod
+  is ended by hand, and when parts are put on far from the others (three or more vertebrae
+  without a part in between).
 
 ## Marks
 

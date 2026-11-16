@@ -12,6 +12,7 @@ import { softMin, softMax, capsule, ellipsoid, meshFromDistance } from './solid.
 import { regionOf } from './spinefile.js';
 import { ANATOMY } from './anatomy.js';
 import { SHAPES } from '../shapes/bodyparts3d.js';
+import { rayMesh } from './pick.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -191,6 +192,21 @@ export function screwEntryFor(id, size) {
   if (!hasReal(id) || !SHAPES[id].pedicle) return null;
   const k = stretchOf(id, size), spot = SHAPES[id].pedicle;
   return { entry: spot.entry.map((v, i) => v * k[i]), lean: typeof spot.lean === 'number' ? spot.lean : null };
+}
+
+// How far back the bone reaches at a spot, seen from behind: the y of its surface at (x, z) in
+// the axes of the vertebra. Null where there is no bone there, and with the drawn bones.
+// Hooks use it to sit on the bone. Kept for the spots that were asked for before.
+const surfaces = new Map();
+export function boneSurface(id, size, x, z) {
+  if (!hasReal(id)) return null;
+  const key = id + '|' + size.join(',') + '|' + Math.round(x * 2) + '|' + Math.round(z * 2);
+  if (!surfaces.has(key)) {
+    const t = rayMesh([Math.round(x * 2) / 2, 150, Math.round(z * 2) / 2], [0, -1, 0], vertebraShape(id, size));
+    surfaces.set(key, t === null ? null : 150 - t);
+    if (surfaces.size > 4000) surfaces.delete(surfaces.keys().next().value);
+  }
+  return surfaces.get(key);
 }
 
 // The outline of the top or the underside of a body, in the world.

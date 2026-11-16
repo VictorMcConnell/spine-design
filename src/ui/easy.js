@@ -8,7 +8,7 @@
 
 import { followLine, toLocal } from '../core/shape.js';
 import { levelFrame } from '../core/bones.js';
-import { fitOut, fitRods, cellOf, hookFaces, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow } from '../core/place.js';
+import { slot, fitOut, fitRods, cellOf, hookFaces, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, linkSpot, linkGap, gapsOf, setRodCut, drawRod, cutAll, rodsThroughAll, cutRodAt, rodSets } from '../core/place.js';
 import { FINISHES, PALETTES, USUAL_FINISH, colorOf } from '../core/hardware.js';
 
 const KINDS = [['rods', 'Rods'], ['screws', 'Screws'], ['hooks', 'Hooks'], ['crosslinks', 'Cross-links']];
@@ -51,8 +51,8 @@ export function setupEasy(app, kit) {
     if (drawing !== null) {
       kit.stopLine();
       renderer.look(drawing === 0 ? 0 : Math.PI / 2);
-      $('drawSay').textContent = 'Now drag a line over the spine, ' + (drawing === 0 ? 'the way it curves to the left and right' : 'the way it rounds and hollows') + '. Start at the pelvis or at the neck. Draw again to change it.';
-    } else if (!kit.lineOn()) $('drawSay').textContent = 'Press one of the buttons. Then drag a line over the spine, from the pelvis up or from the neck down.';
+      $('drawSay').textContent = 'Now drag a line over the spine, ' + (drawing === 0 ? 'the way it curves to the left and right' : 'the way it rounds and hollows') + '.' + (app.guided ? '' : ' Start at the pelvis or at the neck. Draw again to change it.');
+    } else if (!kit.lineOn()) $('drawSay').textContent = app.guided ? 'Press a button, then drag a line over the spine.' : 'Press one of the buttons. Then drag a line over the spine, from the pelvis up or from the neck down.';
     hint();
   }
   each('[data-draw]', (b) => b.addEventListener('click', () => setDrawing(drawing === Number(b.dataset.draw) ? null : Number(b.dataset.draw))));
@@ -157,33 +157,44 @@ export function setupEasy(app, kit) {
     link: 'Tap between two vertebrae to put a cross-link there. It needs a rod on both sides.',
     fused: 'Tap between two vertebrae to mark them as fused to each other, or to undo that.',
     erase: 'Tap a part or a cross-link on the map to take it off.',
+    rod: 'Click two parts on one side, on the map or on the model, and a rod runs between them. To end a rod, tap between two of its parts on the map, or click the rod on the model.',
   };
   let mapTool = 'screw', painting = null, carrying = null;
+  // the rod tool: the part a rod is being drawn from ({ id, side }), and the last thing it did, in words
+  let rodFrom = null, rodNote = '';
   const el = (name, attrs, parent) => { const e = document.createElementNS(NS, name); for (const k of Object.keys(attrs)) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
   const css = (c) => 'rgb(' + c.map((v) => Math.round(v * 255)).join(',') + ')';
   const tint = (kind, piece) => css(colorOf(piece && piece.color) || colorOf((hw().colors || {})[kind]) || colorOf(USUAL_FINISH[kind]));
   const partAt = (id, side) => { for (const kind of ['screws', 'hooks']) { const index = hw()[kind].findIndex((p) => p.level === id && p.side === side); if (index >= 0) return { kind, index, piece: hw()[kind][index] }; } return null; };
+  const onRod = (id, side) => { const p = partAt(id, side); return !!p && hw().rods.some((r) => r.id === p.piece.rod); };
   function mapRows() {
     const neck = $('mapNeck').checked || [...hw().screws, ...hw().hooks].some((p) => /^C/.test(p.level));
     return ids().filter((id) => (neck ? id !== 'C1' : !/^C/.test(id)));
   }
-  // the gap a cross-link sits in: the one it was put in, or the one at its height
-  function gapOf(link, rows) {
-    if (link.below) return rows.indexOf(link.below);
-    const z = (link.from[2] + link.to[2]) / 2;
-    for (let i = 0; i < rows.length - 1; i++) if (z <= levelOf(rows[i]).centre[2] && z >= levelOf(rows[i + 1]).centre[2]) return i;
-    return -1;
-  }
+  // the gap a cross-link sits in, as a row of the map (-1 if that part of the spine is not on the map)
+  const gapOf = (link, rows) => rows.indexOf(linkGap(app.spine, link));
   function drawMap() {
     const svg = $('map');
     if (!$('mapWrap').offsetParent && svg.childNodes.length) return;      // not on screen: it is drawn when it is next shown
     const rows = mapRows(), list = ids(), n = rows.length, last = levelOf(rows[n - 1]).centre[0];
-    const X = (i) => WIDE / 2 - Math.max(-48, Math.min(48, (levelOf(rows[i]).centre[0] - last) * 0.55)), Y = (i) => 24 + i * ROW + ROW / 2, slotX = (i, side) => X(i) + (side === 'left' ? -REACH : REACH);
+    // (beside the model, in the phone and tablet layout, the map is kept narrow: it sways less with the curve, and its spots sit closer in)
+    const side = $('mapWrap').parentNode === $('sideMap'), sway = side ? 16 : 48, R = side ? 53 : REACH, half = side ? 33 : 40;
+    const X = (i) => WIDE / 2 - Math.max(-sway, Math.min(sway, (levelOf(rows[i]).centre[0] - last) * (side ? 0.25 : 0.55))), Y = (i) => 24 + i * ROW + ROW / 2, slotX = (i, sd) => X(i) + (sd === 'left' ? -R : R);
     const stiff = new Set(), picked = app.picked || {}, sel = chosen();
     if (app.stiff) for (const b of app.rig.blocks || []) list.slice(b.from, b.to + 1).forEach((id) => stiff.add(id));
-    svg.setAttribute('viewBox', '0 0 ' + WIDE + ' ' + (n * ROW + 34)); svg.textContent = '';
-    el('text', { x: WIDE / 2 - REACH, y: 14, class: 'side', 'text-anchor': 'middle' }, svg).textContent = 'Left';
-    el('text', { x: WIDE / 2 + REACH, y: 14, class: 'side', 'text-anchor': 'middle' }, svg).textContent = 'Right';
+    // Beside the model (the phone and tablet layout) the map is cut to what is on it and made as
+    // tall as its place, so the whole spine shows at once. A row is never less than 22 px
+    // tall: on a very short screen the map scrolls instead.
+    const tall = n * ROW + 34;
+    const lo = side ? Math.min(...rows.map((id, i) => slotX(i, 'left'))) - 19 : 0, hi = side ? Math.max(...rows.map((id, i) => slotX(i, 'right'))) + 19 : WIDE;
+    svg.setAttribute('viewBox', lo + ' 0 ' + (hi - lo) + ' ' + tall); svg.textContent = '';
+    // (and never more than 36 px: on a tall tablet the map would grow wide and push the model aside)
+    if (side) { const k = Math.max(Math.min(($('sideMap').clientHeight - 16) / tall, 36 / ROW), 22 / ROW); svg.style.height = Math.round(tall * k) + 'px'; svg.style.width = Math.round((hi - lo) * k) + 'px'; }
+    else svg.style.height = svg.style.width = '';
+    // (the tool in hand is written on the map, so the places it can be used can be shown softly: see style.css)
+    svg.dataset.tool = mapTool; svg.classList.toggle('arming', !!rodFrom);
+    el('text', { x: WIDE / 2 - R, y: 14, class: 'side', 'text-anchor': 'middle' }, svg).textContent = 'Left';
+    el('text', { x: WIDE / 2 + R, y: 14, class: 'side', 'text-anchor': 'middle' }, svg).textContent = 'Right';
     // fused gaps join their two blocks
     rows.forEach((id, i) => { if (i < n - 1 && fusedBelow(app.spine, id)) el('rect', { x: (X(i) + X(i + 1)) / 2 - 27, y: Y(i) + 7, width: 54, height: ROW - 14, class: 'bridge' }, svg); });
     // rods: a line down each side through the spots of its parts
@@ -194,28 +205,46 @@ export function setupEasy(app, kit) {
       for (let i = Math.min(...at); i <= Math.max(...at); i++) points.push(slotX(i, rod.side) + ',' + Y(i));
       el('polyline', { points: points.join(' '), fill: 'none', stroke: tint('rods', rod), 'stroke-width': 4.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svg);
     }
+    // where a rod ends between two parts: a dotted line where it could run, and a small bar across it
+    const cutting = mapTool === 'rod' && !hw().norods;
+    if (!hw().norods) for (const side of ['left', 'right']) for (const g of gapsOf(app.spine, side)) {
+      const a = rows.indexOf(g.upper), b = rows.indexOf(g.lower);
+      // (only where a rod really ends: between two parts that have no rod at all there is nothing to show)
+      if (!g.cut || a < 0 || b < 0 || !(onRod(g.upper, side) || onRod(g.lower, side))) continue;
+      const points = [];
+      for (let i = a; i <= b; i++) points.push(slotX(i, side) + ',' + Y(i));
+      el('polyline', { points: points.join(' '), class: 'cut' }, svg);
+      const x = (slotX(a, side) + slotX(b, side)) / 2, y = (Y(a) + Y(b)) / 2;
+      el('line', { x1: x - 6, y1: y, x2: x + 6, y2: y, class: 'snip' }, svg);
+    }
     rows.forEach((id, i) => {
-      el('rect', { x: X(i) - 40, y: Y(i) - 10, width: 80, height: 20, rx: 6, class: 'bone' + (stiff.has(id) ? ' stiff' : '') + (picked.kind === 'level' && picked.id === id ? ' picked' : '') }, svg);
+      el('rect', { x: X(i) - half, y: Y(i) - 10, width: 2 * half, height: 20, rx: 6, 'data-bone': id, class: 'bone' + (stiff.has(id) ? ' stiff' : '') + (picked.kind === 'level' && picked.id === id ? ' picked' : '') }, svg);
       el('text', { x: X(i), y: Y(i) + 4, 'text-anchor': 'middle' }, svg).textContent = id;
     });
     // the gaps: a place to tap, and the cross-link if one is there
     for (let i = 0; i < n - 1; i++) {
-      const g = el('g', { 'data-gap': rows[i] }, svg), x = (X(i) + X(i + 1)) / 2, y = Y(i) + ROW / 2;
-      el('rect', { x: x - REACH - 4, y: y - 6, width: 2 * REACH + 8, height: 12, class: 'hit' }, g);
+      // (with the cross-link tool, a gap that has a rod on both sides can take one: it is marked so it shows as a place to tap)
+      const linked = linkBelow(app.spine, rows[i]), open = mapTool === 'link' && !linked && !!linkSpot(app.spine, rows[i]);
+      const g = el('g', { 'data-gap': rows[i], ...(open ? { class: 'can' } : linked ? { class: 'linked' } : {}) }, svg), x = (X(i) + X(i + 1)) / 2, y = Y(i) + ROW / 2;
+      el('rect', { x: x - R - 4, y: y - 6, width: 2 * R + 8, height: 12, class: 'hit' }, g);
       el('line', { x1: x - 30, y1: y, x2: x + 30, y2: y, class: 'gapline' }, g);
+      if (open) el('line', { x1: x - R, y1: y, x2: x + R, y2: y, class: 'ghost' }, g);
     }
     hw().crosslinks.forEach((link, index) => {
       const i = gapOf(link, rows);
       if (i < 0) return;
       const x = (X(i) + X(i + 1)) / 2, y = Y(i) + ROW / 2, on = sel.some((c) => c.kind === 'crosslinks' && c.index === index);
-      el('line', { x1: x - REACH, y1: y, x2: x + REACH, y2: y, stroke: tint('crosslinks', link), 'stroke-width': 5, 'stroke-linecap': 'round', 'pointer-events': 'none' }, svg);
-      if (on) el('rect', { x: x - REACH - 5, y: y - 6, width: 2 * REACH + 10, height: 12, rx: 6, class: 'ring', 'pointer-events': 'none' }, svg);
+      el('line', { x1: x - R, y1: y, x2: x + R, y2: y, stroke: tint('crosslinks', link), 'stroke-width': 5, 'stroke-linecap': 'round', 'pointer-events': 'none' }, svg);
+      if (on) el('rect', { x: x - R - 5, y: y - 6, width: 2 * R + 10, height: 12, rx: 6, class: 'ring', 'pointer-events': 'none' }, svg);
     });
     // the spots beside each vertebra
     rows.forEach((id, i) => {
       for (const side of ['left', 'right']) {
-        const g = el('g', { 'data-slot': id + ':' + side }, svg), x = slotX(i, side), y = Y(i), part = partAt(id, side);
+        const x = slotX(i, side), y = Y(i), part = partAt(id, side), from = rodFrom && rodFrom.side === side;
+        // (a spot with a part is "full". While a rod is drawn, the part it starts from is "armed" and the parts it could run to are "mates".)
+        const g = el('g', { 'data-slot': id + ':' + side, class: (part ? 'full' : 'bare') + (part && from ? (rodFrom.id === id ? ' armed' : ' mate') : '') }, svg);
         el('circle', { cx: x, cy: y, r: 13, class: 'hit' }, g);
+        if (part) el('circle', { cx: x, cy: y, r: 13.5, class: 'halo' }, g);
         if (!part) { el('circle', { cx: x, cy: y, r: 8.5, class: 'empty' }, g); continue; }
         if (part.kind === 'screws') { el('circle', { cx: x, cy: y, r: 9, fill: tint('screws', part.piece) }, g); el('circle', { cx: x, cy: y, r: 3, fill: '#22242b' }, g); }
         else {
@@ -227,20 +256,41 @@ export function setupEasy(app, kit) {
         if (sel.some((c) => c.piece === part.piece)) el('circle', { cx: x, cy: y, r: 12.5, class: 'ring' }, g);
       }
     });
+    // with the rod tool, two parts that sit next to each other have a place between them to end the rod
+    if (cutting) for (const side of ['left', 'right']) for (const g of gapsOf(app.spine, side)) {
+      const a = rows.indexOf(g.upper), b = rows.indexOf(g.lower);
+      if (g.bare || a < 0 || b < 0) continue;
+      el('rect', { x: (slotX(a, side) + slotX(b, side)) / 2 - 10, y: (Y(a) + Y(b)) / 2 - 5, width: 20, height: 10, class: 'hit' }, el('g', { 'data-rodgap': side + ':' + g.upper + ':' + g.lower }, svg));
+    }
+    app.showGlow();
   }
   // what one tap, or one step of a drag over the map, does. "run" remembers what the first
   // gap of a drag was switched to, so the rest of the drag does the same.
   const live = (fn) => app.change(fn, { settle: false, ride: false });
+  // A remark under the steps. While the pointer is down on the map it waits, so the map does not jump under the finger.
+  let waiting = null;
+  const usualSay = () => (app.level === 'easy' ? '' : mapTool === 'rod' && (rodFrom || rodNote) ? $('rodSay').textContent : TOOL_SAYS[mapTool] || '');
+  const tell = (text) => { if (painting) waiting = text; else $('traySay').textContent = text; };
   // At the Easy level the rods wait for their own step: the first part put on a bare spine says so in the file.
   const rodsWait = () => { if (app.level === 'easy' && !hw().screws.length && !hw().hooks.length && !hw().rods.length) hw().norods = true; };
   function putOnSlot(id, side) {
     if (mapTool === 'none') return false;
-    if (mapTool === 'link' || mapTool === 'fused') { $('traySay').textContent = 'That goes between two vertebrae: tap the gap.'; return false; }
+    if (mapTool === 'rod') {
+      // (a tap on a part starts or ends a rod there: that is done when the pointer lets go, see letGo)
+      if (partAt(id, side)) return false;
+      // a tap on a bare spot between two parts ends the rod in that stretch, or joins it again
+      const list = ids(), i = list.indexOf(id), g = hw().norods ? null : gapsOf(app.spine, side).find((x) => list.indexOf(x.upper) < i && i < list.indexOf(x.lower));
+      if (!g) { rodSays('A rod runs from part to part. Tap a screw or a hook.'); return false; }
+      live(() => setRodCut(app.spine, side, g.upper, g.lower, !g.cut));
+      rodSays(g.cut ? 'Joined: one rod runs from ' + g.upper + ' to ' + g.lower + ' again.' : 'The rod on the ' + side + ' side now ends between ' + g.upper + ' and ' + g.lower + '.');
+      return true;
+    }
+    if (mapTool === 'link' || mapTool === 'fused') { tell('That goes between two vertebrae: tap the gap.'); return false; }
     const want = mapTool === 'erase' ? '' : mapTool, [kind, faces] = want.split('-');
     if (id === 'C1' || carried(id, side) === want) return false;
     let done = true;
     live(() => { rodsWait(); done = setCell(app.spine, id, side, kind, faces || 'down'); });
-    if (!done) $('traySay').textContent = 'That part is frozen. Untick "Frozen" under Full control to change it.';
+    if (!done) tell('That part is frozen. Untick "Frozen" under Full control to change it.');
     return done;
   }
   function putOnGap(id, run) {
@@ -257,66 +307,241 @@ export function setupEasy(app, kit) {
       if (linkBelow(app.spine, id) === run.on) return false;
       let fits = true;
       live(() => { fits = setLinkBelow(app.spine, id, run.on); });
-      if (!fits) $('traySay').textContent = NEEDS_RODS;
+      if (!fits) tell(NEEDS_RODS);
       return fits;
     }
-    $('traySay').textContent = 'That goes on a round spot beside a vertebra.';
+    tell('That goes on a round spot beside a vertebra.');
     return false;
   }
-  const spotUnder = (x, y) => { const e = document.elementFromPoint(x, y), g = e && e.closest ? e.closest('[data-slot],[data-gap]') : null; return g && $('map').contains(g) ? g : null; };
+  const spotUnder = (x, y) => { const e = document.elementFromPoint(x, y), g = e && e.closest ? e.closest('[data-slot],[data-gap],[data-rodgap]') : null; return g && $('map').contains(g) ? g : null; };
   function putOn(g, run) {
-    const key = g.dataset.slot || 'gap ' + g.dataset.gap;
+    const key = g.dataset.slot || g.dataset.rodgap || 'gap ' + g.dataset.gap;
     if (run.last === key) return;
     run.last = key;
-    const did = g.dataset.slot ? putOnSlot(...g.dataset.slot.split(':')) : putOnGap(g.dataset.gap, run);
+    // (the rod tool acts once for each press: a drag over a bare stretch must not cut and join it again and again)
+    if (mapTool === 'rod' && run.acted) return;
+    run.acted = true;
+    let did;
+    if (g.dataset.rodgap) {
+      const [side, upper, lower] = g.dataset.rodgap.split(':'), gap = gapsOf(app.spine, side).find((x) => x.upper === upper && x.lower === lower);
+      did = !!gap;
+      if (gap) { live(() => setRodCut(app.spine, side, upper, lower, !gap.cut)); rodSays(gap.cut ? 'Joined: one rod runs from ' + upper + ' to ' + lower + ' again.' : 'The rod on the ' + side + ' side now ends between ' + upper + ' and ' + lower + '.'); }
+    }
+    else did = g.dataset.slot ? putOnSlot(...g.dataset.slot.split(':')) : putOnGap(g.dataset.gap, run);
     if (did) { run.changed = true; drawMap(); }
   }
-  // The part of the tray goes on the side of the vertebra that was clicked or dropped on, or into the gap nearest to that spot.
-  function putOnModel(hit) {
-    const id = hit.level.id, side = toLocal(hit.point, hit.level.centre, levelFrame(hit.level))[0] >= 0 ? 'left' : 'right', run = {};
+  // The part of the tray goes on the soft mark that was clicked, or on the side of the
+  // vertebra that was clicked or dropped on, or into the gap nearest to that spot.
+  //   hit: the vertebra under the pointer and the point on it (or null)    e: the pointer
+  function putOnModel(hit, e) {
+    const mark = e ? hintAt(e) : null, run = {};
+    $('traySay').textContent = usualSay();
+    if (mark && mark.slot) return putOnSlot(...mark.slot);
+    if (mark && mark.gap) return putOnGap(mark.gap, run);
+    if (!hit) return false;
+    const id = hit.level.id, side = toLocal(hit.point, hit.level.centre, levelFrame(hit.level))[0] >= 0 ? 'left' : 'right';
+    if (mapTool === 'rod') return false;
     if (mapTool !== 'fused' && mapTool !== 'link') return putOnSlot(id, side);
     const list = ids(), i = list.indexOf(id), up = hit.point[2] > hit.level.centre[2] && i > 0;
     return putOnGap(up ? list[i - 1] : id, run) || (mapTool === 'link' && i > 0 && putOnGap(up ? id : list[i - 1], run));
   }
-  function setTool(name) { mapTool = name; pressed('[data-tray]', 'tray', name); pressed('[data-steptool]', 'steptool', name); $('traySay').textContent = app.level === 'easy' ? '' : TOOL_SAYS[name] || ''; }
+
+  // ---- soft marks on the model: where a click puts the part of the tool in hand
+  const STEP_COLORS = { screw: [0.78, 0.82, 0.9], 'hook-down': [0.72, 0.6, 0.95], 'hook-up': [0.72, 0.6, 0.95], link: [0.95, 0.76, 0.34], rod: [0.66, 0.84, 1] };
+  let marks = [];                 // the marks that are shown now, each with the spot or gap it stands for
+  function hints() {
+    marks = [];
+    if (!app.spine || (app.picked && app.picked.kind !== 'level')) return null;
+    const dots = [], links = [], color = STEP_COLORS[mapTool], rows = mapRows();
+    if (mapTool === 'screw' || mapTool === 'hook-down' || mapTool === 'hook-up') {
+      const faces = mapTool === 'hook-up' ? 'up' : 'down';
+      for (const id of rows) for (const side of ['left', 'right']) {
+        if (id === 'C1' || partAt(id, side)) continue;
+        const spot = slot(levelOf(id), side, faces), at = mapTool === 'screw' ? spot.screw.head : spot.hook.at;
+        dots.push({ at, color, size: 1.25, opacity: 0.42 }); marks.push({ at, slot: [id, side] });
+      }
+    } else if (mapTool === 'link') {
+      for (let i = 0; i < rows.length - 1; i++) {
+        const link = linkBelow(app.spine, rows[i]) ? null : linkSpot(app.spine, rows[i]);
+        if (!link) continue;
+        links.push({ ...link, color, opacity: 0.5 }); marks.push({ from: link.from, to: link.to, gap: rows[i] });
+      }
+    } else if (mapTool === 'rod') {
+      // every screw and hook can start a rod. Once one is picked, it glows and the parts of its side are the places to go.
+      for (const p of [...hw().screws, ...hw().hooks]) {
+        const at = p.head || p.at, armed = rodFrom && rodFrom.id === p.level && rodFrom.side === p.side;
+        if (rodFrom && rodFrom.side !== p.side) continue;
+        dots.push({ at, color: armed ? [1, 0.82, 0.3] : color, size: armed ? 3.3 : rodFrom ? 2.9 : 2.6, opacity: armed ? 0.8 : rodFrom ? 0.5 : 0.26 });
+      }
+    }
+    return dots.length || links.length ? { dots, links } : null;
+  }
+  // The mark under the pointer, if the pointer is on one. A mark is as large as it is drawn,
+  // with a little to spare: from far away the marks of neighbouring vertebrae are close
+  // together, and a click on bone between them must go by the bone, not by a mark beside it.
+  function hintAt(e) {
+    const box = renderer.canvas.getBoundingClientRect(), x = e.clientX - box.left, y = e.clientY - box.top, least = e.pointerType === 'touch' ? 9 : 6;
+    let best = null;
+    for (const m of marks) {
+      const reach = Math.max(least, Math.min(16, (m.at ? 4 : 3) / renderer.screenScale(m.at || m.from).perPixel + 2));
+      let d;
+      if (m.at) { const p = renderer.project(m.at); if (!p) continue; d = Math.hypot(p[0] - x, p[1] - y); }
+      else {
+        // (a cross-link that could be there: how far the pointer is from the line between its two ends)
+        const a = renderer.project(m.from), b = renderer.project(m.to);
+        if (!a || !b) continue;
+        const len = Math.max(1, (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2), t = Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / len));
+        d = Math.hypot(a[0] + (b[0] - a[0]) * t - x, a[1] + (b[1] - a[1]) * t - y);
+      }
+      if (d <= reach && (!best || d < best.d)) best = { ...m, d };
+    }
+    return best;
+  }
+
+  // ---- the rod tool: click two parts of one side and a rod runs between them
+  const rodsOn = () => !hw().norods && hw().rods.length > 0;
+  function rodSays(note) {
+    if (note !== undefined) rodNote = note;
+    const text = rodFrom ? rodFrom.id + ' on the ' + rodFrom.side + ' is one end. Now ' + press() + ' the part where the rod ends.' : rodNote || (parts().length < 2 ? 'A rod needs two parts on one side. Put on screws or hooks first.' : Press() + ' two parts on one side and a rod runs between them.');
+    $('rodSay').textContent = text;
+    if (app.level !== 'easy' && mapTool === 'rod') $('traySay').textContent = rodFrom || rodNote ? text : TOOL_SAYS.rod;
+  }
+  const again = () => { rodSays(); drawMap(); app.redraw(); };
+  // (Escape lets go of a rod that was started)
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && rodFrom) { rodFrom = null; again(); } });
+  // A rod from one part to another. With "Both sides together" the other side gets the same rod, between its own parts in that stretch.
+  function connect(side, from, to) {
+    const other = side === 'left' ? 'right' : 'left', list = ids(), a = Math.min(list.indexOf(from), list.indexOf(to)), b = Math.max(list.indexOf(from), list.indexOf(to));
+    let both = false, traced = false;
+    rodFrom = null;
+    app.change(() => {
+      // (rods that were traced from a scan are drawn again through the parts, so that they can be changed)
+      if (hw().rods.some((r) => !r.auto)) { fitRods(app.spine, true); traced = true; }
+      // the first rod drawn by hand: the other parts stay without one until theirs is drawn
+      if (hw().norods) { cutAll(app.spine); delete hw().norods; }
+      drawRod(app.spine, side, list[a], list[b]);
+      const mates = $('rodBoth').checked ? list.slice(a, b + 1).filter((id) => partAt(id, other)) : [];
+      if (mates.length > 1) { drawRod(app.spine, other, mates[0], mates[mates.length - 1]); both = true; }
+    }, { ride: false });
+    rodSays('A rod now runs from ' + list[a] + ' to ' + list[b] + (both ? ' on both sides.' : ' on the ' + side + ' side.') + (traced ? ' The traced rods were drawn again through the parts.' : ''));
+  }
+  // A part was tapped with the rod tool: it starts a rod, or ends the one that was started.
+  function rodPick(id, side) {
+    if (!partAt(id, side)) return false;
+    if (rodFrom && rodFrom.id === id && rodFrom.side === side) { rodFrom = null; again(); return true; }
+    if (rodFrom && rodFrom.side === side) { connect(side, rodFrom.id, id); return true; }
+    const crossed = !!rodFrom;
+    rodFrom = { id, side }; rodNote = '';
+    again();
+    if (crossed) $('rodSay').textContent = 'A rod stays on one side. ' + $('rodSay').textContent;
+    return true;
+  }
+  // A click on the model while the rod tool is in hand. True if the tool took the click.
+  //   what: the part under the pointer ({ kind, index, at }) or null
+  function rodTap(what) {
+    if (mapTool !== 'rod' || !what) return false;
+    if (what.kind === 'screws' || what.kind === 'hooks') { const p = hw()[what.kind][what.index]; return rodPick(p.level, p.side); }
+    if (what.kind !== 'rods') return false;
+    const rod = hw().rods[what.index];
+    let cut = null;
+    rodFrom = null;
+    if (!rod.auto) { rodSays('This rod was traced from a scan. Click two parts to draw it again, or press "Rods through all parts".'); drawMap(); return true; }
+    app.change(() => { cut = cutRodAt(app.spine, rod.side, what.at[2]); }, { ride: false });
+    rodSays(cut ? 'The rod on the ' + rod.side + ' side now ends between ' + cut[0] + ' and ' + cut[1] + '. ' + Press() + ' those two parts to join it again.' : 'A rod can end between two of its parts: ' + press() + ' it there.');
+    return true;
+  }
+  function setTool(name) {
+    const was = mapTool;
+    mapTool = name; rodFrom = null; if (name !== was) rodNote = '';
+    pressed('[data-tray]', 'tray', name); pressed('[data-steptool]', 'steptool', name);
+    $('traySay').textContent = app.level === 'easy' ? '' : TOOL_SAYS[name] || '';
+    $('rodStep').hidden = name !== 'rod';
+    if (app.spine) { rodSays(); if (name !== was) { drawMap(); app.redraw(); hint(); } }
+  }
 
   // ---- the Easy level: one kind of part at a time, the rods last
   const STEPS = {
-    1: { tool: 'screw', say: 'Step 1. Tap every spot that has a screw, on the map or on the model. Drag down the map to fill several.', next: 'Next: hooks' },
-    2: { tool: 'hook-down', say: 'Step 2. Any hooks? Choose which way they point, then tap their spots. If there are none, go on.', next: 'Next: cross-links' },
-    3: { tool: 'link', say: 'Step 3. Any cross-links? Tap between two vertebrae where one joins the two sides. If there are none, go on.', next: 'Next: rods' },
-    4: { tool: 'none', say: 'Step 4. Put the rods on. They run through the screws and hooks of each side.', next: '' },
+    1: { name: 'Screws', tool: 'screw', say: 'Tap every spot that has a screw, on the map or on the model. Drag down the map to fill several.', next: 'Next: hooks' },
+    2: { name: 'Hooks', tool: 'hook-down', say: 'Any hooks? Choose which way they point, then tap their spots. If there are none, go on.', next: 'Next: cross-links' },
+    3: { name: 'Cross-links', tool: 'link', say: 'Any cross-links? Tap between two vertebrae where one joins the two sides. If there are none, go on.', next: 'Next: rods' },
+    4: { name: 'Rods', tool: 'rod', say: 'Click two parts on one side, on the map or on the model, and a rod runs between them. Or press "Rods through all parts": each side gets a rod through all of its screws and hooks, and groups of parts that are far apart get rods of their own.', next: '' },
   };
   let stage = 1;
+  // (in the phone and tablet layout things are tapped, and the words are short)
+  const press = () => (app.guided ? 'tap' : 'click'), Press = () => (app.guided ? 'Tap' : 'Click');
+  const SHORT = { 1: 'Tap every spot that has a screw. Drag down the map to fill several.', 2: 'Any hooks? Choose which way they point, then tap their spots.', 3: 'Any cross-links? Tap a dotted line between two vertebrae.', 4: '' };
   const parts = () => [...hw().screws, ...hw().hooks];
-  // the stretch the rods span: from the highest vertebra with a part to the lowest
-  function spanOf() { const list = ids(), at = parts().map((p) => list.indexOf(p.level)).filter((i) => i >= 0); return at.length > 1 ? [Math.min(...at), Math.max(...at)] : null; }
+  // the tool a step works with
+  const toolFor = (n) => STEPS[n].tool;
+  const words = (sets) => sets.map(([a, b]) => a + ' to ' + b).join(sets.length === 2 ? ' and ' : ', ');
   function showSteps() {
-    const rodsOn = !hw().norods, span = spanOf(), list = ids();
+    const on = rodsOn(), sets = on ? rodSets(app.spine) : [], list = ids(), easy = app.level === 'easy';
     pressed('[data-step]', 'step', stage);
-    $('stepSay').textContent = stage === 4 && rodsOn && hw().rods.length ? 'The rods are on. Click a part to change its colour, or go back a step to change the parts.' : stage === 4 && parts().length < 2 ? 'Step 4. A rod needs two parts on one side to hold it. Go back and put on screws or hooks first.' : STEPS[stage].say;
+    const have = { 1: hw().screws.length, 2: hw().hooks.length, 3: hw().crosslinks.length, 4: on };
+    each('[data-step]', (b) => b.classList.toggle('done', !!have[b.dataset.step]));
+    // (the box over the model takes the colour of the step, or of the tool in hand at the other levels)
+    $('fieldBar').dataset.stage = easy ? stage : ({ screw: 1, 'hook-down': 2, 'hook-up': 2, link: 3, rod: 4 }[mapTool] || 0); $('steps').dataset.stage = stage;
+    $('fieldTitle').textContent = easy ? 'Step ' + stage + ' of 4: ' + STEPS[stage].name : 'Parts';
+    $('stepTitle').textContent = 'Step ' + stage + ' of 4: ' + STEPS[stage].name;
+    const have4 = sets.length === 1 ? 'The rods are on, from ' + words(sets) + '.' : 'There are ' + sets.length + ' separate sets of rods: ' + words(sets) + '.';
+    // (in the phone and tablet layout the sheet is short: one line for the step, and the rod step lets its own line under the buttons do the talking)
+    $('stepSay').textContent = app.guided ? (stage !== 4 ? SHORT[stage] : on ? have4 + ' To end a rod, tap between two of its parts on the map.' : '')
+      : stage !== 4 ? STEPS[stage].say
+        : parts().length < 2 ? 'A rod needs two parts on one side to hold it. Go back and put on screws or hooks first.'
+          : !on ? STEPS[4].say
+            : have4 + ' Click two parts on one side to run one rod between them. To end a rod, tap between two of its parts on the map, or click the rod on the model.';
     each('[data-steptool]', (b) => { b.hidden = b.dataset.steptool === 'erase' ? stage === 4 : stage !== 2; });
-    $('rodStep').hidden = stage !== 4;
-    $('rodsPut').hidden = rodsOn; $('rodsOff').hidden = !rodsOn || !hw().rods.length;
-    $('stepFusedRow').hidden = !span; $('stepFused').checked = !!span && list.slice(span[0], span[1]).every((id) => fusedBelow(app.spine, id));
+    $('rodStep').hidden = mapTool !== 'rod';
+    $('rodsOff').hidden = !on; $('rodsPut').classList.toggle('main', !on);
+    $('stepFusedRow').hidden = stage !== 4 || !sets.length;
+    $('stepFused').checked = sets.length > 0 && sets.every(([a, b]) => list.slice(list.indexOf(a), list.indexOf(b)).every((id) => fusedBelow(app.spine, id)));
     $('stepBack').disabled = stage === 1; $('stepNext').hidden = stage === 4; $('stepNext').textContent = STEPS[stage].next;
-    $('rodsOn').checked = rodsOn;
+    $('rodsOn').checked = !hw().norods;
     pressed('[data-steptool]', 'steptool', mapTool);
+    rodSays();
   }
-  function setStep(n) { stage = Math.max(1, Math.min(4, n)); setTool(STEPS[stage].tool); showSteps(); if (app.spine) drawMap(); }
+  // (the steps are for the Easy level: at the others the tray keeps the tool that was picked there)
+  function setStep(n) { stage = Math.max(1, Math.min(4, n)); if (app.level === 'easy') setTool(toolFor(stage)); showSteps(); if (app.spine) drawMap(); if (kit.stepped) kit.stepped(); }
   each('[data-step]', (b) => b.addEventListener('click', () => setStep(Number(b.dataset.step))));
   $('stepBack').addEventListener('click', () => setStep(stage - 1)); $('stepNext').addEventListener('click', () => setStep(stage + 1));
   each('[data-steptool]', (b) => b.addEventListener('click', () => { setTool(mapTool === b.dataset.steptool && b.dataset.steptool === 'erase' ? STEPS[stage].tool : b.dataset.steptool); }));
-  const setRods = (on) => app.change(() => { if (on) delete hw().norods; else hw().norods = true; fitRods(app.spine); }, { ride: false });
-  $('rodsPut').addEventListener('click', () => setRods(true)); $('rodsOff').addEventListener('click', () => setRods(false));
-  $('rodsOn').addEventListener('change', () => setRods($('rodsOn').checked));
-  $('stepFused').addEventListener('change', () => { const span = spanOf(), list = ids(); if (span) app.change(() => { for (let i = span[0]; i < span[1]; i++) setFusedBelow(app.spine, list[i], $('stepFused').checked); }, { ride: false }); });
+  // "Rods through all parts": a rod down each side through everything, the way most fusions are. Parts that are far apart get rods of their own.
+  $('rodsPut').addEventListener('click', () => {
+    if (parts().length < 2) { rodSays('A rod needs two parts on one side. Put on screws or hooks first.'); return; }
+    rodFrom = null;
+    app.change(() => rodsThroughAll(app.spine), { ride: false });
+    const sets = rodSets(app.spine);
+    rodSays(!hw().rods.length ? 'No side has two parts to hold a rod yet.' : sets.length > 1 ? 'Parts that are far apart got rods of their own: ' + words(sets) + '.' : 'The rods are on: one through all the parts of each side.');
+    if (app.level === 'easy') setStep(4);
+  });
+  $('rodsOff').addEventListener('click', () => {
+    rodFrom = null;
+    app.change(() => { hw().norods = true; delete hw().splits; fitRods(app.spine); }, { ride: false });
+    rodSays('The rods are off. The screws and hooks stay.');
+    if (app.level === 'easy') setStep(4);
+  });
+  $('rodsOn').addEventListener('change', () => app.change(() => { if ($('rodsOn').checked) delete hw().norods; else hw().norods = true; fitRods(app.spine); }, { ride: false }));
+  $('stepFused').addEventListener('change', () => {
+    const sets = rodSets(app.spine), list = ids(), on = $('stepFused').checked;
+    if (sets.length) app.change(() => { for (const [a, b] of sets) for (let i = list.indexOf(a); i < list.indexOf(b); i++) setFusedBelow(app.spine, list[i], on); }, { ride: false });
+  });
+  // the box of controls over the model can be dragged aside by its top edge. A double click puts it back.
+  let moving = null;
+  $('fieldGrip').addEventListener('pointerdown', (e) => { const r = $('fieldBar').getBoundingClientRect(); moving = { x: e.clientX - r.left, y: e.clientY - r.top }; e.preventDefault(); });
+  window.addEventListener('pointermove', (e) => {
+    if (!moving) return;
+    const bar = $('fieldBar'), s = $('stage').getBoundingClientRect(), r = bar.getBoundingClientRect();
+    bar.style.left = Math.max(4, Math.min(s.width - r.width - 4, e.clientX - s.left - moving.x)) + 'px'; bar.style.top = Math.max(4, Math.min(s.height - r.height - 4, e.clientY - s.top - moving.y)) + 'px'; bar.style.right = 'auto';
+  });
+  window.addEventListener('pointerup', () => { moving = null; }); window.addEventListener('pointercancel', () => { moving = null; });
+  $('fieldGrip').addEventListener('dblclick', () => { const bar = $('fieldBar'); bar.style.left = bar.style.top = bar.style.right = ''; });
   $('map').addEventListener('pointerdown', (e) => {
     const g = spotUnder(e.clientX, e.clientY);
+    // (a press on a block of the map lights up that vertebra on the model)
+    if (!g && app.spine && e.target.dataset && e.target.dataset.bone) app.flash(e.target.dataset.bone, true);
     if (!g || !app.spine) return;
     e.preventDefault(); app.say('');
-    $('traySay').textContent = TOOL_SAYS[mapTool];
-    painting = { first: g };
+    painting = { first: g }; waiting = null;
     putOn(g, painting);
   });
   window.addEventListener('pointermove', (e) => {
@@ -330,9 +555,14 @@ export function setupEasy(app, kit) {
     if (painting) {
       const run = painting, slot = run.first.dataset.slot;
       painting = null;
+      $('traySay').textContent = waiting !== null ? waiting : usualSay(); waiting = null;
+      // the rod tool: a tap on a part starts a rod there or ends it there, and a drag from one part to another of the same side draws the rod in one go
+      const end = mapTool === 'rod' && slot && e.type === 'pointerup' && partAt(...slot.split(':')) ? spotUnder(e.clientX, e.clientY) : null, to = end && end.dataset.slot;
+      if (to === slot) { rodPick(...slot.split(':')); return; }
+      if (to && to.split(':')[1] === slot.split(':')[1] && partAt(...to.split(':'))) { connect(slot.split(':')[1], slot.split(':')[0], to.split(':')[0]); return; }
       if (run.changed) app.settle();
       // a tap on a part that was not changed selects that part
-      else if (slot && run.last === slot && e.type === 'pointerup') { const part = partAt(...slot.split(':')); if (part) pickPart(part, false); }
+      else if (slot && run.last === slot && e.type === 'pointerup' && mapTool !== 'rod') { const part = partAt(...slot.split(':')); if (part) pickPart(part, false); }
     }
     if (carrying) {
       const c = carrying;
@@ -345,8 +575,8 @@ export function setupEasy(app, kit) {
       if (g) putOn(g, run);
       else if (over === $('view')) {
         const hit = hitLevel(e);
-        if (!hit) { $('traySay').textContent = 'Drop it on a vertebra.'; return; }
-        run.changed = putOnModel(hit);
+        if (!hit && !hintAt(e)) { $('traySay').textContent = 'Drop it on a vertebra.'; return; }
+        run.changed = putOnModel(hit, e);
       }
       if (run.changed) app.settle();
     }
@@ -356,7 +586,12 @@ export function setupEasy(app, kit) {
     b.addEventListener('pointerdown', (e) => { setTool(b.dataset.tray); carrying = { x: e.clientX, y: e.clientY, label: b.textContent, ghost: null }; });
     b.addEventListener('click', () => setTool(b.dataset.tray));
   });
-  $('mapNeck').addEventListener('change', drawMap);
+  $('mapNeck').addEventListener('change', () => { drawMap(); app.redraw(); });
+  // (beside the model the map is sized to its place: draw it again when that place changes)
+  if (window.ResizeObserver) new ResizeObserver(() => { if (app.spine && !$('sideMap').hidden) drawMap(); }).observe($('sideMap'));
+  // pointing at a block or a spot of the map shows which bone it is on the model
+  $('map').addEventListener('pointermove', (e) => { if (e.pointerType === 'touch' || painting) return; const g = e.target.closest ? e.target.closest('[data-slot]') : null; app.point((e.target.dataset && e.target.dataset.bone) || (g ? g.dataset.slot.split(':')[0] : null)); });
+  $('map').addEventListener('pointerleave', () => app.point(null));
   setTool('screw');
 
   // ---------------------------------------------------------------- colours
@@ -377,17 +612,20 @@ export function setupEasy(app, kit) {
     const list = ids();
     if (guideFor !== list.join()) {
       // a new spine: offer its fused stretch as the place for the hardware, or the usual T4 to L2
-      guideFor = list.join();
+      guideFor = list.join(); rodFrom = null; rodNote = '';
       const fused = (app.spine.fused || [])[0], all = list.filter((id) => id !== 'C1').map((id) => [id, id]);
       options($('gTop'), all, fused ? fused[0] : list.includes('T4') ? 'T4' : all[0][0]);
       options($('gBottom'), all, fused ? fused[1] : list.includes('L2') ? 'L2' : all[all.length - 1][0]);
       // a spine that comes with hardware is past the steps, a bare one starts at the first
-      stage = parts().length ? 4 : 1; mapTool = app.level === 'easy' ? STEPS[stage].tool : mapTool === 'none' ? 'screw' : mapTool;
-      pressed('[data-tray]', 'tray', mapTool);
+      // (a bare spine starts with the screws at every level of control: the other tools have nothing to work on yet)
+      stage = parts().length ? 4 : 1; mapTool = app.level === 'easy' ? toolFor(stage) : mapTool === 'none' || !parts().length ? 'screw' : mapTool;
+      pressed('[data-tray]', 'tray', mapTool); $('traySay').textContent = app.level === 'easy' ? '' : TOOL_SAYS[mapTool] || '';
     }
     // (the steps are for the Easy level: elsewhere the tray always has a part picked)
     if (app.level !== 'easy' && mapTool === 'none') setTool('screw');
-    if (app.level === 'easy' && mapTool !== 'erase' && !(stage === 2 && mapTool === 'hook-up') && mapTool !== STEPS[stage].tool) setTool(STEPS[stage].tool);
+    if (app.level === 'easy' && mapTool !== 'erase' && !(stage === 2 && mapTool === 'hook-up') && mapTool !== toolFor(stage)) setTool(toolFor(stage));
+    // (a rod that was being drawn is dropped if its first part is gone)
+    if (rodFrom && !partAt(rodFrom.id, rodFrom.side)) rodFrom = null;
     showSteps();
     pressed('[data-gkind]', 'gkind', guide.kind); pressed('[data-glinks]', 'glinks', guide.links);
     const id = app.picked && app.picked.kind === 'level' ? app.picked.id : null, last = id === list[list.length - 1];
@@ -408,5 +646,5 @@ export function setupEasy(app, kit) {
     drawMap();
   }
 
-  return { sync, tap, draw, putOnModel, kindColor, setKindColor: (kind, name) => setColors({ [kind]: name }), picking: () => !!guide.picking, stopDrawing: () => { if (drawing !== null) setDrawing(null); }, stopPicking: () => { if (guide.picking) setPicking(0); } };
+  return { sync, tap, draw, putOnModel, hints, rodTap, step: () => stage, setStep, markAt: (e) => !!hintAt(e), rodding: () => mapTool === 'rod', opened: () => { guideFor = ''; }, tool: () => mapTool, kindColor, setKindColor: (kind, name) => setColors({ [kind]: name }), picking: () => !!guide.picking, stopDrawing: () => { if (drawing !== null) setDrawing(null); }, stopPicking: () => { if (guide.picking) setPicking(0); } };
 }

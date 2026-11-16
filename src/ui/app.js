@@ -29,20 +29,62 @@ let past = [], future = [];          // spine files as text, for Undo and Redo
 
 // ---- how things look (kept on this device between visits)
 const BACKS = { dark: [0.075, 0.08, 0.1], grey: [0.43, 0.44, 0.47], light: [0.93, 0.92, 0.89], white: [1, 1, 1], black: [0, 0, 0] };
-const USUAL = { back: 'dark', shade: 'soft', bone: '#c7ad85', disc: '#5485bd', hardware: '', byLevel: false, simple: false, level: 'easy' };
+const USUAL = { back: 'dark', shade: 'soft', bone: '#c7ad85', disc: '#5485bd', hardware: '', byLevel: false, simple: false, level: 'easy', layout: 'auto' };
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 let look = { ...USUAL };
 try { look = { ...USUAL, ...JSON.parse(localStorage.getItem('spineBuilderLook') || '{}') }; } catch (e) { /* no storage here: use the usual look */ }
+const keepLook = () => { try { localStorage.setItem('spineBuilderLook', JSON.stringify(look)); } catch (e) { /* not kept, that is all */ } };
+
+// ---- the layout: the full workspace, or the one for phones and tablets
+// The phone and tablet layout shows one step at a time with the simple tools: shape, hardware,
+// pain, share. "Auto" picks it on a narrow screen and on a device that is worked by touch
+// alone. The choice is kept with the look, so a person can always get the other one.
+const NARROW = window.matchMedia('(max-width: 760px)'), TOUCH = window.matchMedia('(pointer: coarse) and (hover: none)');
+const guidedNow = () => look.layout === 'guided' || (look.layout !== 'full' && (NARROW.matches || TOUCH.matches));
 
 // What the builder works with. "rig" is the spine as a chain (see core/shape.js). "picked" is
 // what is selected, "spots" the dots shown while a part is being placed.
+let glowTimer = null;
+// Mark the blocks of the vertebra that glows (the map and the chart draw themselves again often, so they ask for this too).
+function showGlow(scroll) {
+  document.querySelectorAll('#map .glow, #blocks .glow, #map .peek, #blocks .peek').forEach((e) => { e.classList.remove('glow'); e.classList.remove('peek'); });
+  // (the block of the bone the pointer is over on the model is marked more softly)
+  if (app.peeked) document.querySelectorAll('#map [data-bone="' + app.peeked + '"], #blocks [data-block="' + app.peeked + '"]').forEach((e) => e.classList.add('peek'));
+  if (!app.glow) return;
+  document.querySelectorAll('#map [data-bone="' + app.glow + '"], #blocks [data-block="' + app.glow + '"]').forEach((e) => {
+    e.classList.add('glow');
+    // bring the block into view if the panel is scrolled away from it
+    if (scroll && e.getBoundingClientRect().width) { const r = e.getBoundingClientRect(), box = $('panel').getBoundingClientRect(); if (r.top < box.top + 4 || r.bottom > Math.min(box.bottom, window.innerHeight) - 4) e.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  });
+}
 const app = {
   $, renderer, DETAIL, rig: null, picked: null, also: [], spots: [],
   frames: [],                          // things to do after every drawn frame (lines over the picture follow the view)
   held: new Set(),                     // the vertebrae locked in place while the curve is drawn or the blocks are slid
+  glow: null,                          // the vertebra that was just clicked: its block on the map and the chart lights up for a moment
+  lit: null,                           // the vertebra that lights up on the model for a moment: its block was tapped
+  // Light up the block of a vertebra on the map and on the chart of blocks for a moment, so a
+  // person can see which block goes with the bone that was clicked. With "model" the bone
+  // on the model lights up too (the block was the thing that was tapped).
+  flash(id, model = false) {
+    clearTimeout(glowTimer);
+    app.glow = id;
+    showGlow(true);
+    if (model && app.lit !== id) { app.lit = id; app.redraw(); }
+    glowTimer = setTimeout(() => { app.glow = null; showGlow(false); if (model && app.lit === id) { app.lit = null; app.redraw(); } }, 1700);
+  },
+  showGlow: () => showGlow(false),
+  peeked: null,                        // the vertebra the pointer is over on the model: its block is marked softly
+  peek(id) { if (app.peeked !== id) { app.peeked = id; showGlow(false); } },
+  // The pointer is over a block (id), or has left it (null): the bone on the model shows which one it is.
+  pointed: null,
+  point(id) { if (app.pointed !== id) { app.pointed = id; app.redraw(); } },
   // how much control the panel offers: 'easy', 'standard' or 'full' (kept with the look, on this device)
-  get level() { return ['easy', 'standard', 'full'].includes(look.level) ? look.level : 'easy'; },
-  set level(name) { if (look.level !== name) { look.level = name; try { localStorage.setItem('spineBuilderLook', JSON.stringify(look)); } catch (e) { /* not kept, that is all */ } } },
+  // (the phone and tablet layout always works with the simple tools. The level that was chosen for the desktop layout is kept for it.)
+  get level() { return app.guided ? 'easy' : ['easy', 'standard', 'full'].includes(look.level) ? look.level : 'easy'; },
+  set level(name) { if (!app.guided && look.level !== name) { look.level = name; keepLook(); } },
+  guided: guidedNow(),                 // the phone and tablet layout is on
+  fit: () => fitView(),                // bring the whole spine into the picture
   stiff: true,                         // fused stretches move as blocks (the switch in the Shape tab)
   inLine: true,                        // a part stops where its rod could not follow (the switch under By hand)
   showStiff: true,                     // tint the stiff blocks (while the Shape tab is open)
@@ -57,7 +99,7 @@ const app = {
     // while the spine is being shaped, the stretches that are held stiff are drawn in a cooler colour
     const order = sortedLevels(spine).map((l) => l.id), stiff = [];
     if (app.showStiff && app.stiff && app.rig) for (const b of app.rig.blocks || []) stiff.push(...order.slice(b.from, b.to + 1));
-    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, also: app.also, stiff, locked: app.showStiff ? [...app.held] : [], spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
+    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, also: app.also, stiff, locked: app.showStiff ? [...app.held] : [], spots: app.spots, lit: app.lit, pointed: app.pointed, hints: builder ? builder.hints() : null, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
     // the stand chosen for printing is shown with the spine, so that what is saved is what is seen
     const stand = standNow();
     if (stand) for (const [list, name] of [[stand.onSpine, 'stand_fitting_on_spine'], [stand.stand, 'stand']]) for (const mesh of list) items.push({ group: 'stand', mesh, color: STAND_COLOR, opacity: 1, baseOpacity: 1, visible: true, name });
@@ -142,8 +184,9 @@ function show(next, problems) {
   // give the notice a moment to appear before the shapes are worked out
   setTimeout(() => {
     app.rig = rigOf(spine, app.stiff); app.picked = null; app.also = []; app.spots = [];
+    app.held.clear(); app.glow = app.lit = app.pointed = null;      // locks belong to the spine that was open before
     past = [JSON.stringify(spine)]; future = [];
-    if (builder) builder.reset();
+    if (builder) { builder.reset(); builder.opened(); }
     buildLabels();
     app.redraw();
     const box = boundsOf(spine);
@@ -315,13 +358,16 @@ function openLink() {
   return true;
 }
 
-function copyLink() {
+// (say: where to report it, when not in the Share menu. The box with the link is in that menu.)
+function copyLink(say) {
   if (!spine) return;
+  const told = say && say.nodeType ? say : $('linkSay'), inMenu = told === $('linkSay');
   packSpine(spine).then((packed) => {
     const link = linkFor(location.href, packed), box = $('linkText'), local = location.protocol === 'file:';
-    box.hidden = false; box.value = link; box.focus(); box.select();
+    box.value = link;
+    if (inMenu) { box.hidden = false; box.focus(); box.select(); }
     const tail = (local ? ' This copy of the app was opened from a folder, so the link only works where the app sits in the same place. Put the app on the web to get links anyone can open.' : '') + (link.length > 6000 ? ' It is ' + link.length + ' characters long, which some sites cut short. A saved file is safer for this one.' : '');
-    const done = (ok) => { $('linkSay').textContent = (ok ? 'Copied.' : 'Copy it from the box above.') + tail; };
+    const done = (ok) => { told.textContent = (ok ? 'Copied. Paste it into a message.' : inMenu ? 'Copy it from the box above.' : 'This browser did not let the app copy. Press Share in the top bar and copy the link from the box there.') + tail; };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(() => done(true), () => done(false)); else done(false);
   });
 }
@@ -437,8 +483,28 @@ function applyLook(save = true) {
   document.querySelectorAll('[data-shade]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.shade === look.shade ? 'true' : 'false'));
   $('colBone').value = look.bone; $('colDisc').value = look.disc; $('hwByLevel').checked = !!look.byLevel;
   $('simpleBones').checked = !!look.simple; setBoneStyle(look.simple ? 'drawn' : 'real');
-  if (save) { try { localStorage.setItem('spineBuilderLook', JSON.stringify(look)); } catch (e) { /* not kept, that is all */ } }
+  if (save) keepLook();
   app.redraw();
+}
+
+// An element that sits somewhere else in the phone and tablet layout. A marker stays where it came from, so it can go back.
+function rehome(el, to) {
+  if (!el.home) { el.home = document.createComment('home'); el.before(el.home); }
+  if (to) to.appendChild(el); else el.home.after(el);
+}
+function applyLayout() {
+  const guided = guidedNow();
+  app.guided = guided;
+  document.body.classList.toggle('guided', guided);
+  // the less used buttons of the ribbon go into the More menu, and come back out of it
+  for (const id of ['newBtn', 'openBtn', 'saveBtn', 'exportBtn']) rehome($(id), guided ? $('moreFile') : null);
+  rehome(document.querySelector('#ribbon .group[aria-label="Look from"], #moreLook .group'), guided ? $('moreLook') : null);
+  rehome(document.querySelector('#ribbon .group[aria-label="What is shown"], #moreShown .group'), guided ? $('moreShown') : null);
+  rehome($('layoutBox'), guided ? $('moreLayout') : null);
+  document.querySelectorAll('[data-layout]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.layout === (look.layout || 'auto') ? 'true' : 'false'));
+  $('layoutSay').textContent = (guided ? 'Phone and tablet: one step at a time, with the simple tools.' : 'Desktop: every tool at once, in a panel beside the model.') + (look.layout === 'guided' || look.layout === 'full' ? '' : ' Auto picked this for your screen.');
+  if (builder) builder.layout();
+  renderer.requestDraw();
 }
 
 if (!renderer) {
@@ -468,7 +534,7 @@ if (!renderer) {
   // New is a full reset: the average spine, and the look, what is shown and the print choices back to how they start.
   // (The level of control stays: it is how a person works, not how the model looks.)
   $('newBtn').addEventListener('click', () => {
-    look = { ...USUAL, level: look.level };
+    look = { ...USUAL, level: look.level, layout: look.layout };
     $('boneOpacity').value = 100; $('labelsOn').checked = false; $('standKind').value = ''; $('stlScale').value = '0.5'; $('stlFinish').value = '1'; $('standSay').textContent = '';
     document.querySelectorAll('#showMenu [data-group]').forEach((c) => { c.checked = true; });
     app.held.clear();
@@ -488,16 +554,18 @@ if (!renderer) {
   $('simpleBones').addEventListener('change', () => { look.simple = $('simpleBones').checked; applyLook(); });
   // the bone shapes come from an open anatomy collection that asks to be named
   $('credit').textContent = 'Bone shapes: ' + SHAPE_CREDIT + '. Resized and placed for this app.';
-  $('lookReset').addEventListener('click', () => { look = { ...USUAL, level: look.level }; $('boneOpacity').value = 100; applyLook(); });
+  $('lookReset').addEventListener('click', () => { look = { ...USUAL, level: look.level, layout: look.layout }; $('boneOpacity').value = 100; applyLook(); });
   // the menus of the ribbon: a button opens its menu, a click elsewhere or Esc closes it
   const closeMenus = (but) => document.querySelectorAll('[data-menu]').forEach((b) => { if (b !== but) { b.setAttribute('aria-expanded', 'false'); $(b.dataset.menu).hidden = true; } });
   document.querySelectorAll('[data-menu]').forEach((b) => b.addEventListener('click', (e) => {
+    // (a button that sits inside the More menu opens its own menu where More was: measured before More closes)
+    const at = (b.closest('.menu') ? $('moreBtn') : b).getBoundingClientRect();
     e.stopPropagation(); closeMenus(b);
     const menu = $(b.dataset.menu), open = menu.hidden;
     menu.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open) {
       // the menu drops down under its button, kept inside the window
-      const at = b.getBoundingClientRect(), wide = menu.offsetWidth;
+      const wide = menu.offsetWidth;
       menu.style.right = 'auto'; menu.style.top = Math.round(at.bottom + 6) + 'px';
       menu.style.left = Math.round(Math.max(8, Math.min(at.left, window.innerWidth - wide - 8))) + 'px';
       if (menu.id === 'shareMenu') { $('linkText').hidden = true; $('linkSay').textContent = ''; }
@@ -511,6 +579,18 @@ if (!renderer) {
     if ((e.ctrlKey || e.metaKey) && key === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
     else if ((e.ctrlKey || e.metaKey) && key === 'y') { e.preventDefault(); redo(); }
   });
+  // the layout: the buttons that choose it, and a screen that is turned or resized
+  document.querySelectorAll('[data-layout]').forEach((b) => b.addEventListener('click', () => { look.layout = b.dataset.layout; keepLook(); applyLayout(); closeMenus(null); }));
+  NARROW.addEventListener('change', applyLayout); TOUCH.addEventListener('change', applyLayout);
+  // a button of the More menu that does its work at once closes the menu
+  for (const id of ['moreFile', 'moreLook']) $(id).addEventListener('click', (e) => { if (e.target.closest('button') && !e.target.closest('[data-menu]')) closeMenus(null); });
+  // the last step of the phone and tablet layout: keep the sketch or pass it on
+  const SHARE_SAYS = $('shSay').textContent;
+  $('shPicture').addEventListener('click', () => { $('pictureBtn').click(); $('shSay').textContent = 'Saved a picture of the view as it is now to your downloads.'; });
+  $('shLink').addEventListener('click', () => copyLink($('shSay')));
+  $('shSave').addEventListener('click', () => { $('saveBtn').click(); $('shSay').textContent = 'Saved the file to your downloads. "Open" under More brings it back.'; });
+  $('shAgain').addEventListener('click', () => { $('shSay').textContent = SHARE_SAYS; $('newBtn').click(); builder.go('shape'); });
+  applyLayout();
   applyLook(false);
   if (!openLink()) openExample(START);
   welcome(false);

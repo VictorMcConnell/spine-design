@@ -3,7 +3,7 @@
  "name": "One curve in the chest",
  "units": "mm",
  "frame": "x = patient left, y = back, z = up, origin at the centre of S1, standing",
- "about": "A single curve of 45° to the right from T5 to T12, with the bodies turned. The most common pattern in teenagers with scoliosis.",
+ "about": "One main curve of 45° to the right from T5 to T12, with the bodies turned. The gentler bends above and below it bring the head back over the pelvis. The most common pattern in teenagers with scoliosis.",
  "levels": [
   {
    "id": "C1",

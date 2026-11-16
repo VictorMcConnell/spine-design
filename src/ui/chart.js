@@ -59,11 +59,17 @@ export function setupChart(app, kit) {
       el('text', { x: locked ? -6 : 0, y: 4, 'text-anchor': 'middle' }, g).textContent = id;
       if (locked) { el('path', { d: 'M9 -1 v-2.5 a3 3 0 0 1 6 0 v2.5', class: 'shackle' }, g); el('rect', { x: 7.5, y: -1, width: 9, height: 7, rx: 1.5, class: 'padlock' }, g); }
     });
+    app.showGlow();
   }
+  // pointing at a block shows which bone it is on the model
+  $('blocks').addEventListener('pointermove', (e) => { if (e.pointerType === 'touch' || slide) return; const g = e.target.closest ? e.target.closest('[data-block]') : null; app.point(g ? g.dataset.block : null); });
+  $('blocks').addEventListener('pointerleave', () => { if (!slide) app.point(null); });
   $('blocks').addEventListener('pointerdown', (e) => {
     const g = e.target.closest ? e.target.closest('[data-block]') : null;
     if (!g || !app.spine) return;
     e.preventDefault(); app.say('');
+    // the bone of the pressed block lights up on the model
+    app.flash(g.dataset.block, true);
     // (the spine as it is when the drag starts: every step of the drag is worked out from there)
     slide = { id: g.dataset.block, x: e.clientX, moved: false, from: app.spine.levels.map((l) => ({ l, tilt: [l.tilt[0], l.tilt[1]], turn: l.turn })), wide: $('blocks').getBoundingClientRect().width / WIDE };
   });

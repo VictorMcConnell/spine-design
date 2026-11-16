@@ -22,7 +22,7 @@ main { flex: 1; min-height: 0; display: flex; }
 #view { width: 100%; height: 100%; display: block; touch-action: none; }
 #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 #labels span { position: absolute; left: 0; top: 0; font-size: 11px; font-weight: 650; padding: 0 5px; border-radius: 9px; background: rgba(19, 20, 24, 0.78); border: 1px solid var(--line); white-space: nowrap; }
-#hint { position: absolute; left: 12px; bottom: 8px; margin: 0; font-size: 12px; color: var(--muted); }
+#hint { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); margin: 0; padding: 3px 8px; border-radius: 8px; background: rgba(19, 20, 24, 0.7); font-size: 12px; color: var(--muted); pointer-events: none; }
 #panel { width: 350px; padding: 14px 16px; border-left: 1px solid var(--line); background: var(--panel); overflow: auto; }
 h2 { font-size: 16px; margin: 0 0 4px; }
 h3 { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 18px 0 6px; }
@@ -83,7 +83,7 @@ input[type="color"] { width: 34px; height: 26px; padding: 0; border: 1px solid v
 #stage.pale #tagLines line { stroke: rgba(30, 31, 36, 0.75); }
 #stage.tagsLive #tags span { pointer-events: auto; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
 #tags span { position: absolute; left: 0; top: 0; font-size: 12px; padding: 1px 7px; border-radius: 9px; background: rgba(19, 20, 24, 0.82); border: 1px solid var(--line); white-space: nowrap; color: var(--ink); }
-#stage.pale #hint { color: #3b3d45; }
+#stage.pale #hint { color: #3b3d45; background: rgba(255, 255, 255, 0.72); }
 #gallery { width: min(760px, 94vw); max-height: 88vh; border: 1px solid var(--line); border-radius: 12px; background: #1b1c22; color: var(--ink); padding: 16px; }
 #gallery::backdrop { background: rgba(0, 0, 0, 0.6); }
 #gallery h2 { margin: 0; font-size: 17px; }
@@ -136,6 +136,43 @@ body.level-easy [data-for]:not([data-for~="easy"]), body.level-standard [data-fo
 .pair.trio input { width: 62px; }
 .pair.trio b { flex: 0 0 100%; font-weight: 400; }
 /* the tray of parts and the flat map of the spine */
+/* The box of hardware controls that floats over the model. Each step has a colour of its own. */
+#fieldBar { position: absolute; left: 12px; top: 12px; width: 262px; z-index: 3; padding-bottom: 8px; border: 1px solid var(--line); border-radius: 12px; background: rgba(26, 27, 33, 0.95); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); --step: var(--accent); }
+#fieldBar[data-stage="1"], #steps[data-stage="1"] { --step: #b4bccb; }
+#fieldBar[data-stage="2"], #steps[data-stage="2"] { --step: #a98be0; }
+#fieldBar[data-stage="3"], #steps[data-stage="3"] { --step: #e0b451; }
+#fieldBar[data-stage="4"], #steps[data-stage="4"] { --step: #6f9bff; }
+#fieldGrip { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 11px 11px 0 0; border-bottom: 2px solid var(--step); background: #24262e; color: var(--step); font-size: 13.5px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+#fieldGrip .dots { width: 10px; height: 14px; background: radial-gradient(circle, var(--muted) 1.2px, transparent 1.6px) 0 0 / 5px 5px; }
+#fieldBar > div:not(#fieldGrip) { padding: 8px 8px 0; }
+#fieldBar .row { margin: 6px 0 0; }
+#fieldBar .seg.steps { margin: 0; }
+#fieldBar .seg.steps button { font-size: 12px; padding: 7px 0; }
+#fieldBar .seg.steps button[aria-pressed="true"] { background: var(--step); color: #14151c; font-weight: 650; }
+#fieldBar .seg.steps button.done:not([aria-pressed="true"]) { color: var(--ink); box-shadow: inset 0 -2px 0 #5d8a5a; }
+#fieldBar .nav { display: flex; gap: 6px; }
+#fieldBar #stepNext { flex: 1; padding: 11px 12px; font-size: 15px; font-weight: 700; background: var(--step); border-color: transparent; color: #14151c; }
+#fieldBar #stepNext::after { content: "  \2192"; }
+#fieldBar #rodsPut { flex: 1; }
+#fieldBar #rodsPut.main { padding: 11px 12px; font-size: 15px; font-weight: 700; background: var(--step); border-color: transparent; color: #14151c; }
+#rodStep { border-top: 1px solid var(--line); margin-top: 8px; }
+#rodSay { margin: 0 0 2px; min-height: 4.05em; font-size: 12.5px; line-height: 1.35; color: var(--ink); }
+#rodStep .check { margin: 6px 0 0; font-size: 12.5px; }
+#rodStep .row { display: grid; grid-template-columns: 1fr; gap: 5px; }
+/* at the Easy level the tick for both sides sits beside the Back button, to keep the box short */
+body.level-easy #rodStep .check { position: absolute; right: 12px; bottom: 16px; margin: 0; }
+/* at the Easy level the line for remarks under the steps takes no room while it has nothing to say */
+body.level-easy #traySay:empty { display: none; }
+body.level-easy #traySay { min-height: 0; }
+#fieldBar .tray { grid-template-columns: repeat(2, 1fr); margin: 0; }
+#steps { margin: 8px 0; padding: 4px 0 4px 11px; border-left: 3px solid var(--step); --step: var(--accent); }
+#steps h3 { margin: 0 0 4px; color: var(--step); }
+#stage.pale #fieldBar { background: rgba(26, 27, 33, 0.97); }
+.ic.rod { width: 5px; height: 16px; margin: 0 5px; border-radius: 3px; background: #6f9bff; }
+#map .cut { stroke: #8d8f99; stroke-width: 1.6; stroke-dasharray: 2 5; fill: none; }
+#map .snip { stroke: #ff8a7a; stroke-width: 2; }
+.tabs button[data-tab="parts"][aria-selected="true"] { border-bottom-color: #6f9bff; }
+.tabs button[data-tab="marks"][aria-selected="true"] { border-bottom-color: #f0915a; }
 .tray { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: 6px 0; }
 .tray button { display: flex; align-items: center; gap: 5px; padding: 7px 6px; font-size: 12.5px; white-space: nowrap; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
 .tray button[aria-pressed="true"] { border-color: var(--accent); background: #30345a; }
@@ -148,6 +185,8 @@ body.level-easy [data-for]:not([data-for~="easy"]), body.level-standard [data-fo
 .ic.link { height: 6px; border-radius: 3px; background: #d2a23a; }
 .ic.fused { border-radius: 4px; background: #9fb6d8; }
 .ic.erase { background: none; border: 2px dashed var(--muted); }
+/* (the line of words above the map keeps its room, so the map does not jump under a finger when words appear) */
+#traySay { min-height: 2.9em; margin: 4px 0; }
 #mapWrap { margin: 4px 0; border: 1px solid var(--line); border-radius: 9px; background: #15161b; overflow: hidden; touch-action: none; }
 #map { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; }
 #map text { font: 600 11px system-ui, sans-serif; fill: #2b2618; pointer-events: none; }
@@ -163,6 +202,28 @@ body.level-easy [data-for]:not([data-for~="easy"]), body.level-standard [data-fo
 #map .ring { fill: none; stroke: #ffc94d; stroke-width: 2.5; }
 #map .lock { fill: none; stroke: #fff; stroke-width: 1.5; stroke-dasharray: 2 2; }
 #map .side { font-size: 11px; fill: #8d8f99; font-weight: 500; }
+/* Where the tool in hand can be used shows softly on the map: empty spots for a screw or a hook,
+   the gaps that can take a cross-link, the parts a rod can run from. */
+@keyframes breathe { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+#map .halo, #map .ghost { fill: none; stroke: none; pointer-events: none; }
+#map[data-tool="screw"] .empty { stroke: #c3cad8; fill: rgba(195, 202, 216, 0.12); animation: breathe 2.6s ease-in-out infinite; }
+#map[data-tool="hook-down"] .empty, #map[data-tool="hook-up"] .empty { stroke: #b79cf0; fill: rgba(183, 156, 240, 0.13); animation: breathe 2.6s ease-in-out infinite; }
+#map[data-tool="link"] g.can .ghost { stroke: #e0b451; stroke-width: 4.5; stroke-dasharray: 0.1 8; stroke-linecap: round; animation: breathe 2.6s ease-in-out infinite; }
+#map[data-tool="link"] g.can:hover .ghost { animation: none; opacity: 1; }
+#map[data-tool="fused"] .gapline { stroke: #8ea3c2; stroke-width: 2.5; stroke-dasharray: none; animation: breathe 2.6s ease-in-out infinite; }
+#map[data-tool="rod"] g.full .halo { stroke: #7da5ff; stroke-width: 2; fill: rgba(111, 155, 255, 0.14); animation: breathe 2.6s ease-in-out infinite; }
+#map[data-tool="rod"] g.full .hit { cursor: crosshair; }
+#map.arming[data-tool="rod"] g.full .halo { stroke: none; fill: none; animation: none; }
+#map.arming[data-tool="rod"] g.mate .halo { stroke: #7da5ff; stroke-width: 2.5; fill: rgba(111, 155, 255, 0.2); animation: breathe 1.6s ease-in-out infinite; }
+#map.arming[data-tool="rod"] g.armed .halo { stroke: #ffc94d; stroke-width: 3.5; fill: rgba(255, 201, 77, 0.28); opacity: 1; }
+#map[data-tool="erase"] g.linked .hit { stroke: #ff8a7a; stroke-width: 1.4; stroke-dasharray: 3 3; fill: rgba(255, 138, 122, 0.07); rx: 6px; }
+#map[data-tool="erase"] g.full .halo { stroke: #ff8a7a; stroke-width: 1.6; stroke-dasharray: 3 3; animation: breathe 2.6s ease-in-out infinite; }
+/* the block of the bone that was clicked on the model lights up for a moment. The one under the pointer is marked more softly. */
+#map .bone, #blocks .bone { transition: fill 0.35s, stroke 0.35s; }
+#map .bone.peek, #blocks g.peek .bone { stroke: #ffd76a; stroke-width: 1.8; }
+#map .bone.glow, #blocks g.glow .bone { fill: #ffe7ad; stroke: #fff; stroke-width: 3; filter: drop-shadow(0 0 7px #ffc94d); }
+#map .bone[data-bone] { cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { #map .empty, #map .ghost, #map .halo, #map .gapline { animation: none !important; } }
 #ghost { position: fixed; z-index: 20; pointer-events: none; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--accent); background: #30345a; color: var(--ink); font-size: 13px; transform: translate(-50%, -130%); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); }
 #galleryList h3 { grid-column: 1 / -1; margin: 10px 0 0; }
 /* the pad to draw the curve on: dots over the view, and the line being drawn */
@@ -200,12 +261,125 @@ button.plain { border: 0; background: none; padding: 0; color: var(--muted); tex
 button.plain:hover { color: var(--ink); background: none; }
 /* a hidden thing stays hidden, whatever its class says about display */
 [hidden] { display: none !important; }
+/* ---- the desktop layout on a narrow screen (the phone and tablet layout has rules of its own, further down) */
 @media (max-width: 760px) {
-  main { flex-direction: column; }
-  #stage { flex: 0 0 56vh; }
-  #panel { width: auto; border-left: 0; border-top: 1px solid var(--line); }
+  /* the box is as short as it can be: the tools and Back and Next share one row */
+  body:not(.guided) #fieldBar { left: 6px; right: 6px; top: 6px; width: auto; padding: 0 6px 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; }
+  body:not(.guided) #fieldGrip { flex: 0 0 calc(100% + 12px); margin: 0 -6px; padding: 3px 10px; font-size: 12.5px; box-sizing: border-box; }
+  body:not(.guided) #fieldEasy { display: contents; }
+  body:not(.guided) #fieldBar > div:not(#fieldGrip) { padding: 0; }
+  body:not(.guided) #fieldBar .seg.steps, body:not(.guided) #fieldBar .tray, body:not(.guided) #rodStep { flex: 0 0 100%; margin-top: 6px; }
+  body:not(.guided) #fieldBar #stepTools { flex: 0 0 auto; margin: 6px 0 0; }
+  body:not(.guided) #fieldBar #stepTools:not(:has(button:not([hidden]))) { display: none; }
+  body:not(.guided) #fieldBar .nav { flex: 1 1 auto; margin: 6px 0 0; }
+  body:not(.guided) #fieldBar #stepNext, body:not(.guided) #fieldBar #rodsPut.main { padding: 8px 10px; font-size: 14px; }
+  body:not(.guided) #rodStep { padding-top: 6px !important; }
+  body:not(.guided) #rodSay { min-height: 2.7em; }
+  body:not(.guided) #rodStep .row { grid-template-columns: 1fr 1fr; margin: 4px 0 0; }
+  body.level-easy:not(.guided) #rodStep .check { right: 10px; bottom: 13px; }
+  body:not(.guided) #fieldBar .tray { grid-template-columns: repeat(4, 1fr); }
+  body:not(.guided) #fieldBar .tray button { font-size: 11.5px; padding: 6px 3px; gap: 3px; }
+  body:not(.guided) main { flex-direction: column; }
+  body:not(.guided) #stage { flex: 0 0 56vh; }
+  body:not(.guided) #panel { width: auto; border-left: 0; border-top: 1px solid var(--line); }
   /* the ribbon stays one row that slides sideways; its name and labels make way */
-  #ribbon { gap: 6px 8px; padding: 6px 8px; }
-  #ribbon h1, #ribbon .group span { display: none; }
-  #ribbon .group { padding-left: 8px; }
+  body:not(.guided) #ribbon { gap: 6px 8px; padding: 6px 8px; }
+  body:not(.guided) #ribbon h1, body:not(.guided) #ribbon .group span { display: none; }
+  body:not(.guided) #ribbon .group { padding-left: 8px; }
+}
+
+/* ---- parts that belong to one layout only */
+body:not(.guided) [data-only="guided"], body.guided [data-only="full"] { display: none !important; }
+#layoutBox .seg button { font-size: 13px; }
+#moreMenu .row, #moreMenu .group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
+#moreMenu .group span { display: none; }
+#moreMenu .switch { display: flex; gap: 6px; align-items: center; margin-right: 6px; }
+#moreMenu button { padding: 8px 12px; }
+
+/* ================= the phone and tablet layout =================
+   One step at a time with the simple tools. The model fills the screen, and a short sheet
+   under it holds the steps, the few controls of the step and one pair of Back and Next.
+   In the Hardware step the flat map stands beside the model. */
+@supports (height: 100dvh) { body.guided { height: 100dvh; } }
+body.guided { overscroll-behavior: none; }
+body.guided button, body.guided select, body.guided label { touch-action: manipulation; }
+/* the less used tools of a step are hidden until "More tools" is pressed */
+body.guided:not(.more-on) [data-more] { display: none !important; }
+/* the ribbon: what is used all the time, and More for the rest */
+body.guided #ribbon { overflow: visible; gap: 6px; padding: 6px 8px; padding-top: max(6px, env(safe-area-inset-top)); }
+body.guided #ribbon h1 { flex: 1; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.guided #ribbon .group { border-left: 0; padding-left: 0; gap: 6px; }
+body.guided #ribbon button { padding: 8px 11px; min-height: 38px; }
+body.guided .menu { max-height: calc(100dvh - 70px); }
+@media (max-width: 480px) { body.guided #ribbon h1 { display: none; } body.guided #moreGroup { margin-left: auto; } }
+/* the page: the model (and the map beside it) over the sheet */
+body.guided main { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) auto; }
+body.guided #stage { grid-column: 1 / -1; grid-row: 1; min-height: 0; }
+body.guided.with-map #stage { grid-column: 1; }
+body.guided #sideMap { grid-column: 2; grid-row: 1; min-height: 0; max-width: 58vw; overflow: auto; padding: 6px 6px 6px 0; touch-action: none; }
+body.guided #sideMap #mapWrap { margin: 0; overflow: visible; }
+body.guided #sideMap #map { width: auto; height: auto; }
+body.guided #hint { display: none; }
+body.guided #panel { grid-column: 1 / -1; grid-row: 2; width: auto; max-height: 46dvh; border-left: 0; border-top: 1px solid var(--line); padding: 0 12px max(8px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; overflow: hidden; }
+body.guided #panel > section { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 0 2px; overscroll-behavior: contain; }
+body.guided #panel > section[hidden] { display: none; }
+body.guided #name, body.guided #about, body.guided:not([data-at="share"]) .foot { display: none; }
+body.guided #status:empty { display: none; }
+/* the steps across the top of the sheet */
+body.guided .tabs { order: -1; margin: 0 -12px; padding: 0 6px; counter-reset: step; background: #17181d; }
+body.guided .tabs button { padding: 10px 2px 9px; font-size: 14px; counter-increment: step; }
+body.guided .tabs button::before { content: counter(step) "\00a0\00a0"; color: var(--muted); font-size: 12px; }
+body.guided .tabs button[aria-selected="true"] { background: none; font-weight: 650; }
+body.guided .tabs button[aria-selected="true"]::before { color: var(--accent); }
+/* Back and Next, always in the same place */
+#guideNav { order: 5; display: flex; gap: 6px; align-items: center; padding-top: 8px; border-top: 1px solid var(--line); }
+#guideNav .gap { flex: 1; }
+#guideNav button, body.guided #panel #guideNav button { min-height: 44px; padding: 8px 12px; white-space: nowrap; }
+#guideNav #guideNext { min-width: 8.6em; font-weight: 700; background: var(--accent); border-color: var(--accent); color: #101116; }
+#guideNav #guideNext::after { content: "\00a0\00a0\2192"; }
+#guideNav #guideMore { color: var(--muted); }
+/* larger things to press */
+body.guided #panel button { min-height: 40px; }
+body.guided #panel .seg button { padding: 10px 4px; }
+body.guided #panel input[type="checkbox"] { width: 20px; height: 20px; }
+body.guided #panel select { min-height: 40px; }
+body.guided #panel .swatch { min-height: 0; }
+body.guided .say { font-size: 15px; }
+/* Shape: the two ways to draw are the main thing */
+body.guided #drawBox .row { margin: 6px 0; }
+body.guided #drawBox [data-draw] { flex: 1; min-height: 48px; font-weight: 650; }
+/* (in a corner: the middle of the lower edge is where the pelvis is, and where most lines start) */
+body.guided #drawDone { position: absolute; right: 10px; bottom: 10px; z-index: 3; min-height: 44px; padding: 8px 22px; border-color: var(--accent); background: rgba(38, 41, 66, 0.94); font-weight: 650; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
+body.guided #drawSay { font-size: 13px; font-weight: 400; color: var(--muted); margin: 4px 0; min-height: 2.9em; }
+/* Hardware: the box of controls is part of the sheet, not a box over the model */
+body.guided #steps { margin: 0; padding: 0; border-left: 0; }
+body.guided #stepTitle, body.guided #stepSay:empty { display: none; }
+body.guided #stepSay { font-size: 14px; font-weight: 400; margin-bottom: 6px; }
+body.guided #fieldBar { position: static; width: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+body.guided #fieldBar > div:not(#fieldGrip) { padding: 0; }
+body.guided #fieldGrip, body.guided #fieldBar .nav { display: none !important; }
+body.guided #fieldBar .seg.steps button { font-size: 13.5px; }
+body.guided #stepTools { margin: 6px 0 0; }
+body.guided #stepTools:not(:has(button:not([hidden]))) { display: none; }
+body.guided #stepTools button { flex: 1; }
+body.guided #rodStep { border-top: 0; margin-top: 6px; }
+body.guided #rodSay { min-height: 0; margin-bottom: 6px; font-size: 13.5px; }
+body.guided #rodStep .row { grid-template-columns: 1fr 1fr; margin: 0; }
+body.guided #rodStep .row:has(#rodsOff[hidden]) { grid-template-columns: 1fr; }
+body.guided #rodStep .check { position: static; margin: 8px 0 0; font-size: 14px; }
+body.guided #traySay { font-size: 13px; }
+/* Share: three choices, and under them what the app is and whose bone shapes it uses. This step scrolls as a whole. */
+body.guided[data-at="share"] #panel { overflow-y: auto; }
+body.guided[data-at="share"] #panel > section { flex: none; overflow: visible; }
+body.guided[data-at="share"] .tabs { position: sticky; top: 0; z-index: 1; }
+body.guided[data-at="share"] #guideNav { position: sticky; bottom: 0; background: var(--panel); padding-bottom: 2px; }
+body.guided .foot { order: 4; }
+body.guided #panel #shareChoices button { min-height: 52px; font-weight: 650; color: var(--ink); }
+/* a wide screen (a tablet, or a phone on its side): the sheet stands beside the model instead of under it */
+@media (min-width: 720px) {
+  body.guided main { grid-template-columns: minmax(0, 1fr) auto 320px; grid-template-rows: minmax(0, 1fr); }
+  body.guided #stage { grid-column: 1 / 3; }
+  body.guided.with-map #stage { grid-column: 1; }
+  body.guided #sideMap { max-width: 34vw; padding: 8px 8px 8px 0; }
+  body.guided #panel, body.guided[data-at="share"] #panel { grid-column: 3; grid-row: 1; max-height: none; border-top: 0; border-left: 1px solid var(--line); }
 }

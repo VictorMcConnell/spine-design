@@ -8,7 +8,7 @@ import { sortedLevels, LEVEL_ORDER } from '../core/spinefile.js';
 import { vertebraShape, levelFrame } from '../core/bones.js';
 import { ANATOMY } from '../core/anatomy.js';
 import { pullLevel, moveAlone, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, stiffen, blockOf, pivotAt } from '../core/shape.js';
-import { slot, freeScrew, resizeScrew, screwLength, fitRods, crosslinkAt, planFor, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, putPlanned, moveInLine, settleInLine, placePiece, hookAt, faceHook, bendRod, unbendRod } from '../core/place.js';
+import { slot, freeScrew, resizeScrew, screwLength, fitRods, crosslinkAt, planFor, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, putPlanned, moveInLine, settleInLine, placePiece, hookAt, faceHook, bendRod, unbendRod , shiftParts } from '../core/place.js';
 import { rayMesh, rayPoint } from '../core/pick.js';
 import { gizmoHit, dragAlong, dragAround } from '../view/gizmo.js';
 import { vAdd, vSub, vScale, vLerp, vDist, vDot } from '../core/vec.js';
@@ -64,9 +64,14 @@ export function setupBuilder(app) {
 
   // ---------------------------------------------------------------- tabs, modes, tools
   function showTab(name) {
-    tab = name;
+    const was = tab;
+    tab = name === 'share' && !app.guided ? 'shape' : name;      // (the Share step is part of the phone and tablet layout only)
+    name = tab;
+    document.body.dataset.at = name;      // (for the styles: which step or tab is open)
     each('[data-tab]', (b) => b.setAttribute('aria-selected', b.dataset.tab === name ? 'true' : 'false'));
     each('[data-pane]', (p) => { p.hidden = p.dataset.pane !== name; });
+    if (was !== name) setMore(false);
+    arrange(was !== name);
     stopPlacing(); easy.stopDrawing(); easy.stopPicking(); chart.stopLine(); chart.stopPicking();
     app.showStiff = name === 'shape';
     $('stage').classList.toggle('tagsLive', name === 'marks');
@@ -78,10 +83,54 @@ export function setupBuilder(app) {
   function hint() {
     const turn = ' Drag the background to turn. Scroll or pinch to zoom.';
     $('hint').textContent = tab === 'shape' ? (easy.draw.on() ? 'Drag a line along the spine. Scroll or pinch to zoom. Press "Done drawing" to turn the model again.' : chart.picking() ? 'Click vertebrae to lock or unlock them.' + turn : chart.lineOn() ? 'Drag a point of the line. Click the line to add a point.' + turn : mode === 'blocks' ? 'Slide the blocks in the panel. The model follows.' + turn : mode === 'draw' ? 'Press one of the buttons in the panel.' + turn : mode === 'one' ? 'Click a vertebra, then drag its handles.' + turn : 'Click the two ends of a stretch, then drag its handles.' + turn)
-      : tab === 'parts' ? (app.level === 'easy' ? 'Click a vertebra to put the part of this step on it, or click a part to select it.' + turn : 'Click a part or a vertebra. Drag a screw or a hook to move it. Drag a rod to bend it.' + turn)
+      : tab === 'parts' ? (easy.rodding() ? 'Click two screws or hooks of one side to join them with a rod. Click a rod to end it there.'
+        : app.level === 'easy' ? 'Click a soft mark or a vertebra to put the part of this step there, or click a part to select it.' + turn : 'Click a soft mark to put the part in hand there. Click a part or a vertebra to select it. Drag a screw or a hook to move it, a rod to bend it.' + turn)
         : 'Drag to turn. Scroll or pinch to zoom. Right-drag or two fingers to move.';
   }
   each('[data-tab]', (b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+  // ---------------------------------------------------------------- the phone and tablet layout
+  // One step at a time: Shape, Hardware, Pain, Share, with one pair of Back and Next that
+  // also walks through the four steps of the hardware. In the Hardware step the flat map
+  // stands beside the model, so a tap on the map shows on the model at once.
+  const home = (el, to) => { if (!el.home) { el.home = document.createComment('home'); el.before(el.home); } if (to) to.appendChild(el); else el.home.after(el); };
+  // Put the map and the box of hardware controls where the layout wants them.
+  //   fresh: the step was just opened (the model is then shown from the back, whole, beside the map)
+  function arrange(fresh) {
+    const side = app.guided && tab === 'parts', shown = !$('sideMap').hidden;
+    home($('mapWrap'), side ? $('sideMap') : null);
+    home($('fieldBar'), app.guided ? $('steps') : null);
+    // ("Done drawing" floats over the model, under the thumb, so the sheet keeps its height while a line is drawn)
+    home($('drawDone'), app.guided ? $('stage') : null);
+    $('sideMap').hidden = !side;
+    document.body.classList.toggle('with-map', side);
+    if (side !== shown || (side && fresh)) {
+      // (the picture has a new shape: fit the spine into it again once the page has been laid out)
+      if (side) renderer.look(0);
+      requestAnimationFrame(() => { app.fit(); renderer.requestDraw(); });
+    }
+  }
+  // "More tools": the less used tools of a step, hidden until they are asked for
+  function setMore(on) { document.body.classList.toggle('more-on', !!on); $('guideMore').setAttribute('aria-pressed', on ? 'true' : 'false'); $('guideMore').textContent = on ? 'Less' : 'More'; }
+  $('guideMore').addEventListener('click', () => setMore(!document.body.classList.contains('more-on')));
+  // where Back and Next lead from here: [the step before, the step after, what Next says]
+  const WALK = ['shape', 'parts', 'marks', 'share'];
+  function guideSteps() {
+    const n = tab === 'parts' ? easy.step() : 0;
+    if (tab === 'parts') return [n > 1 ? () => easy.setStep(n - 1) : () => showTab('shape'), n < 4 ? () => easy.setStep(n + 1) : () => showTab('marks'), ['', 'Next: hooks', 'Next: links', 'Next: rods', 'Next: pain'][n]];
+    const i = WALK.indexOf(tab);
+    return [i > 0 ? () => { showTab(WALK[i - 1]); if (WALK[i - 1] === 'parts') easy.setStep(4); } : null, i < WALK.length - 1 ? () => { showTab(WALK[i + 1]); if (WALK[i + 1] === 'parts') easy.setStep(hw().screws.length + hw().hooks.length ? 4 : 1); } : null, ['Next: hardware', '', 'Next: share', ''][i]];
+  }
+  function guideNav() {
+    if (!app.guided || !app.spine) return;
+    const [back, next, says] = guideSteps();
+    $('guideBack').disabled = !back; $('guideNext').hidden = !next; $('guideNext').textContent = says;
+    // (drawing is finished by going on: the button says so while a line can be drawn)
+    $('guideMore').hidden = tab === 'share' || tab === 'marks';
+  }
+  $('guideBack').addEventListener('click', () => { const [back] = guideSteps(); if (back) { easy.stopDrawing(); back(); sync(); } });
+  $('guideNext').addEventListener('click', () => { const [, next] = guideSteps(); if (next) { easy.stopDrawing(); next(); sync(); } });
+
   const LOOK = { front: Math.PI, back: 0, left: Math.PI / 2, right: -Math.PI / 2 };
   each('[data-look]', (b) => b.addEventListener('click', () => renderer.look(LOOK[b.dataset.look])));
 
@@ -441,7 +490,7 @@ export function setupBuilder(app) {
     }
     const frozen = all.some((c) => c.piece.locked);
     $('pieceName').textContent = many ? all.length + ' parts selected' : PART_NAMES[kind] + (p.level ? ' at ' + p.level : '') + (p.side ? ', ' + p.side + ' side' : '');
-    $('pieceHow').textContent = many ? 'What you set here goes for all of them.' : frozen ? 'Frozen: it stays as it is until that is unticked under Full control.' : kind === 'crosslinks' ? (app.level === 'easy' ? 'It sits between the two rods.' : 'Drag its arrow to slide it along the rods.') : app.level === 'easy' ? 'Drag it over the bone to move it.' : 'Drag it over the bone, or drag its arrows for small steps.';
+    $('pieceHow').textContent = many ? 'What you set here goes for all of them. Drag one of the screws or hooks along the spine and the others move with it.' : frozen ? 'Frozen: it stays as it is until that is unticked under Full control.' : kind === 'crosslinks' ? (app.level === 'easy' ? 'It sits between the two rods.' : 'Drag its arrow to slide it along the rods.') : app.level === 'easy' ? 'Drag it over the bone to move it.' : 'Drag it over the bone, or drag its arrows for small steps.';
     $('pieceThickRow').hidden = $('pieceLongRow').hidden = !lone || kind !== 'screws';
     if (lone && kind === 'screws') { thick(p.diameter || 5); long(screwLength(p)); }
     const hooks = all.filter((c) => c.kind === 'hooks');
@@ -465,6 +514,19 @@ export function setupBuilder(app) {
     if (!part || !hit) return;
     if (part.locked) { app.say(FROZEN); return; }
     const frame = levelFrame(hit.level), side = toLocal(hit.point, hit.level.centre, frame)[0] >= 0 ? 'left' : 'right';
+    // several screws and hooks are selected and one of them is dragged: they all move along the spine together, vertebra by vertebra
+    const group = chosen().filter((c) => c.kind === 'screws' || c.kind === 'hooks').map((c) => c.piece);
+    if (group.length > 1 && group.includes(part)) {
+      if (snapping()) {
+        const list = ids(), by = list.indexOf(hit.level.id) - list.indexOf(part.level);
+        if (!by) return;
+        let went = false;
+        live(() => { went = shiftParts(app.spine, group, by); }, false);
+        app.say(went ? '' : 'There is no room for all of them there: a part that is not selected is in the way, one of them is frozen, or the spine ends.');
+        return;
+      }
+      app.say('With snapping off, parts are moved one at a time.');
+    }
     let next;
     if (snapping()) {
       if (hit.level.id === 'C1' || (part.level === hit.level.id && part.side === side) || [...hw().screws, ...hw().hooks].some((p) => p !== part && p.level === hit.level.id && p.side === side)) return;
@@ -640,6 +702,7 @@ export function setupBuilder(app) {
     return best && { kind: best.kind, index: best.index, at: best.p };
   }
 
+  let hovering = null, hoverFrame = null;
   function tap(e) {
     if (!app.spine) return;
     if (placing) { place(e); return; }
@@ -648,9 +711,15 @@ export function setupBuilder(app) {
       if (easy.picking()) { easy.tap(e); return; }
       // a click on a part selects it (with Shift, or "select several", along with the others). A click on bone picks that vertebra.
       const what = hitThing(e, false), hit = what ? null : hitLevel(e);
+      // with the rod tool in hand, a click on a screw or a hook starts or ends a rod there, and a click on a rod ends it there
+      if (easy.rodTap(what)) return;
+      // a click on one of the soft marks puts the part of the tool in hand there (a rod that runs behind a mark does not get in the way)
+      if ((!what || what.kind === 'rods') && easy.putOnModel(null, e)) { app.pick(null); app.settle(); return; }
       if (what) { pickPart(what, app.level !== 'easy' && (e.shiftKey || $('multiOn').checked)); return; }
+      // the clicked vertebra and its block on the map light up together, so it is clear which block is which bone
+      if (hit) app.flash(hit.level.id, true);
       // at the Easy level a click on bone puts the part of the current step there
-      if (app.level === 'easy') { app.pick(null); if (hit && easy.putOnModel(hit)) app.settle(); return; }
+      if (app.level === 'easy') { app.pick(null); if (hit && easy.putOnModel(hit, e)) app.settle(); return; }
       app.pick(hit ? { kind: 'level', id: hit.level.id } : null);
       const row = hit && full() && $('sheetFold').open && document.querySelector('#sheet tr[data-level="' + hit.level.id + '"]');
       if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -660,8 +729,11 @@ export function setupBuilder(app) {
     if (tab !== 'shape') return;
     const hit = hitLevel(e), id = hit && hit.level.id, list = ids(), p = app.picked || {};
     if (chart.picking()) { if (id) chart.tapLock(id); return; }
-    // while the curve is shaped in broad strokes, a click on a vertebra opens the fine work on it
-    if (mode === 'draw' || mode === 'blocks') { if (id && app.level !== 'easy' && !chart.lineOn()) { mode = 'one'; app.pick({ kind: 'level', id }); } return; }
+    // the clicked vertebra and its block on the chart light up together, so it is clear which block is which bone
+    if (id) app.flash(id, true);
+    if (mode === 'blocks') return;
+    // while the curve is drawn, a click on a vertebra opens the fine work on it
+    if (mode === 'draw') { if (id && app.level !== 'easy' && !chart.lineOn()) { mode = 'one'; app.pick({ kind: 'level', id }); } return; }
     if (!id) { app.pick(null); return; }
     if (mode === 'one' && e.shiftKey && p.kind === 'level' && p.id !== id) { mode = 'stretch'; app.pick({ kind: 'stretch', top: list.indexOf(p.id) < list.indexOf(id) ? p.id : id, bottom: list.indexOf(p.id) < list.indexOf(id) ? id : p.id }); return; }
     if (mode === 'one') { app.pick({ kind: 'level', id }); return; }
@@ -683,8 +755,10 @@ export function setupBuilder(app) {
       if (grabbed) { drag = { name: grabbed.handle.name, ring: grabbed.handle.kind === 'ring', grab: grabbed.grab, dx: 0, dy: 0, moved: false }; app.redraw(); return true; }
       if (tab === 'parts') {
         // a press on a screw or a hook grabs it, a press on a rod grabs the rod there (bending is for Standard and up)
-        const what = hitThing(e, false), ray = renderer.ray(e.clientX, e.clientY);
-        if (easy.picking() || e.shiftKey || (app.level !== 'easy' && $('multiOn').checked)) return false;
+        const what = hitThing(e, false), ray = renderer.ray(e.clientX, e.clientY), sel = chosen();
+        // (while several parts are being selected a press does not grab, so the model can be turned. But a press on one of several selected parts grabs them all.)
+        const inGroup = what && sel.length > 1 && sel.some((c) => c.kind === what.kind && c.index === what.index);
+        if (easy.picking() || ((e.shiftKey || (app.level !== 'easy' && $('multiOn').checked)) && !inGroup)) return false;
         if (what && (what.kind === 'screws' || what.kind === 'hooks')) {
           // (the part keeps its place under the pointer: the spot where it meets the bone stays as far from the pointer as it was at the press)
           const part = hw()[what.kind][what.index], foot = renderer.project(part.entry || part.at);
@@ -743,6 +817,10 @@ export function setupBuilder(app) {
     hover(e) {
       const h = handles(), over = h && gizmoHit(h.spec, renderer, e.clientX, e.clientY), name = over ? over.handle.name : null;
       if (name !== hot) { hot = name; $('view').style.cursor = name ? 'grab' : ''; app.redraw(); }
+      // while the map or the chart of blocks is open, the block of the bone under the pointer is marked there
+      if (!app.spine || e.pointerType === 'touch' || !(tab === 'parts' || (tab === 'shape' && mode === 'blocks'))) { app.peek(null); return; }
+      hovering = e;
+      if (!hoverFrame) hoverFrame = requestAnimationFrame(() => { hoverFrame = null; const hit = hitLevel(hovering); app.peek(hit ? hit.level.id : null); });
     },
   });
 
@@ -751,10 +829,11 @@ export function setupBuilder(app) {
     pressed('[data-mode]', 'mode', mode);
     $('drawBox').hidden = mode !== 'draw'; $('blocksBox').hidden = mode !== 'blocks'; $('oneBox').hidden = mode !== 'one'; $('stretchBox').hidden = mode !== 'stretch';
     $('lockBox').hidden = mode !== 'draw' && mode !== 'blocks';
-    oneBox(); stretchBox(); fusedBox(); sheet(); pieceBox(); markBox(); easy.sync(); chart.sync(); hint();
+    $('fieldBar').hidden = tab !== 'parts';             // the box of hardware controls floats over the model while that tab is open
+    oneBox(); stretchBox(); fusedBox(); sheet(); pieceBox(); markBox(); easy.sync(); chart.sync(); hint(); guideNav();
   }
 
-  const easy = setupEasy(app, { $, each, pressed, options, ids, levelOf, hitLevel, hint, chosen, pickPart, held: () => chart.held(), stopLine: () => { chart.stopLine(); chart.stopPicking(); }, lineOn: () => chart.lineOn() });
+  const easy = setupEasy(app, { $, each, pressed, options, ids, levelOf, hitLevel, hint, chosen, pickPart, stepped: () => guideNav(), held: () => chart.held(), stopLine: () => { chart.stopLine(); chart.stopPicking(); }, lineOn: () => chart.lineOn() });
   const chart = setupChart(app, { $, each, pressed, options, ids, levelOf, hint, stopOthers: () => easy.stopDrawing(), drawing: () => easy.draw.on() });
   $('presetBtn').addEventListener('click', () => $('galleryBtn').click());
   setLevel(app.level);
@@ -763,11 +842,21 @@ export function setupBuilder(app) {
     sync, handles,
     // a new spine was opened, or Undo went back: drop whatever was being placed
     setLevel,
+    // the soft marks on the model that show where the tool in hand can be used (only while the Hardware tab is open)
+    hints: () => (tab === 'parts' && !placing && !marking ? easy.hints() : null),
+    // a spine was opened: the steps of the Easy level start over for it
+    opened() { easy.opened(); },
+    // the layout was changed (the phone and tablet one, or the desktop one): move what has another place in it, and use the tools that go with it
+    layout() { setMore(false); setLevel(app.level); showTab(tab); if (app.spine) sync(); },
+    // open a step or a tab by its name
+    go(name) { showTab(name); if (app.spine) sync(); },
     reset() { easy.stopDrawing(); easy.stopPicking(); chart.stopLine(); chart.stopPicking(); placing = marking = null; hot = null; pressed('[data-part]', 'part', null); pressed('[data-mark]', 'mark', null); $('stage').classList.remove('placing'); },
     // select a stretch and open the Shape tab on it (the list of curves does this)
     // the vertebra under a point of the page, if there is one (the checks in a browser use this)
     levelAt(clientX, clientY) { const hit = hitLevel({ clientX, clientY }); return hit ? hit.level.id : null; },
     // the kind of part under a point of the page ('screws', 'hooks', 'crosslinks', 'rods'), if there is one
+    // is one of the soft marks under a point of the page? (the checks in a browser use this)
+    markAt(clientX, clientY) { return easy.markAt({ clientX, clientY }); },
     thingAt(clientX, clientY) { const what = hitThing({ clientX, clientY }, false); return what ? what.kind : null; },
     workOn(top, bottom, which) { mode = 'stretch'; tool.stretch = 'bow'; plane = which; if (tab !== 'shape') showTab('shape'); app.pick({ kind: 'stretch', top, bottom }); },
   };

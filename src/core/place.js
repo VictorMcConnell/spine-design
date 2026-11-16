@@ -4,7 +4,7 @@
 
 import { vAdd, vSub, vScale, vUnit, vLen, vDist, vDot, toWorld } from './vec.js';
 import { sortedLevels, LEVEL_ORDER } from './spinefile.js';
-import { anatomyFor, levelFrame, screwEntryFor } from './bones.js';
+import { anatomyFor, levelFrame, screwEntryFor, boneSurface } from './bones.js';
 import { typicalScrew, screwLean, HARDWARE } from './hardware.js';
 import { toLocal } from './shape.js';
 
@@ -24,11 +24,32 @@ export function slot(level, side, faces = 'down') {
   const dir = [-sg * Math.sin(inward), -Math.cos(inward), 0], entry = found ? [sg * found.entry[0], found.entry[1], found.entry[2]] : [sg * (px + 1.5), cy + 3, zp];
   const size = typicalScrew(level.id), longest = (entry[1] + back - 3) / Math.cos(inward), length = Math.max(8, Math.min(size.length, longest));
   const out = (p) => toWorld(p, level.centre, frame).map(round1), along = (p, d, k) => [p[0] + d[0] * k, p[1] + d[1] * k, p[2] + d[2] * k];
-  const head = along(entry, dir, -9);
+  const head = along(entry, dir, -9), grip = out(laminaSpot(level, head, back, faces) || head);
   return {
     screw: { head: out(head), entry: out(entry), tip: out(along(entry, dir, length)), diameter: size.diameter },
-    hook: { at: out(head), ...bladeFrom(level, out(head), sg, faces), kind: 'lamina', faces },
+    hook: { at: grip, ...bladeFrom(level, grip, sg, faces), kind: 'lamina', faces },
   };
+}
+
+// Where the head of a hook sits, in the axes of the vertebra: over the lamina, the plate of
+// bone behind the canal, and no further out than HOOK_OUT from the middle. In the lower back
+// the screws go in far out to the side, where there is no lamina for a hook to hold on to.
+// The spot is looked for on the real bone near the height of the screw: the nearest height
+// where there is bone under the head and under the whole foot. Null when it cannot be found
+// (the drawn bones): the hook then sits where a screw head would.
+const HOOK_OUT = 13, HOOK_UP = 8.6;
+function laminaSpot(level, head, back, faces) {
+  const x = Math.sign(head[0]) * Math.min(Math.abs(head[0]), HOOK_OUT), k = faces === 'up' ? 1 : -1;
+  // (bone well behind the body: the lamina, not the back of the body seen through the canal)
+  const bone = (z) => { const y = boneSurface(level.id, level.size, x, z); return y !== null && y > back + 7 ? y : null; };
+  let fair = null;
+  for (const step of [0, 2, -2, 4, -4, 6, -6, 8, -8, -10, -12]) {
+    const z = head[2] + step, here = bone(z), heel = bone(z + 3.5 * k), toe = bone(z + 11 * k);
+    if (here === null) continue;
+    if (heel !== null && toe !== null && Math.abs(heel - here) < 4 && Math.abs(toe - here) < 6) return [x, here + HOOK_UP, z];
+    if (!fair && heel !== null) fair = [x, here + HOOK_UP, z];
+  }
+  return fair;
 }
 
 // The foot of a hook whose head is at a point. The hook stands straight on the bone: its
@@ -36,9 +57,11 @@ export function slot(level, side, faces = 'down') {
 // bone, down or up, to its toe ("tip"), which dips into the bone. The foot lies on the bone
 // where it can be seen, so the picture shows which way the hook grips.
 function bladeFrom(level, at, sg, faces) {
-  const frame = levelFrame(level), k = faces === 'up' ? 1 : -1;
+  const frame = levelFrame(level), k = faces === 'up' ? 1 : -1, here = toLocal(at, level.centre, frame);
+  // (where the real bone is under the foot, the heel rests on it and the toe dips into it. The foot never reaches further than a foot can.)
+  const onBone = (z, usual, into) => { const y = boneSurface(level.id, level.size, here[0], here[2] + z); return y === null ? usual : Math.max(usual - 5, Math.min(usual + 4, y - here[1] - into)); };
   const off = (x, y, z) => vAdd(at, vAdd(vScale(frame.left, x), vAdd(vScale(frame.back, y), vScale(frame.up, z)))).map(round1);
-  return { mid: off(0, -7, 3.5 * k), tip: off(0, -9, 11 * k) };
+  return { mid: off(0, onBone(3.5 * k, -7, -1.2), 3.5 * k), tip: off(0, onBone(11 * k, -9, 1.5), 11 * k) };
 }
 
 // Point the blade of a hook down or up, where the hook is.
@@ -105,11 +128,15 @@ function stationOf(levels, point) {
   return best ? best.station : 0;
 }
 
+// Where the rods of one side are cut, as places in the order of the vertebrae. hardware.splits
+// lists them: "T7" cuts the rods of both sides below T7, "T7:left" only the left one.
+const cutsFor = (hw, side) => (hw.splits || []).filter((x) => !x.includes(':') || x.endsWith(':' + side)).map((x) => LEVEL_ORDER.indexOf(x.split(':')[0]));
+
 // The screws and hooks of one side in the order a rod runs through them, cut into the runs
 // that each get a rod of their own (see hardware.splits).
 //   returns [[{ at, level, piece }]]
 function runsOf(spine, side) {
-  const hw = spine.hardware, levels = sortedLevels(spine), order = (id) => LEVEL_ORDER.indexOf(id), splits = (hw.splits || []).map(order);
+  const hw = spine.hardware, levels = sortedLevels(spine), order = (id) => LEVEL_ORDER.indexOf(id), splits = cutsFor(hw, side);
   const grips = [...hw.screws.filter((s) => s.side === side).map((s) => ({ at: s.head, level: s.level, piece: s })), ...hw.hooks.filter((h) => h.side === side).map((h) => ({ at: h.at, level: h.level, piece: h }))];
   for (const g of grips) g.station = stationOf(levels, g.at);
   grips.sort((p, q) => p.station - q.station);
@@ -215,7 +242,9 @@ export function fitRods(spine, all = false) {
   }
   hw.rods.sort((p, q) => (p.side === 'right' ? 0 : 1) - (q.side === 'right' ? 0 : 1));
   // cross-links that belong to a gap between two levels follow the rods, or go if a rod is gone
-  hw.crosslinks = hw.crosslinks.map((c) => (c.below ? linkUnder(spine, c.below) || null : c)).filter(Boolean);
+  // (a refitted cross-link keeps its own colour and stays frozen if it was)
+  const kept = (c) => ({ ...(c.color ? { color: c.color } : {}), ...(c.locked ? { locked: true } : {}) });
+  hw.crosslinks = hw.crosslinks.map((c) => { if (!c.below) return c; const link = linkUnder(spine, c.below); return link ? { ...link, ...kept(c) } : null; }).filter(Boolean);
 }
 
 // Bend a rod by hand: make it pass through a point between two of its screws or hooks.
@@ -266,8 +295,9 @@ function rodAtHeight(rod, z) {
 
 // A cross-link between the two rods at a height. Null when the rods do not both reach it.
 export function crosslinkAt(spine, z) {
-  const rods = (spine.hardware || {}).rods || [], right = rods.find((r) => r.side === 'right'), left = rods.find((r) => r.side === 'left');
-  const from = right && rodAtHeight(right, z), to = left && rodAtHeight(left, z);
+  // (a side can have several rods, one for each fusion: the one that passes this height is the one to hold on to)
+  const rods = (spine.hardware || {}).rods || [], reach = (side) => { for (const r of rods) { const p = r.side === side ? rodAtHeight(r, z) : null; if (p) return p; } return null; };
+  const from = reach('right'), to = reach('left');
   if (!from || !to) return null;
   const levels = sortedLevels(spine), near = levels.reduce((best, l) => (Math.abs(l.centre[2] - z) < Math.abs(best.centre[2] - z) ? l : best));
   return { level: near.id, from, to, source: 'typical' };
@@ -333,13 +363,33 @@ export function setCell(spine, id, side, kind, faces = 'down') {
   for (const key of ['rods', 'screws', 'hooks', 'crosslinks']) hw[key] = hw[key] || [];
   if (!level || (cellOf(spine, id, side) === kind && (kind !== 'hook' || hookFaces(spine, id, side) === faces))) return true;
   if ([...hw.screws, ...hw.hooks].some((p) => p.level === id && p.side === side && p.locked)) return false;
+  const before = hw.screws.length + hw.hooks.length;
   hw.screws = hw.screws.filter((p) => !(p.level === id && p.side === side));
   hw.hooks = hw.hooks.filter((p) => !(p.level === id && p.side === side));
-  const spot = slot(level, side, faces);
+  const spot = slot(level, side, faces), had = cellOf(spine, id, side) !== '' || hw.screws.length + hw.hooks.length < before;
   if (kind === 'screw') hw.screws.push({ level: id, side, rod: side, ...spot.screw, source: 'typical' });
   if (kind === 'hook') hw.hooks.push({ level: id, side, rod: side, ...spot.hook, source: 'typical' });
+  if (kind && !had) settleCuts(spine, id, side);
   fitRods(spine);
   return true;
+}
+
+// A part was put on a spot that had none. Which rod is it on?
+//   - where a rod already ran past the spot, it is on that rod
+//   - in a break between two rods, or beyond the last part of its side, it joins what is
+//     near and stays apart from what is far: "far" is FAR_APART vertebrae or more without a
+//     part in between. So a second group of screws further down the spine becomes a fusion
+//     of its own, with its own rods, and a screw added next to a rod makes that rod longer.
+export const FAR_APART = 3;
+function settleCuts(spine, id, side) {
+  const gaps = gapsOf(spine, side), above = gaps.find((g) => g.lower === id), below = gaps.find((g) => g.upper === id);
+  if (above && below) {
+    if (!above.cut && !below.cut) return;
+    setRodCut(spine, side, above.upper, id, above.bare >= FAR_APART); setRodCut(spine, side, id, below.lower, below.bare >= FAR_APART);
+  } else {
+    const g = above || below;
+    if (g && !g.cut && g.bare >= FAR_APART) setRodCut(spine, side, g.upper, g.lower, true);
+  }
 }
 
 // Put on one side of a vertebra what a plan asks for there ('screw', 'hook', 'hook-up' or '').
@@ -364,6 +414,12 @@ export function fitOut(spine, top, bottom, kind, links = 0) {
       putPlanned(spine, ids[i], side, kind === 'hooks' ? (i - lo >= 2 ? 'hook-up' : 'hook') : plan[ids[i]][side]);
     }
   }
+  // The stretch is a fusion of its own: where other parts sit further up or down, with a bare
+  // vertebra in between, its rods end. Where they sit right next to it, the two are joined.
+  for (const side of ['right', 'left']) for (const g of gapsOf(spine, side)) {
+    const a = ids.indexOf(g.upper), b = ids.indexOf(g.lower);
+    if (((a < lo && b >= lo) || (a <= hi && b > hi)) && g.cut !== g.bare >= 1) setRodCut(spine, side, g.upper, g.lower, g.bare >= 1);
+  }
   for (let i = lo; i < hi; i++) { setFusedBelow(spine, ids[i], true); setLinkBelow(spine, ids[i], false); }
   for (let k = 1; k <= links; k++) {
     // the gap nearest to an even share of the way down, moved on if a cross-link cannot sit there
@@ -382,6 +438,38 @@ export function placePiece(spine, piece, next, inLine = true) {
   Object.assign(piece, next);
   const now = strainAt(spine, piece);
   if (inLine && now && before && !((now.corner <= ROD_RULES.sharpest || now.corner <= before.corner + 0.01) && (now.gap >= ROD_RULES.closest || now.gap >= before.gap - 0.01))) { Object.assign(piece, old); return false; }
+  fitRods(spine);
+  return true;
+}
+
+// Move a group of screws and hooks up or down the spine together, by whole vertebrae: each
+// goes to the usual spot of the vertebra "by" places further down (up, if negative), on its
+// own side. Nothing moves unless every one of them has a free place to go to and none is
+// frozen. The cross-links that were put into a gap between two of the moved vertebrae go
+// along, and every break between two rods stays between the same two parts. True if they moved.
+export function shiftParts(spine, parts, by) {
+  const levels = sortedLevels(spine), ids = levels.map((l) => l.id), hw = spine.hardware, all = [...hw.screws, ...hw.hooks], moving = new Set(parts);
+  if (!by || !parts.length || parts.some((p) => p.locked || !all.includes(p))) return false;
+  const goal = (p) => levels[ids.indexOf(p.level) + by];
+  for (const p of parts) { const to = goal(p); if (ids.indexOf(p.level) < 0 || !to || to.id === 'C1' || all.some((q) => !moving.has(q) && q.level === to.id && q.side === p.side)) return false; }
+  // what to keep: the breaks between rods, as pairs of parts, and the cross-links that go along
+  const sides = ['left', 'right'], pieceAt = (id, side) => all.find((q) => q.level === id && q.side === side);
+  const breaks = sides.map((side) => gapsOf(spine, side).map((g) => [pieceAt(g.upper, side), pieceAt(g.lower, side), g.cut]));
+  const from = new Set(parts.map((p) => p.level)), links = hw.crosslinks.filter((c) => c.below && !c.locked && from.has(c.below) && from.has(ids[ids.indexOf(c.below) + 1]));
+  for (const p of parts) {
+    const to = goal(p), spot = slot(to, p.side, p.faces || 'down');
+    Object.assign(p, hw.screws.includes(p) ? { level: to.id, ...spot.screw, diameter: p.diameter } : { level: to.id, ...spot.hook });
+  }
+  for (const c of links) c.below = ids[ids.indexOf(c.below) + by];
+  // (breaks are written down by vertebra. Where the parts of a side are still in the same order, they are written again for where the parts are now.)
+  hw.splits = (hw.splits || []).flatMap((x) => (x.includes(':') ? [x] : [x + ':left', x + ':right']));
+  sides.forEach((side, k) => {
+    const now = gapsOf(spine, side);
+    if (now.length !== breaks[k].length || now.some((g, i) => pieceAt(g.upper, side) !== breaks[k][i][0] || pieceAt(g.lower, side) !== breaks[k][i][1])) return;
+    hw.splits = (hw.splits || []).filter((x) => !x.endsWith(':' + side));
+    now.forEach((g, i) => { if (breaks[k][i][2]) (hw.splits = hw.splits || []).push(g.upper + ':' + side); });
+  });
+  if (!hw.splits || !hw.splits.length) delete hw.splits;
   fitRods(spine);
   return true;
 }
@@ -418,29 +506,142 @@ export function setFusedBelow(spine, id, on) {
 function linkUnder(spine, id) {
   const levels = sortedLevels(spine), i = levels.findIndex((l) => l.id === id);
   if (i < 0 || i >= levels.length - 1) return null;
-  const hw = spine.hardware, heads = [...hw.screws, ...hw.hooks].filter((p) => p.level === id || p.level === levels[i + 1].id).map((p) => (p.head || p.at)[2]);
-  // halfway between the parts of the two levels if there are any, else between the two bodies
-  const z = heads.length > 1 ? (Math.max(...heads) + Math.min(...heads)) / 2 : (levels[i].centre[2] + levels[i + 1].centre[2]) / 2, link = crosslinkAt(spine, z);
-  return link && { ...link, level: id, below: id, auto: true };
+  const hw = spine.hardware, parts = [...hw.screws, ...hw.hooks], order = (p) => levels.findIndex((l) => l.id === p.level);
+  // on each side, the rod that runs across this gap: it holds a part at or above the upper vertebra and one at or below the lower
+  const across = (side) => hw.rods.find((r) => r.side === side && parts.some((p) => p.rod === r.id && order(p) >= 0 && order(p) <= i) && parts.some((p) => p.rod === r.id && order(p) > i));
+  const right = across('right'), left = across('left');
+  if (!right || !left) return null;
+  // halfway between the two vertebrae, at the height where their parts sit, or would sit
+  const zOf = (level, side) => { const p = parts.find((q) => q.level === level.id && q.side === side); return p ? (p.head || p.at)[2] : slot(level, side).screw.head[2]; };
+  const z = (zOf(levels[i], 'left') + zOf(levels[i], 'right') + zOf(levels[i + 1], 'left') + zOf(levels[i + 1], 'right')) / 4;
+  const from = rodAtHeight(right, z), to = rodAtHeight(left, z);
+  return from && to ? { level: id, from, to, source: 'typical', below: id, auto: true } : null;
 }
-export const linkBelow = (spine, id) => ((spine.hardware || {}).crosslinks || []).some((c) => c.below === id);
+// The gap a cross-link is in, as the id of the vertebra above that gap: the gap it was put
+// into, or, for one that was placed by hand or traced from a scan, the gap it is nearest to.
+// (Hardware sits behind the bodies, and where the spine leans that is higher or lower than
+// the bodies themselves. So the link is compared with the spots behind each pair of vertebrae.)
+export function linkGap(spine, link) {
+  if (link.below) return link.below;
+  const levels = sortedLevels(spine), mid = [0, 1, 2].map((k) => (link.from[k] + link.to[k]) / 2), behind = levels.map((l) => vAdd(l.centre, vScale(levelFrame(l).back, 38)));
+  let best = null, least = Infinity;
+  for (let i = 0; i < levels.length - 1; i++) { const d = vDist(mid, vScale(vAdd(behind[i], behind[i + 1]), 0.5)); if (d < least) { least = d; best = levels[i].id; } }
+  return best;
+}
+const linksBelow = (spine, id) => ((spine.hardware || {}).crosslinks || []).filter((c) => linkGap(spine, c) === id);
+export const linkBelow = (spine, id) => linksBelow(spine, id).length > 0;
 
-// Add or remove the cross-link in the gap below a vertebra. False if it cannot be added.
+// Add or remove the cross-link in the gap below a vertebra. False if it cannot be added, or
+// if the one that is there is frozen and cannot be taken off.
 export function setLinkBelow(spine, id, on) {
-  const hw = spine.hardware;
-  hw.crosslinks = hw.crosslinks.filter((c) => c.below !== id);
+  const hw = spine.hardware, there = linksBelow(spine, id);
+  if (there.some((c) => c.locked)) return !!on;
+  hw.crosslinks = hw.crosslinks.filter((c) => !there.includes(c));
   if (!on) return true;
   const link = linkUnder(spine, id);
   if (link) hw.crosslinks.push(link);
   return !!link;
 }
+// Could a cross-link sit in the gap below a vertebra? It needs a rod on both sides there.
+// (linkSpot gives the cross-link that would sit there, or null)
+export const linkSpot = (spine, id) => linkUnder(spine, id);
+export const linkFits = (spine, id) => !!linkUnder(spine, id);
 
 // Do the rods end below this vertebra? Setting it cuts each rod in two there.
-export const rodsEndBelow = (spine, id) => ((spine.hardware || {}).splits || []).includes(id);
+export const rodsEndBelow = (spine, id) => { const cuts = (spine.hardware || {}).splits || []; return cuts.includes(id) || (cuts.includes(id + ':left') && cuts.includes(id + ':right')); };
 export function setRodsEndBelow(spine, id, on) {
   const hw = spine.hardware;
-  hw.splits = (hw.splits || []).filter((x) => x !== id);
+  hw.splits = (hw.splits || []).filter((x) => x.split(':')[0] !== id);
   if (on) hw.splits.push(id);
   if (!hw.splits.length) delete hw.splits;
   fitRods(spine);
+}
+
+// The gaps of one side: every two parts that follow each other down the spine, and whether
+// the rod is cut between them.
+//   returns [{ upper, lower, bare, cut }]: the vertebrae of the two parts, how many
+//   vertebrae without a part lie between them, and whether the rod ends there
+export function gapsOf(spine, side) {
+  const hw = spine.hardware || {}, order = (id) => LEVEL_ORDER.indexOf(id), cuts = cutsFor(hw, side);
+  const at = [...new Set([...(hw.screws || []), ...(hw.hooks || [])].filter((p) => p.side === side).map((p) => p.level))].sort((p, q) => order(p) - order(q));
+  return at.slice(1).map((lower, i) => ({ upper: at[i], lower, bare: order(lower) - order(at[i]) - 1, cut: cuts.some((c) => c >= order(at[i]) && c < order(lower)) }));
+}
+// Cut the rod of one side between two parts that follow each other, or join it there again.
+export function setRodCut(spine, side, upper, lower, on) {
+  const hw = spine.hardware, order = (id) => LEVEL_ORDER.indexOf(id), other = side === 'left' ? 'right' : 'left', kept = [];
+  // every cut in this gap goes first. One that was for both sides stays for the other side.
+  for (const x of hw.splits || []) {
+    const [id, only] = x.split(':'), here = order(id) >= order(upper) && order(id) < order(lower);
+    if (!here || only === other) kept.push(x); else if (!only) kept.push(id + ':' + other);
+  }
+  if (on) kept.push(upper + ':' + side);
+  if (kept.length) hw.splits = kept; else delete hw.splits;
+  fitRods(spine);
+}
+// One rod from one part to another on the same side: the rod is joined all the way between
+// the two and cut just above and just below, so it is a rod of its own.
+export function drawRod(spine, side, from, to) {
+  const order = (id) => LEVEL_ORDER.indexOf(id), top = Math.min(order(from), order(to)), bottom = Math.max(order(from), order(to));
+  if (top === bottom) return false;
+  for (const g of gapsOf(spine, side)) {
+    const a = order(g.upper), b = order(g.lower), inside = a >= top && b <= bottom, edge = (b === top || a === bottom);
+    if (inside && g.cut) setRodCut(spine, side, g.upper, g.lower, false);
+    if (edge && !g.cut) setRodCut(spine, side, g.upper, g.lower, true);
+  }
+  return true;
+}
+// No rods at all: every part stands alone, until rods are drawn from part to part.
+export function cutAll(spine) {
+  const hw = spine.hardware;
+  delete hw.splits;
+  for (const side of ['left', 'right']) for (const g of gapsOf(spine, side)) (hw.splits = hw.splits || []).push(g.upper + ':' + side);
+  fitRods(spine);
+}
+// A rod down each side through all of its parts, the way most fusions are. Groups of parts
+// that are far apart get rods of their own (see splitAtGaps). Returns how many cuts that made.
+// (Rods that were traced from a scan are drawn again through their parts.)
+export function rodsThroughAll(spine) {
+  delete spine.hardware.splits; delete spine.hardware.norods;
+  fitRods(spine, true);
+  return splitAtGaps(spine);
+}
+// The rod of one side at a height, cut between the two parts around that height.
+// Returns the two vertebrae it was cut between, or null if no rod runs there.
+export function cutRodAt(spine, side, z) {
+  const at = (id) => { const p = [...spine.hardware.screws, ...spine.hardware.hooks].find((q) => q.side === side && q.level === id); return p ? (p.head || p.at)[2] : null; };
+  const g = gapsOf(spine, side).find((x) => !x.cut && at(x.upper) >= z && at(x.lower) <= z);
+  if (!g) return null;
+  setRodCut(spine, side, g.upper, g.lower, true);
+  return [g.upper, g.lower];
+}
+
+// Cut the rods wherever a side has "least" or more vertebrae in a row without a part: two
+// groups of parts that far apart are taken to be two fusions, each with rods of its own.
+// A cut is only made where both groups have two parts or more, so a rod held by one hook
+// at each end stays in one piece. Returns how many cuts were made.
+export function splitAtGaps(spine, least = FAR_APART) {
+  let made = 0;
+  for (const side of ['left', 'right']) {
+    const gaps = gapsOf(spine, side);
+    let above = 1;                                    // parts in the group that ends at this gap
+    gaps.forEach((g, i) => {
+      let below = 1;
+      for (let k = i + 1; k < gaps.length && !(gaps[k].cut || gaps[k].bare >= least); k++) below++;
+      if (g.cut) { above = 1; return; }
+      if (g.bare >= least && above >= 2 && below >= 2) { (spine.hardware.splits = spine.hardware.splits || []).push(g.upper + ':' + side); made++; above = 1; } else above++;
+    });
+  }
+  if (made) fitRods(spine);
+  return made;
+}
+// The sets of rods in words, for a line of text: "T4 to T7 and L1 to L4".
+export function rodSets(spine) {
+  const hw = spine.hardware || {}, order = (id) => LEVEL_ORDER.indexOf(id), seen = [];
+  for (const rod of hw.rods || []) {
+    const at = [...(hw.screws || []), ...(hw.hooks || [])].filter((p) => p.rod === rod.id).map((p) => order(p.level)).filter((i) => i >= 0);
+    if (at.length < 2) continue;
+    const span = [Math.min(...at), Math.max(...at)], same = seen.find((x) => x[0] <= span[1] && span[0] <= x[1]);
+    if (same) { same[0] = Math.min(same[0], span[0]); same[1] = Math.max(same[1], span[1]); } else seen.push(span);
+  }
+  return seen.sort((p, q) => p[0] - q[0]).map(([a, b]) => [LEVEL_ORDER[a], LEVEL_ORDER[b]]);
 }

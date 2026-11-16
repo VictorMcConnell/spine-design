@@ -3,7 +3,7 @@
  "name": "Example: scoliosis fusion, T4 to L2, rods to L4",
  "units": "mm",
  "frame": "x = patient left, y = back, z = up, origin at the centre of S1, standing",
- "about": "Made from the CT, MRI and X-rays of the person who started this project, shared by him as an example. Positions are his real ones. The bone shapes are drawn by the app.",
+ "about": "Made from the CT, MRI and X-rays of the person who started this project, shared by him as an example. Positions are his real ones. The bone shapes are general ones that the app sizes and places, not his own.",
  "levels": [
   {
    "id": "C7",

@@ -53,7 +53,10 @@ export function buildScene(spine, detail, extras = {}) {
   // (stiff vertebrae: the bone colour pulled toward a cool steel blue, so a fused block reads as one piece)
   const locked = extras.locked || [], dim = (c) => c.map((v) => v * 0.55 + 0.06);
   const stiff = extras.stiff || [], cool = (c) => c.map((v, k) => v * 0.5 + [0.5, 0.66, 0.86][k] * 0.5);
-  const boneColor = (id, i) => ((picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : locked.includes(id) ? dim(look.bone || COLORS.bone) : stiff.includes(id) ? cool(look.bone || COLORS.bone) : look.bone || COLORS.bone);
+  // (the vertebra whose block is under the pointer, or was just tapped, lights up part of the way to the pick colour)
+  // (the one under the pointer more softly, so that a locked or a stiff vertebra still shows as what it is)
+  const lit = (id, c) => (extras.lit === id ? mix(c, COLORS.picked, 0.55) : extras.pointed === id ? mix(c, COLORS.picked, 0.3) : c);
+  const boneColor = (id, i) => lit(id, (picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : locked.includes(id) ? dim(look.bone || COLORS.bone) : stiff.includes(id) ? cool(look.bone || COLORS.bone) : look.bone || COLORS.bone);
   // a vertebra is drawn once in its own axes and then placed, so bending the spine only moves it
   levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level), name: level.id }));
   for (let i = 0; i < levels.length - 1; i++) {
@@ -90,6 +93,12 @@ export function buildScene(spine, detail, extras = {}) {
     else if (mark.from && mark.to) add('marks', tube([mark.from, mark.to], () => [r, r], [1, 0, 0], 18), color, opacity * 0.8);
   });
   for (const p of extras.spots || []) add('spots', SPOT, COLORS.spot, 1, { matrix: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, p[0], p[1], p[2], 1]) });
+  // Soft marks that show where a click would put the part of the tool in hand:
+  //   dots:  [{ at, color, size, opacity }]   links: [{ from, to, color, opacity }] (a cross-link that could be there)
+  // They are see-through, are left out of saved pictures and are never printed.
+  const hints = extras.hints || {};
+  for (const d of hints.dots || []) { const k = d.size || 1; add('hints', SPOT, d.color, d.opacity || 0.4, { hint: true, matrix: new Float32Array([k, 0, 0, 0, 0, k, 0, 0, 0, 0, k, 0, d.at[0], d.at[1], d.at[2], 1]) }); }
+  for (const l of hints.links || []) add('hints', crosslinkMesh(l, rodDirectionNear(hw.rods, l.from), rodDirectionNear(hw.rods, l.to), backAt(l.from)), l.color, l.opacity || 0.4, { hint: true });
   return items;
 }
 

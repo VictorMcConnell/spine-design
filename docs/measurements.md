@@ -164,6 +164,16 @@ source and they say nothing about what a real rod can bear.
 A part that is dragged stops where one of these would be broken, and a bend stops the same
 way. The switch "Keep rods believable" in the Hardware tab turns the rules off.
 
+Two more numbers there are choices of the same kind, made so that a sketch comes out the way
+a person expects:
+
+- `FAR_APART`, 3 vertebrae. Parts on one side with three or more vertebrae without a part
+  between them are taken to belong to two fusions, each with a rod of its own. A rod can
+  still be drawn across by hand.
+- `HOOK_OUT`, 13 mm. The head of a hook sits no further than this from the middle of the
+  vertebra, so that it is over the lamina. The height and the depth of the spot are looked
+  up on the real bone shape, so the foot of the hook lies on the bone.
+
 ## Used as it came
 
 Body heights (except the wedge of L1 and L5), canal width and depth, pedicle heights, disc heights, the side curves

@@ -8,7 +8,7 @@
  {
   "file": "curve-chest-45.spine.json",
   "name": "One curve in the chest",
-  "about": "A single curve of 45° to the right from T5 to T12, with the bodies turned. The most common pattern in teenagers with scoliosis.",
+  "about": "One main curve of 45° to the right from T5 to T12, with the bodies turned. The gentler bends above and below it bring the head back over the pelvis. The most common pattern in teenagers with scoliosis.",
   "group": "Sideways curves"
  },
  {
@@ -20,7 +20,7 @@
  {
   "file": "curve-two-chest.spine.json",
   "name": "Two curves in the chest",
-  "about": "A short curve of 30° to the left high in the chest and a larger one of 50° to the right below it.",
+  "about": "A short, stiff curve of about 40° to the left high in the chest and a larger one of 55° to the right below it. The top of the chest leans, which is what lifts one shoulder.",
   "group": "Sideways curves"
  },
  {
@@ -38,7 +38,7 @@
  {
   "file": "curve-lower-back-35.spine.json",
   "name": "One curve in the lower back",
-  "about": "A single curve of 35° to the left from T11 to L4.",
+  "about": "One main curve of 35° to the left from T11 to L4, with gentler bends above and below it.",
   "group": "Sideways curves"
  },
  {
@@ -50,7 +50,7 @@
  {
   "file": "curve-long-c.spine.json",
   "name": "One long curve, a C shape",
-  "about": "A single long curve of 60° to the left that runs from the upper chest to the lower back.",
+  "about": "One long curve of 55° to the left that runs from the upper chest to the lower back, with a gentler bend under it that brings the spine back onto the pelvis.",
   "group": "Sideways curves"
  },
  {
@@ -92,7 +92,7 @@
  {
   "file": "fusion-t4-l2.spine.json",
   "name": "A real spine: scoliosis fusion, T4 to L2, rods to L4",
-  "about": "Made from the CT, MRI and X-rays of the person who started this project, shared by him as an example. Positions are his real ones. The bone shapes are drawn by the app.",
+  "about": "Made from the CT, MRI and X-rays of the person who started this project, shared by him as an example. Positions are his real ones. The bone shapes are general ones that the app sizes and places, not his own.",
   "group": "After surgery"
  }
 ]

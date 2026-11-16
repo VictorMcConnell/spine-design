@@ -17,7 +17,8 @@ changed on the way does not run.
 
 Two small settings, in the browser's storage for this site:
 
-- how you set the look (shading, background, colours),
+- how you set the look and the workspace (shading, background, colours, the level of control
+  and the layout),
 - whether you ticked "Do not show this again" on the opening note.
 
 Nothing about your spine is kept. A sketch exists only in the open page until you save it as
