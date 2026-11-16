@@ -11,13 +11,20 @@ export function readSpineFile(file) {
   });
 }
 
-// Offer the spine as a download.
-export function saveSpineFile(spine) {
-  const blob = new Blob([JSON.stringify(spine, null, 1) + '\n'], { type: 'application/json' }), url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = (spine.name || 'my-spine').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) + '.spine.json';
+// Offer something as a download: a Blob, under a file name.
+export function download(blob, name) {
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// A file name made from the name of a spine.
+export const fileNameFor = (spine) => (spine.name || 'my-spine').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'my-spine';
+
+// Offer the spine as a download.
+export function saveSpineFile(spine) {
+  download(new Blob([JSON.stringify(spine, null, 1) + '\n'], { type: 'application/json' }), fileNameFor(spine) + '.spine.json');
 }
 
 // The examples that ship with the app. In the single-file build they are stored inside the

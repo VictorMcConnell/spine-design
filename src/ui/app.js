@@ -7,8 +7,10 @@ import { buildScene, boundsOf } from '../view/scene.js';
 import { gizmoItems } from '../view/gizmo.js';
 import { validateSpine, sortedLevels } from '../core/spinefile.js';
 import { measureSpine } from '../core/measures.js';
-import { readSpineFile, saveSpineFile, loadExample, listExamples } from '../io/files.js';
-import { rigOf, carry } from '../core/shape.js';
+import { readSpineFile, saveSpineFile, loadExample, listExamples, download, fileNameFor } from '../io/files.js';
+import { packSpine, unpackSpine, linkFor, packedIn } from '../io/share.js';
+import { stlOf } from '../io/print.js';
+import { rigOf, carry, stiffen, blockOf } from '../core/shape.js';
 import { setBoneStyle } from '../core/bones.js';
 import { SHAPE_CREDIT } from '../shapes/bodyparts3d.js';
 import { setupBuilder } from './build.js';
@@ -32,13 +34,16 @@ try { look = { ...USUAL, ...JSON.parse(localStorage.getItem('spineBuilderLook') 
 // what is selected, "spots" the dots shown while a part is being placed.
 const app = {
   $, renderer, DETAIL, rig: null, picked: null, spots: [],
+  stiff: true,                         // fused stretches move as blocks (the switch in the Shape tab)
   get spine() { return spine; },
   say(text) { $('status').textContent = text || ''; },
 
   // Draw the spine again after something changed.
   redraw() {
     if (!spine) return;
-    const items = buildScene(spine, DETAIL, { picked: app.picked, spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
+    // the vertebrae fused to the picked one are tinted too: they move with it
+    const block = app.picked && app.picked.kind === 'level' && app.rig ? blockOf(spine, app.rig, app.picked.id) : null;
+    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, spots: app.spots, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
     const handles = builder && builder.handles();
     renderer.setItems(handles ? items.concat(gizmoItems(handles.spec, handles.active)) : items);
     applyToggles();
@@ -61,6 +66,7 @@ const app = {
 
   // The change is finished: remember it for Undo and bring the panel up to date.
   settle() {
+    stiffen(spine, app.rig, app.stiff);            // the fused stretches may have changed
     const text = JSON.stringify(spine);
     if (text !== past[past.length - 1]) { past.push(text); if (past.length > 80) past.shift(); future = []; }
     syncHistory();
@@ -78,7 +84,7 @@ function restore(text) {
   spine = JSON.parse(text);
   // a picked vertebra or stretch stays picked; a picked part may no longer exist
   const p = app.picked, has = (id) => spine.levels.some((l) => l.id === id);
-  app.rig = rigOf(spine); app.picked = p && ((p.kind === 'level' && has(p.id)) || (p.kind === 'stretch' && has(p.top) && (!p.bottom || has(p.bottom)))) ? p : null; app.spots = [];
+  app.rig = rigOf(spine, app.stiff); app.picked = p && ((p.kind === 'level' && has(p.id)) || (p.kind === 'stretch' && has(p.top) && (!p.bottom || has(p.bottom)))) ? p : null; app.spots = [];
   if (builder) builder.reset();
   buildLabels(); app.redraw(); syncHistory();
   if (builder) builder.sync();
@@ -115,7 +121,7 @@ function show(next, problems) {
   app.say('Drawing the bones');
   // give the notice a moment to appear before the shapes are worked out
   setTimeout(() => {
-    app.rig = rigOf(spine); app.picked = null; app.spots = [];
+    app.rig = rigOf(spine, app.stiff); app.picked = null; app.spots = [];
     past = [JSON.stringify(spine)]; future = [];
     if (builder) builder.reset();
     buildLabels();
@@ -224,6 +230,98 @@ function openExample(file) {
   return loadExample(file).then((s) => show(JSON.parse(JSON.stringify(s)), validateSpine(s))).catch(() => app.say('That example could not be loaded. Use Open a file.'));
 }
 
+// ---- the note shown when the app opens
+
+// What this copy of the app is: filled in by the build (tools/build.mjs) from package.json
+// and site.json. When the app runs straight from the source files there is nothing to fill in.
+const BUILD = window.SPINE_BUILD || { version: '', source: '' };
+
+function welcome(asked) {
+  const box = $('welcome');
+  let seen = false;
+  try { seen = localStorage.getItem('spineBuilderWelcome') === 'seen'; } catch (e) { /* no storage here: the note shows every time */ }
+  $('welcomeSkip').checked = seen;
+  $('welcomeGo').textContent = asked ? 'Close' : 'Start building';
+  $('welcomeHost').hidden = !/^https?:$/.test(location.protocol);
+  const more = $('welcomeMore');
+  more.textContent = 'Free and open source under the MIT licence. Bone shapes: ' + SHAPE_CREDIT + '.' + (BUILD.version ? ' Version ' + BUILD.version + '.' : '');
+  if (BUILD.source) { const a = document.createElement('a'); a.href = BUILD.source; a.rel = 'noopener'; a.target = '_blank'; a.textContent = 'Source code and how it works'; more.append(' ', a, '.'); }
+  if ((asked || !seen) && !box.open) { if (box.showModal) box.showModal(); else box.setAttribute('open', ''); }
+}
+function welcomeDone() {
+  try { if ($('welcomeSkip').checked) localStorage.setItem('spineBuilderWelcome', 'seen'); else localStorage.removeItem('spineBuilderWelcome'); } catch (e) { /* not kept, that is all */ }
+  const box = $('welcome');
+  if (box.close) box.close(); else box.removeAttribute('open');
+}
+
+// ---- sharing: a link, a picture, a file for printing
+
+// Open the spine packed into the address of the page, if there is one. Returns true if the
+// address held a link, whether or not it could be read.
+function openLink() {
+  const packed = packedIn(location.hash);
+  if (!packed) return false;
+  unpackSpine(packed)
+    .then((s) => { const problems = validateSpine(s); if (problems.length) throw new Error(problems[0]); show(s, []); })
+    .catch(() => openExample(START).then(() => {
+      const li = document.createElement('li');
+      li.textContent = 'That link could not be read as a spine. It may have been cut short on the way.';
+      $('problems').textContent = ''; $('problems').appendChild(li); $('problemBox').hidden = false;
+    }));
+  // the address goes back to plain, so a later change to the sketch is not mistaken for the link
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* stays as it is */ }
+  return true;
+}
+
+function copyLink() {
+  if (!spine) return;
+  packSpine(spine).then((packed) => {
+    const link = linkFor(location.href, packed), box = $('linkText'), local = location.protocol === 'file:';
+    box.hidden = false; box.value = link; box.focus(); box.select();
+    const tail = (local ? ' This copy of the app was opened from a folder, so the link only works where the app sits in the same place. Put the app on the web to get links anyone can open.' : '') + (link.length > 6000 ? ' It is ' + link.length + ' characters long, which some sites cut short. A saved file is safer for this one.' : '');
+    const done = (ok) => { $('linkSay').textContent = (ok ? 'Copied.' : 'Copy it from the box above.') + tail; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(() => done(true), () => done(false)); else done(false);
+  });
+}
+
+// The view as a picture: the model, the level names and tags that are showing, and a line
+// that says what it is and where the bone shapes come from.
+function pictureOf() {
+  const gl = renderer.picture(), out = document.createElement('canvas'), k = gl.width / gl.clientWidth;
+  out.width = gl.width; out.height = gl.height;
+  const g = out.getContext('2d'), pale = $('stage').classList.contains('pale');
+  g.drawImage(gl, 0, 0);
+  g.textBaseline = 'middle'; g.textAlign = 'center';
+  const pill = (text, at, lift, size, bold) => {
+    const p = renderer.project(at);
+    if (!p) return;
+    g.font = (bold ? '650 ' : '') + size * k + 'px system-ui, sans-serif';
+    const w = g.measureText(text).width + 12 * k, h = (size + 6) * k, x = p[0] * k - w / 2, y = (p[1] - lift) * k - h / 2;
+    g.fillStyle = 'rgba(19, 20, 24, 0.8)'; g.beginPath(); g.roundRect(x, y, w, h, h / 2); g.fill();
+    g.fillStyle = '#eceae5'; g.fillText(text, p[0] * k, (p[1] - lift) * k + k * 0.5);
+  };
+  if (!$('labels').hidden) for (const l of labels) pill(l.el.textContent, l.at, 0, 11, true);
+  if (!$('tags').hidden) for (const t of tags) pill(t.el.textContent, t.at, t.lift, 12, false);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = 11 * k + 'px system-ui, sans-serif'; g.fillStyle = pale ? 'rgba(30, 31, 36, 0.75)' : 'rgba(236, 234, 229, 0.7)';
+  const lines = ['A sketch made with Spine Builder. Not a medical image.'].concat(look.simple ? [] : ['Bone shapes: ' + SHAPE_CREDIT]);
+  lines.forEach((text, i) => g.fillText(text, 10 * k, out.height - (10 + (lines.length - 1 - i) * 15) * k));
+  return out;
+}
+
+const PRINTED = ['vertebrae', 'discs', 'rods', 'screws', 'hooks', 'crosslinks'];
+function saveStl() {
+  if (!spine) return;
+  const scale = parseFloat($('stlScale').value) || 1, items = renderer.items().filter((it) => PRINTED.includes(it.group) && it.visible !== false);
+  if (!items.length) { $('stlSay').textContent = 'Nothing is shown, so there is nothing to print. Tick some parts under Show.'; return; }
+  const bytes = stlOf(items, scale, 'Spine Builder sketch. Bones: BodyParts3D (c) DBCLS, CC BY 4.0'), view = new DataView(bytes.buffer);
+  // how tall the print will be: the highest and the lowest corner in the file
+  let low = Infinity, high = -Infinity;
+  for (let at = 84; at < bytes.length; at += 50) for (const k of [20, 32, 44]) { const z = view.getFloat32(at + k, true); if (z < low) low = z; if (z > high) high = z; }
+  const tall = Math.round(high - low);
+  download(new Blob([bytes], { type: 'model/stl' }), fileNameFor(spine) + (scale === 1 ? '' : '-' + Math.round(scale * 100) + 'pct') + '.stl');
+  $('stlSay').textContent = 'Saved: about ' + tall + ' mm tall, ' + (bytes.length / 1e6).toFixed(1) + ' MB. Its parts are separate shapes that overlap, and slicers join them on their own. If you pass the file on, name BodyParts3D as the source of the bone shapes.';
+}
+
 // ---- the look
 
 function applyLook(save = true) {
@@ -253,6 +351,13 @@ if (!renderer) {
     $('openFile').value = '';
   });
   $('saveBtn').addEventListener('click', () => { if (spine) saveSpineFile(spine); });
+  $('welcomeGo').addEventListener('click', welcomeDone);
+  $('welcome').addEventListener('cancel', (e) => { e.preventDefault(); welcomeDone(); });      // Esc
+  $('aboutBtn').addEventListener('click', () => welcome(true));
+  $('linkBtn').addEventListener('click', copyLink);
+  $('pictureBtn').addEventListener('click', () => { if (spine) pictureOf().toBlob((blob) => download(blob, fileNameFor(spine) + '.png'), 'image/png'); });
+  $('stlBtn').addEventListener('click', saveStl);
+  window.addEventListener('hashchange', openLink);
   $('newBtn').addEventListener('click', () => openExample(START));
   $('galleryBtn').addEventListener('click', openGallery);
   $('galleryClose').addEventListener('click', () => $('gallery').close());
@@ -273,8 +378,15 @@ if (!renderer) {
   const closeMenus = (but) => document.querySelectorAll('[data-menu]').forEach((b) => { if (b !== but) { b.setAttribute('aria-expanded', 'false'); $(b.dataset.menu).hidden = true; } });
   document.querySelectorAll('[data-menu]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation(); closeMenus(b);
-    const open = $(b.dataset.menu).hidden;
-    $(b.dataset.menu).hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const menu = $(b.dataset.menu), open = menu.hidden;
+    menu.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      // the menu drops down under its button, kept inside the window
+      const at = b.getBoundingClientRect(), wide = menu.offsetWidth;
+      menu.style.right = 'auto'; menu.style.top = Math.round(at.bottom + 6) + 'px';
+      menu.style.left = Math.round(Math.max(8, Math.min(at.left, window.innerWidth - wide - 8))) + 'px';
+      if (menu.id === 'shareMenu') { $('linkText').hidden = true; $('linkSay').textContent = ''; }
+    }
   }));
   document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menu') && !e.target.closest('[data-menu]')) closeMenus(null); });
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenus(null); });
@@ -285,7 +397,8 @@ if (!renderer) {
     else if ((e.ctrlKey || e.metaKey) && key === 'y') { e.preventDefault(); redo(); }
   });
   applyLook(false);
-  openExample(START);
+  if (!openLink()) openExample(START);
+  welcome(false);
   // handy when trying things in the browser console
   window.spineBuilder = { renderer, app, builder, current: () => spine, show, openExample };
 }

@@ -1,5 +1,6 @@
 // Checks of the core code. Run with:  node tools/test.mjs
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
@@ -12,10 +13,13 @@ import { meshFromDistance } from '../src/core/solid.js';
 import { ANATOMY } from '../src/core/anatomy.js';
 import { LEVEL_ORDER } from '../src/core/spinefile.js';
 import { measureSpine } from '../src/core/measures.js';
-import { rigOf, restack, carry, readShape, applyShape, pullLevel, toLocal, frameOf, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, straighten } from '../src/core/shape.js';
+import { rigOf, restack, carry, readShape, applyShape, pullLevel, toLocal, frameOf, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, gapUnder, straighten, stiffen, blockOf } from '../src/core/shape.js';
 import { slot, planFor, buildHardware, fitRods, crosslinkAt, freeScrew, resizeScrew, screwLength, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow } from '../src/core/place.js';
 import { rayMesh } from '../src/core/pick.js';
 import { ball } from '../src/core/mesh.js';
+import { packSpine, unpackSpine, linkFor, packedIn } from '../src/io/share.js';
+import { stlOf } from '../src/io/print.js';
+import { buildScene } from '../src/view/scene.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const spine = JSON.parse(fs.readFileSync(path.join(root, 'examples', 'fusion-t4-l2.spine.json'), 'utf8'));
@@ -249,6 +253,74 @@ ok('one vertebra can be twisted, slid alone and lifted; everything sideways can 
   setBow(s, rig, 'T5', 'T12', 0, 30); straighten(s, rig);
   assert.ok(s.levels.every((l) => l.tilt[0] === 0 && l.turn === 0 && Math.abs(l.centre[0]) < 0.05));
 });
+ok('a fused stretch made stiff moves as one block and the bend goes into the free joints', () => {
+  const s = copy(average), at = (id) => s.levels.find((l) => l.id === id);
+  s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
+  setBow(s, rigOf(s), 'T5', 'T11', 0, 30);                    // the stretch has a curve of its own to keep
+  s.fused = [['T4', 'L2']];
+  buildHardware(s, planFor(s.levels.map((l) => l.id), 'T4', 'L2', 'screws'), 1);
+  const rig = rigOf(s, true);
+  assert.deepEqual([rig.blocks.length, rig.blocks[0].from, rig.blocks[0].to], [1, 10, 20]);
+  assert.deepEqual([blockOf(s, rig, 'T8').top, blockOf(s, rig, 'T8').bottom, blockOf(s, rig, 'T3'), blockOf(s, rigOf(s), 'T8')], ['T4', 'L2', null, null]);
+  // how T4 and T8 sit against L2, and how far two screws of the block are apart
+  const pose = () => {
+    const base = at('L2'), f = frameOf(base), out = [];
+    for (const id of ['T4', 'T8']) { const g = frameOf(at(id)); out.push(...toLocal(at(id).centre, base.centre, f), 100 * vDot(g.up, f.up), 100 * vDot(g.left, f.left), 100 * vDot(g.up, f.left)); }
+    const a = s.hardware.screws.find((x) => x.level === 'T5' && x.side === 'left').head, b = s.hardware.screws.find((x) => x.level === 'L1' && x.side === 'right').head;
+    return [...out, Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])];
+  };
+  const before = pose(), held = (what) => pose().forEach((v, i) => assert.ok(Math.abs(v - before[i]) < 0.35, what + ': the block changed shape (' + i + ': ' + before[i].toFixed(2) + ' to ' + v.toFixed(2) + ')'));
+  const far = () => [at('C3').centre[0], at('S1').centre[0], at('L5').tilt[0]];
+  // a bow across the block: the angle is reached, the block is as it was, the far ends stay
+  const f0 = far();
+  carry(s, () => setBow(s, rig, 'T2', 'L4', 0, 25));
+  assert.ok(Math.abs(bowOf(s, 'T2', 'L4', 0) - 25) < 0.3, 'the bow came out as ' + bowOf(s, 'T2', 'L4', 0));
+  held('bow across');
+  assert.ok(Math.abs(far()[0] - f0[0]) < 1.5 && far()[1] === f0[1], 'the far ends moved: ' + far());
+  // a bow inside the block does nothing, and neither does a twist or an offset there
+  const inside = [bowOf(s, 'T5', 'T11', 0), twistOf(s, 'T5', 'T11'), offsetOf(s, 'T5', 'T11', 0)];
+  carry(s, () => { setBow(s, rig, 'T5', 'T11', 0, 0); setTwist(s, rig, 'T5', 'T11', 20); setOffset(s, rig, 'T5', 'T11', 0, 30); });
+  assert.deepEqual([bowOf(s, 'T5', 'T11', 0), twistOf(s, 'T5', 'T11'), offsetOf(s, 'T5', 'T11', 0)], inside);
+  // pulling a vertebra of the block takes the block along
+  const x0 = at('T8').centre[0];
+  carry(s, () => pullLevel(s, rig, 'T8', 12, 0));
+  assert.ok(Math.abs(at('T8').centre[0] - x0) > 4, 'T8 moved ' + (at('T8').centre[0] - x0).toFixed(1));
+  held('pull');
+  // sliding it slides the block on the free joint below
+  const step = () => at('L2').centre[0] - at('L3').centre[0], st0 = step();
+  carry(s, () => moveAlone(s, rig, 'T8', 6, 0));
+  assert.ok(Math.abs(step() - st0 - 6) < 0.6, 'the block slid ' + (step() - st0).toFixed(1));
+  held('slide');
+  // turning one by hand turns them all
+  const t0 = at('L2').turn;
+  carry(s, () => { at('T8').turn += 12; restack(s, rig, 'T8'); });
+  assert.ok(Math.abs(at('L2').turn - t0) > 6, 'L2 turned ' + (at('L2').turn - t0).toFixed(1));
+  held('turn by hand');
+  // a twist and an offset across the block, and the space under a fused vertebra
+  carry(s, () => setTwist(s, rig, 'T1', 'L5', twistOf(s, 'T1', 'L5') + 8));
+  held('twist across');
+  carry(s, () => setOffset(s, rig, 'T2', 'L4', 0, 14));
+  assert.ok(Math.abs(offsetOf(s, 'T2', 'L4', 0) - 14) < 0.5, 'the offset came out as ' + offsetOf(s, 'T2', 'L4', 0));
+  held('offset across');
+  const gap = gapUnder(s, rig, 'T8');
+  liftLevel(s, rig, 'T8', 5); assert.equal(gapUnder(s, rig, 'T8'), gap);
+  const under = gapUnder(s, rig, 'L2');
+  liftLevel(s, rig, 'L2', 5); assert.ok(Math.abs(gapUnder(s, rig, 'L2') - under - 5) < 1e-9);
+  // taking out everything sideways leaves the block its shape
+  carry(s, () => straighten(s, rig));
+  held('straighten');
+  assert.ok(at('C3').tilt[0] === 0 && at('L4').tilt[0] === 0 && at('L2').tilt[0] === 0 && Math.abs(at('T8').tilt[0]) > 2);
+  // freed again, the stretch can be reshaped
+  stiffen(s, rig, false);
+  setBow(s, rig, 'T5', 'T11', 0, 0);
+  assert.ok(Math.abs(bowOf(s, 'T5', 'T11', 0)) < 0.3 && rig.blocks.length === 0);
+  // two separate blocks, and a stretch fused down to the bottom vertebra
+  const two = copy(average); two.fused = [['T2', 'T6'], ['L3', 'S1']];
+  const r2 = rigOf(two, true), l3 = two.levels.find((l) => l.id === 'L3'), was = [...l3.tilt];
+  assert.equal(r2.blocks.length, 2);
+  setBow(two, r2, 'T10', 'L4', 0, 18);
+  assert.ok(Math.abs(bowOf(two, 'T10', 'L4', 0) - 18) < 0.3 && l3.tilt[0] === was[0] && two.levels.find((l) => l.id === 'S1').tilt[0] === 0, 'bow ' + bowOf(two, 'T10', 'L4', 0) + ', L3 ' + l3.tilt);
+});
 ok('hardware stays on its vertebra when the spine is bent', () => {
   const s = copy(spine), rig = rigOf(s), shape = readShape(s), screw = s.hardware.screws[3], level = () => s.levels.find((l) => l.id === screw.level);
   const before = toLocal(screw.tip, level().centre, frameOf(level()));
@@ -309,8 +381,75 @@ ok('the sheet: cells, separate fusions, cross-links in gaps and rods that end pa
   assert.deepEqual([hw().rods.length, hw().screws.filter((p) => p.level === 'T6' && p.side === 'left').length], [2, 1]);
   assert.deepEqual(validateSpine(s), []);
 });
+// (the checks below wait for an answer, so they are run one after the other at the end)
+const later = [];
+later.push(['a spine goes into a link and comes out the same, and a damaged link is refused', async () => {
+  for (const name of ['average', 'fusion-rods-t4-l4', 'fusion-t4-l2']) {
+    const s = JSON.parse(fs.readFileSync(path.join(root, 'examples', name + '.spine.json'), 'utf8')), packed = await packSpine(s);
+    const link = linkFor('https://example.org/spine/index.html#spine=old', packed);
+    assert.ok(link.startsWith('https://example.org/spine/index.html#spine=z') && link.length < 5000, name + ' makes a link of ' + link.length + ' characters');
+    assert.deepEqual(await unpackSpine(packedIn(new URL(link).hash)), s);
+  }
+  assert.equal(packedIn('#other'), null); assert.equal(packedIn(''), null); assert.equal(packedIn('#spine=a b'), null);
+  const good = await packSpine(average);
+  for (const bad of ['z', 'zAAAA', 'j!!!', 'q' + good.slice(1), good.slice(0, 200)]) await assert.rejects(unpackSpine(bad), 'a damaged link opened: ' + bad.slice(0, 12));
+  // a link that would unpack to something huge is stopped
+  const huge = { schema: 1, levels: [], pad: 'x'.repeat(3e6) };
+  await assert.rejects(unpackSpine(await packSpine(huge)));
+}]);
+ok('the model is written as an STL file: every face, to scale, pointing outward', () => {
+  const read = (bytes) => {
+    const v = new DataView(bytes.buffer), n = v.getUint32(80, true), tris = [];
+    assert.equal(bytes.length, 84 + 50 * n);
+    for (let i = 0; i < n; i++) tris.push(Array.from({ length: 12 }, (x, j) => v.getFloat32(84 + 50 * i + 4 * j, true)));
+    return tris;
+  };
+  const volume = (tris) => tris.reduce((s, t) => s + (t[3] * (t[7] * t[11] - t[8] * t[10]) - t[4] * (t[6] * t[11] - t[8] * t[9]) + t[5] * (t[6] * t[10] - t[7] * t[9])) / 6, 0);
+  const round = ball([0, 0, 0], 10), inside = { positions: round.positions, indices: round.indices.map((x, i, all) => all[i - (i % 3) + [0, 2, 1][i % 3]]) };
+  const shift = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 100, 0, 0, 1]);
+  const bytes = stlOf([{ mesh: round }, { mesh: inside, matrix: shift }], 0.5, 'Spine Builder test'), tris = read(bytes);
+  assert.equal(new TextDecoder().decode(bytes.slice(0, 18)), 'Spine Builder test');
+  assert.ok(tris.length <= (2 * round.indices.length) / 3 && tris.length > (1.6 * round.indices.length) / 3 && tris.length % 2 === 0, tris.length + ' faces');
+  // two balls of 5 mm radius, the second one 50 mm along, both counted as solid (not as a hole)
+  assert.ok(volume(tris) > 950 && volume(tris) < 1050, 'volume ' + volume(tris).toFixed(0));
+  assert.ok(Math.abs(Math.max(...tris.map((t) => Math.max(t[3], t[6], t[9]))) - 55) < 0.2 && tris.every((t) => Math.abs(Math.hypot(t[0], t[1], t[2]) - 1) < 1e-3));
+  // the whole example: every shape the scene draws, with the vertebrae placed by their matrices
+  const whole = JSON.parse(fs.readFileSync(path.join(root, 'examples', 'fusion-t4-l2.spine.json'), 'utf8'));
+  const parts = buildScene(whole, 1.8, {}).filter((it) => ['vertebrae', 'discs', 'rods', 'screws', 'hooks', 'crosslinks'].includes(it.group));
+  const all = read(stlOf(parts, 1)), zs = all.flatMap((t) => [t[5], t[8], t[11]]), low = zs.reduce((a, b) => Math.min(a, b)), high = zs.reduce((a, b) => Math.max(a, b));
+  assert.ok(all.length > 60000 && high - low > 450 && high - low < 700 && volume(all) > 300000, all.length + ' faces, ' + (high - low).toFixed(0) + ' mm tall, ' + (volume(all) / 1000).toFixed(0) + ' cm3');
+});
+ok('the website at the top of the repository: the page allows its own scripts and nothing else, and its small files are there', () => {
+  const top = root, page = fs.readFileSync(path.join(top, 'index.html'), 'utf8'), headers = fs.readFileSync(path.join(top, '_headers'), 'utf8');
+  const policy = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/.exec(page);
+  assert.ok(policy, 'index.html carries no rule. Run node tools/build.mjs');
+  const rule = policy[1].replace(/&amp;/g, '&');
+  // every script in the page is named in the rule by its fingerprint, in the page and in the headers file
+  const scripts = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  assert.equal(scripts.length, 2);
+  assert.ok(!/<script[^>]+src=/.test(page) && page.indexOf(policy[0]) < page.indexOf('<script>'), 'a script is loaded from a file, or stands before the rule');
+  for (const text of scripts) {
+    const print = "'sha256-" + crypto.createHash('sha256').update(text, 'utf8').digest('base64') + "'";
+    assert.ok(rule.includes(print) && headers.includes(print), 'index.html is out of date: a script does not match its fingerprint. Run node tools/build.mjs');
+  }
+  for (const part of ["default-src 'none'", "connect-src 'none'", "form-action 'none'", "base-uri 'none'"]) assert.ok(rule.includes(part) && headers.includes(part), 'the rule lacks ' + part);
+  assert.ok(!/unsafe-eval|script-src[^;]*unsafe-inline|script-src[^;]*https?:/.test(rule));
+  assert.ok(headers.includes("frame-ancestors 'none'") && headers.includes('X-Content-Type-Options: nosniff') && headers.includes('Referrer-Policy: no-referrer') && !headers.includes('{{'));
+  // nothing is loaded from another site, and nothing in the code calls out
+  // (a link that only names the site's own address, for search engines, loads nothing)
+  assert.deepEqual([...page.matchAll(/<(?:script|link|img|iframe|source|video|audio|object|embed)\b[^>]*\b(?:src|href)="(https?:[^"]+)"/g)].filter((m) => !/^<link rel="canonical"/.test(m[0])).map((m) => m[1]), []);
+  assert.ok(!/XMLHttpRequest|WebSocket|sendBeacon|EventSource|importScripts|document\.cookie/.test(scripts[1]), 'the app code names something that talks to a server or sets a cookie');
+  assert.equal((scripts[1].match(/\bfetch\(/g) || []).length, 2, 'only the two fallbacks for running from the source files may call fetch');
+  // the opening note and the files a host needs
+  for (const words of ['not a medical device', 'no accounts and no tracking', 'Do not show this again on this device']) assert.ok(page.includes(words), 'the opening note lacks: ' + words);
+  assert.ok(fs.readFileSync(path.join(top, '404.html'), 'utf8').includes('There is no page here') && fs.readFileSync(path.join(top, 'robots.txt'), 'utf8').includes('Disallow: /src/') && fs.existsSync(path.join(top, 'picture.png')));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version, /"version":"([^"]+)"/.exec(scripts[0])[1]);
+  // a host that serves the top of the repository must find no folder it would treat as code to run
+  assert.ok(!fs.existsSync(path.join(root, 'functions')) && !fs.existsSync(path.join(root, '_worker.js')) && page.startsWith('<!doctype html>\n<!-- Built by tools/build.mjs'));
+});
 ok('a ray finds the front of a ball', () => {
   const t = rayMesh([0, -100, 0], [0, 1, 0], ball([0, 0, 0], 10));
   assert.ok(Math.abs(t - 90) < 0.3 && rayMesh([30, -100, 0], [0, 1, 0], ball([0, 0, 0], 10)) === null, 'hit at ' + t);
 });
+for (const [name, fn] of later) { await fn(); checks++; console.log('ok   ' + name); }
 console.log(checks + ' checks passed');

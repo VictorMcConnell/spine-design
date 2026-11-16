@@ -178,7 +178,7 @@ export function createRenderer(canvas) {
 
   // The second pass needs two pictures to draw into: the depth of the scene and the shading
   // worked out from it. If this device cannot provide them, the second pass is left out.
-  let shading = SHADINGS.soft, second = null, secondFails = false;
+  let shading = SHADINGS.soft, second = null, secondFails = false, bare = false;
   function secondPass(w, h) {
     if (secondFails) return null;
     if (second && second.w === w && second.h === h) return second;
@@ -302,7 +302,7 @@ export function createRenderer(canvas) {
     // at a point of the world, scaled by how many millimetres a pixel covers there.
     gl.depthMask(true); gl.disable(gl.BLEND); gl.disable(gl.DEPTH_TEST); gl.uniform1i(loc.uMode, 4); gl.uniform1i(loc.uKind, 3);
     for (const it of shown) {
-      if (!it.overlay) continue;
+      if (!it.overlay || bare) continue;
       let m = it.matrix || IDENTITY;
       if (it.pinned) {
         const k = screenScale(it.pinned.at).perPixel * it.pinned.px, [x, y, z] = it.pinned.basis, at = it.pinned.at;
@@ -397,5 +397,8 @@ export function createRenderer(canvas) {
     camera.around = around; camera.tilt = tilt; requestDraw();
   }
 
-  return { canvas, camera, setItems, requestDraw, project, frame, look, ray, screenScale, eye: () => eyeAxes().eye, items: () => items, afterDraw: (fn) => { onDraw = fn; }, setTool: (t) => { tool = t; }, setBackground: (rgb) => { back = rgb; requestDraw(); }, setShading: (name) => { shading = SHADINGS[name] || SHADINGS.soft; requestDraw(); }, secondPassOn: () => !!second };
+  return { canvas, camera, setItems, requestDraw, project, frame, look, ray, screenScale, eye: () => eyeAxes().eye, items: () => items, afterDraw: (fn) => { onDraw = fn; }, setTool: (t) => { tool = t; }, setBackground: (rgb) => { back = rgb; requestDraw(); }, setShading: (name) => { shading = SHADINGS[name] || SHADINGS.soft; requestDraw(); }, secondPassOn: () => !!second,
+    // draw now, without the handles, and hand back the canvas: right after this call the
+    // picture can be copied off it
+    picture: () => { bare = true; draw(); bare = false; requestDraw(); return canvas; } };
 }

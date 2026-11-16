@@ -1,0 +1,7 @@
+# The app is the page at the top of the site. The folders below hold its source and
+# documents, which belong to the repository and not to search results.
+User-agent: *
+Disallow: /src/
+Disallow: /tools/
+Disallow: /docs/
+Disallow: /examples/

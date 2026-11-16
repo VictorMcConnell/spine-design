@@ -111,7 +111,8 @@ function headAxes(away, along) {
 function headMesh(at, away, along, rodDiameter) {
   const { x, y, z } = headAxes(away, along), shape = headShape(rodDiameter), p = shape.positions, positions = new Array(p.length);
   for (let i = 0; i < p.length; i += 3) for (let j = 0; j < 3; j++) positions[i + j] = at[j] + x[j] * p[i] + y[j] * p[i + 1] + z[j] * p[i + 2];
-  return { positions, indices: shape.indices };
+  // (its own copy of the faces: the caller may add more shapes to this mesh)
+  return { positions, indices: shape.indices.slice() };
 }
 // The same head as a shape that is drawn once and then placed: { mesh, matrix }. The screen
 // uses this, so moving a screw does not mean working out its head again.

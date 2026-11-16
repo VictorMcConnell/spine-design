@@ -4,9 +4,12 @@
 // A spine file stores where every vertebra is. To bend the spine without stretching it, the
 // app treats it as a chain: every vertebra sits on the one below at a fixed distance, and only
 // the angles change. The lowest vertebra stays where it is.
+//
+// A fused stretch can be made stiff: its vertebrae then keep their places against each other
+// and move as one block, and every bend goes into the joints that are still free.
 
-import { frameFromTilt, toWorld, vAdd, vSub, vScale, vDot, vUnit, vDist } from './vec.js';
-import { sortedLevels } from './spinefile.js';
+import { frameFromTilt, tiltFromFrame, toWorld, vAdd, vSub, vScale, vDot, vUnit, vDist } from './vec.js';
+import { sortedLevels, LEVEL_ORDER } from './spinefile.js';
 import { measureSpine } from './measures.js';
 import { ALIGNMENT, ANATOMY } from './anatomy.js';
 
@@ -25,7 +28,8 @@ export function toLocal(point, centre, frame) {
 
 // How each vertebra sits on the one below: the gap between the two bodies, and any sideways
 // step between them. Worked out once from a spine, then kept while the angles change.
-export function rigOf(spine) {
+//   stiff: true to make the fused stretches of the spine move as blocks (see stiffen)
+export function rigOf(spine, stiff = false) {
   const levels = sortedLevels(spine), joints = [];
   for (let i = levels.length - 2; i >= 0; i--) {
     const lower = levels[i + 1], upper = levels[i], fl = frameOf(lower), fu = frameOf(upper);
@@ -34,12 +38,71 @@ export function rigOf(spine) {
     const rest = vSub(d, vAdd(vScale(fl.up, hl + gap / 2), vScale(fu.up, gap / 2 + hu)));
     joints[i] = { gap, step: [vDot(rest, fl.left), vDot(rest, fl.back), vDot(rest, fl.up)] };
   }
-  return { joints };
+  return stiffen(spine, { joints, blocks: [] }, stiff);
 }
 
-// Put every vertebra back on the one below it, from the bottom up.
-export function restack(spine, rig) {
+// ---- fused stretches as stiff blocks
+
+// Make the fused stretches of a spine stiff, as they are now, or free them again (on = false).
+// The chain remembers how the vertebrae of each stretch face each other. From then on every
+// change keeps that: see restack. Call it again when the list of fused stretches changes.
+//   rig.blocks = [{ from, to, frames }]: the first and last level of a block, counted from
+//   the top of the spine, and the axes of each of its levels at this moment
+export function stiffen(spine, rig, on = true) {
+  const levels = sortedLevels(spine), o = (id) => LEVEL_ORDER.indexOf(id);
+  const fused = (i) => on && i < levels.length - 1 && (spine.fused || []).some(([top, bottom]) => o(top) <= o(levels[i].id) && o(levels[i + 1].id) <= o(bottom));
+  rig.blocks = [];
+  for (let i = 0; i < levels.length - 1; i++) {
+    if (!fused(i)) continue;
+    let end = i;
+    while (fused(end + 1)) end++;
+    rig.blocks.push({ from: i, to: end + 1, frames: levels.slice(i, end + 2).map(frameOf) });
+    i = end;
+  }
+  return rig;
+}
+
+// The stiff block a vertebra belongs to, as the names of its top and bottom vertebra, or null.
+export function blockOf(spine, rig, id) {
+  const levels = sortedLevels(spine), k = levels.findIndex((l) => l.id === id), b = (rig.blocks || []).find((x) => k >= x.from && k <= x.to);
+  return b ? { top: levels[b.from].id, bottom: levels[b.to].id, ids: levels.slice(b.from, b.to + 1).map((l) => l.id) } : null;
+}
+
+// Which joints cannot bend. Joint i sits between level i and level i + 1, from the top down.
+const lockedJoints = (rig, n) => {
+  const out = new Array(Math.max(n - 1, 0)).fill(false);
+  for (const b of rig.blocks || []) for (let i = b.from; i < b.to; i++) out[i] = true;
+  return out;
+};
+// For every level, how many joints that can bend lie above it. Two levels with the same
+// count are fused to each other.
+const freeAbove = (rig, n) => {
+  const locked = lockedJoints(rig, n), out = [0];
+  for (let i = 0; i < n - 1; i++) out.push(out[i] + (locked[i] ? 0 : 1));
+  return out;
+};
+
+// Turn the vertebrae of every block the way one of them has turned: the one that was changed
+// by hand ("lead") if it is in the block, the bottom one otherwise.
+function holdBlocks(levels, rig, lead) {
+  for (const b of rig.blocks) {
+    const k = lead >= b.from && lead <= b.to ? lead : b.to, now = frameOf(levels[k]), was = b.frames[k - b.from];
+    const carried = (v) => vAdd(vAdd(vScale(now.left, vDot(was.left, v)), vScale(now.back, vDot(was.back, v))), vScale(now.up, vDot(was.up, v)));
+    for (let i = b.from; i <= b.to; i++) {
+      if (i === k) continue;
+      const old = b.frames[i - b.from], t = tiltFromFrame({ left: carried(old.left), back: carried(old.back), up: carried(old.up) });
+      levels[i].tilt = [Math.round(t.tilt[0] * 100) / 100, Math.round(t.tilt[1] * 100) / 100]; levels[i].turn = Math.round(t.turn * 100) / 100;
+    }
+  }
+}
+
+// Put every vertebra back on the one below it, from the bottom up. Stiff blocks are set
+// straight first.
+//   lead: the name of a vertebra whose angles were just changed by hand. If it is part of a
+//         stiff block, the block follows it.
+export function restack(spine, rig, lead) {
   const levels = sortedLevels(spine);
+  if (rig.blocks && rig.blocks.length) holdBlocks(levels, rig, lead === undefined ? -1 : levels.findIndex((l) => l.id === lead));
   for (let i = levels.length - 2; i >= 0; i--) {
     const lower = levels[i + 1], upper = levels[i], fl = frameOf(lower), fu = frameOf(upper), j = rig.joints[i] || { gap: 4, step: [0, 0, 0] };
     const along = vAdd(vScale(fl.up, lower.size[2] / 2 + j.gap / 2), vScale(fu.up, j.gap / 2 + upper.size[2] / 2));
@@ -198,18 +261,18 @@ const tidy = (levels) => { for (const l of levels) { l.tilt = [round2(l.tilt[0])
 
 // Pull one vertebra sideways (toLeft) and backward (toBack), in millimetres. Its neighbours
 // follow less and less the further away they are, and the spine above settles back to where
-// it was.
+// it was. A stiff block counts as one vertebra: it goes along whole.
 export function pullLevel(spine, rig, id, toLeft, toBack) {
   const levels = sortedLevels(spine), k = levels.findIndex((l) => l.id === id), n = levels.length;
   if (k < 0) return;
-  const bump = levels.map((l, i) => Math.exp(-0.5 * ((i - k) / 2.2) ** 2));
+  const free = freeAbove(rig, n), bump = levels.map((l, i) => Math.exp(-0.5 * ((free[i] - free[k]) / 2.2) ** 2));
   const add = levels.map((l, i) => {
     const above = Math.max(i - 1, 0), below = Math.min(i + 1, n - 1), run = levels[above].centre[2] - levels[below].centre[2] || 1, slope = (bump[above] - bump[below]) / run;
     return [Math.atan(slope * toLeft) * DEG, Math.atan(slope * toBack) * DEG];
   });
   levels.forEach((l, i) => { l.tilt = [clamp(l.tilt[0] + add[i][0], -80, 80), clamp(l.tilt[1] + add[i][1], -80, 80)]; });
   tidy(levels);
-  restack(spine, rig);
+  restack(spine, rig, id);
 }
 
 // Add "change" to the tilt of every level in one plane, plus as much of "weight" as it takes
@@ -235,18 +298,25 @@ export function bowOf(spine, top, bottom, plane) {
 // Bow the stretch between two vertebrae to a given angle. The tilt changes evenly from one end
 // to the other, a few vertebrae beyond each end ease the change out, and everything further
 // away stays where it is. The bottom vertebra of the spine is never tilted to make up.
+// With stiff blocks the bend goes into the joints that are free: "evenly" then counts those
+// joints, and a stretch that is fused from end to end does not bend at all.
 export function setBow(spine, rig, top, bottom, plane, degrees) {
   const levels = sortedLevels(spine), a = levels.findIndex((l) => l.id === top), b = levels.findIndex((l) => l.id === bottom), n = levels.length, EASE = 3;
   if (a < 0 || b <= a) return;
-  const delta = (degrees - bowOf(spine, top, bottom, plane)) * (plane === 0 ? 1 : -1), change = levels.map(() => 0), weight = levels.map(() => 0);
-  if (Math.abs(delta) < 1e-6) return;
-  for (let i = a; i <= b; i++) { change[i] = delta / 2 - (delta * (i - a)) / (b - a); weight[i] = 1; }
-  for (let k = 1; k <= EASE; k++) {
-    const f = 1 - k / (EASE + 1);
-    if (a - k >= 0) { change[a - k] = (delta / 2) * f; weight[a - k] = f; }
-    if (b + k < n - 1) { change[b + k] = (-delta / 2) * f; weight[b + k] = f; }
+  const delta = (degrees - bowOf(spine, top, bottom, plane)) * (plane === 0 ? 1 : -1), free = freeAbove(rig, n), inside = free[b] - free[a];
+  if (Math.abs(delta) < 1e-6 || !inside) return;
+  // a level fused all the way down to the bottom vertebra cannot be tilted. If the lower end
+  // of the stretch is one, the upper end takes the whole change.
+  const tied = (i) => free[i] === free[n - 1], upper = tied(b) ? 1 : 0.5, ease = (count) => Math.max(0, 1 - count / (EASE + 1));
+  const change = levels.map(() => 0), weight = levels.map(() => 0);
+  let keep = 0;
+  for (let i = 0; i < n; i++) {
+    if (i < a) { weight[i] = ease(free[a] - free[i]); change[i] = delta * upper * weight[i]; if (!weight[i]) keep = i; }
+    else if (i <= b) { weight[i] = tied(b) ? 0 : 1; change[i] = delta * (upper - (free[i] - free[a]) / inside); }
+    else { weight[i] = tied(i) ? 0 : ease(free[i] - free[b]); change[i] = delta * (upper - 1) * weight[i]; }
   }
-  bendKeeping(spine, rig, levels, plane, change, weight, Math.max(a - EASE - 1, 0));
+  if (tied(b)) for (let i = 0; i < a; i++) weight[i] = 0;
+  bendKeeping(spine, rig, levels, plane, change, weight, keep);
 }
 
 // How far the top vertebra of a stretch sits to the side of the bottom one, in millimetres.
@@ -258,15 +328,21 @@ export function offsetOf(spine, top, bottom, plane) {
 
 // Shift the top vertebra of a stretch, and everything above it, sideways against the bottom
 // one. The two ends keep their own tilt. The vertebrae between them lean over to make the
-// step. Two neighbours with nothing between them simply slide on each other.
+// step. Two neighbours with nothing between them simply slide on each other, and so do two
+// stiff blocks with one free joint between them.
 export function setOffset(spine, rig, top, bottom, plane, mm) {
   const levels = sortedLevels(spine), a = levels.findIndex((l) => l.id === top), b = levels.findIndex((l) => l.id === bottom);
   if (a < 0 || b <= a) return;
-  if (b === a + 1) {
-    for (let step = 0; step < 3; step++) { rig.joints[a].step[plane] += mm - offsetOf(spine, top, bottom, plane); restack(spine, rig); }
+  const free = freeAbove(rig, levels.length), inside = free[b] - free[a];
+  if (!inside) return;                             // fused from end to end: nothing can give
+  if (inside === 1) {
+    // one joint can give: the two parts slide on each other there
+    let j = a;
+    while (free[j + 1] === free[a]) j++;
+    for (let step = 0; step < 3; step++) { rig.joints[j].step[plane] += mm - offsetOf(spine, top, bottom, plane); restack(spine, rig); }
     return;
   }
-  const base = levels.map((l) => l.tilt[plane]), lean = levels.map((l, i) => (i > a && i < b ? Math.sin((Math.PI * (i - a)) / (b - a)) : 0));
+  const base = levels.map((l) => l.tilt[plane]), lean = levels.map((l, i) => (i > a && i < b ? Math.sin((Math.PI * (free[i] - free[a])) / inside) : 0));
   const run = (k) => { levels.forEach((l, i) => { l.tilt[plane] = clamp(base[i] + k * lean[i], -80, 80); }); restack(spine, rig); return offsetOf(spine, top, bottom, plane) - mm; };
   let k0 = 0, e0 = run(0), k1 = e0 > 0 ? -3 : 3, e1 = run(k1);
   for (let step = 0; step < 8 && Math.abs(e1) > 0.05 && e1 !== e0; step++) { const k2 = k1 - (e1 * (k1 - k0)) / (e1 - e0); k0 = k1; e0 = e1; k1 = k2; e1 = run(k1); }
@@ -285,33 +361,44 @@ export function twistOf(spine, top, bottom) {
 export function setTwist(spine, rig, top, bottom, degrees) {
   const levels = sortedLevels(spine), a = levels.findIndex((l) => l.id === top), b = levels.findIndex((l) => l.id === bottom);
   if (a < 0 || b <= a) return;
-  const mid = Math.round((a + b) / 2), peak = Math.sin((Math.PI * (mid - a)) / (b - a)) ** 2 || 1, delta = (degrees - twistOf(spine, top, bottom)) / peak;
-  for (let i = a; i <= b; i++) levels[i].turn = round2(clamp(levels[i].turn + delta * Math.sin((Math.PI * (i - a)) / (b - a)) ** 2, -90, 90));
+  const free = freeAbove(rig, levels.length), inside = free[b] - free[a], part = (i) => (inside ? Math.sin((Math.PI * (free[i] - free[a])) / inside) ** 2 : 0);
+  const mid = Math.round((a + b) / 2), peak = part(mid);
+  if (peak < 0.02) return;                         // the middle is fused to one of the ends: it cannot turn against them
+  const delta = (degrees - twistOf(spine, top, bottom)) / peak;
+  for (let i = a; i <= b; i++) levels[i].turn = round2(clamp(levels[i].turn + delta * part(i), -90, 90));
   restack(spine, rig);
 }
 
 // Slide one vertebra on its own, without bending the spine: it steps sideways (toLeft) or
 // backward (toBack) against the one below, and the ones above stay where they are.
 export function moveAlone(spine, rig, id, toLeft, toBack) {
-  const levels = sortedLevels(spine), k = levels.findIndex((l) => l.id === id);
-  if (k < 0 || k >= levels.length - 1) return;
-  rig.joints[k].step[0] += toLeft; rig.joints[k].step[1] += toBack;
-  if (k > 0) { rig.joints[k - 1].step[0] -= toLeft; rig.joints[k - 1].step[1] -= toBack; }
+  const levels = sortedLevels(spine), k = levels.findIndex((l) => l.id === id), n = levels.length;
+  if (k < 0 || k >= n - 1) return;
+  // a vertebra in a stiff block takes the block along: it slides at the joints at its two ends
+  const locked = lockedJoints(rig, n);
+  let low = k, high = k;
+  while (low < n - 1 && locked[low]) low++;
+  while (high > 0 && locked[high - 1]) high--;
+  if (low >= n - 1) return;                        // fused down to the bottom vertebra
+  rig.joints[low].step[0] += toLeft; rig.joints[low].step[1] += toBack;
+  if (high > 0) { rig.joints[high - 1].step[0] -= toLeft; rig.joints[high - 1].step[1] -= toBack; }
   restack(spine, rig);
 }
 
 // Make the space under a vertebra taller or shorter. Everything above moves with it.
 export function liftLevel(spine, rig, id, mm) {
-  const k = sortedLevels(spine).findIndex((l) => l.id === id);
-  if (k < 0 || !rig.joints[k]) return;
+  const levels = sortedLevels(spine), k = levels.findIndex((l) => l.id === id);
+  if (k < 0 || !rig.joints[k] || lockedJoints(rig, levels.length)[k]) return;      // a fused joint has no space to change
   rig.joints[k].gap = Math.max(0.5, rig.joints[k].gap + mm);
   restack(spine, rig);
 }
 export const gapUnder = (spine, rig, id) => { const j = rig.joints[sortedLevels(spine).findIndex((l) => l.id === id)]; return j ? j.gap : 0; };
 
-// Take out everything sideways: no tilt to the side, no turn, no step to the side.
+// Take out everything sideways: no tilt to the side, no turn, no step to the side. A stiff
+// block keeps the shape it has and is set upright as a whole.
 export function straighten(spine, rig) {
+  const locked = lockedJoints(rig, spine.levels.length);
   for (const l of spine.levels) { l.tilt = [0, l.tilt[1]]; l.turn = 0; }
-  for (const j of rig.joints) if (j) j.step[0] = 0;
+  rig.joints.forEach((j, i) => { if (j && !locked[i]) j.step[0] = 0; });
   restack(spine, rig);
 }

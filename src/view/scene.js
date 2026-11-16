@@ -29,7 +29,8 @@ const SPOT = ball([0, 0, 0], 3.2);
 
 //   detail: size of the grid the bones are sampled on, in millimetres (smaller = smoother, slower)
 //   extras: for the builder and the look of things
-//     picked: { kind: 'level', id } | { kind: 'stretch', top, bottom } | { kind: 'screws' ..., index }
+//     picked: { kind: 'level', id, mates } | { kind: 'stretch', top, bottom } | { kind: 'screws' ..., index }
+//             (mates: the vertebrae that move with the picked one, drawn paler)
 //             the selected piece is drawn in a warm colour (a stretch: its two ends, and paler between)
 //     spots:  [points] the usual spots for a new part, drawn as small dots
 //     look:   { bone, disc, hardware: [r, g, b] or null, byLevel: true to colour hardware by level }
@@ -44,7 +45,7 @@ export function buildScene(spine, detail, extras = {}) {
     return look.hardware || FINISHES[DEFAULT_FINISH[group]];
   };
   const a = order.indexOf(picked.top), b = order.indexOf(picked.bottom);
-  const boneColor = (id, i) => ((picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : look.bone || COLORS.bone);
+  const boneColor = (id, i) => ((picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : look.bone || COLORS.bone);
   // a vertebra is drawn once in its own axes and then placed, so bending the spine only moves it
   levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level) }));
   for (let i = 0; i < levels.length - 1; i++) {

@@ -7,7 +7,7 @@ import { sortedLevels, LEVEL_ORDER } from '../core/spinefile.js';
 import { vertebraShape, levelFrame } from '../core/bones.js';
 import { ANATOMY } from '../core/anatomy.js';
 import { FINISHES } from '../core/hardware.js';
-import { pullLevel, moveAlone, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten } from '../core/shape.js';
+import { pullLevel, moveAlone, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, stiffen, blockOf } from '../core/shape.js';
 import { slot, freeScrew, resizeScrew, screwLength, fitRods, crosslinkAt, planFor, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow } from '../core/place.js';
 import { rayMesh, rayPoint } from '../core/pick.js';
 import { gizmoHit, dragAlong, dragAround } from '../view/gizmo.js';
@@ -79,12 +79,14 @@ export function setupBuilder(app) {
   // ---------------------------------------------------------------- shape: one vertebra
   const half = (v) => Math.round(v * 2) / 2;
   const typicalSize = (id) => { const a = ANATOMY[id] || ANATOMY.T6; return [a.w, a.d, half((a.hf + a.hb) / 2) || 9]; };
-  const turnTo = (set) => (v) => { const l = one(); if (l) live(() => { set(l, v); restack(app.spine, app.rig); }); };
+  // (a vertebra turned by hand leads the stiff block it is part of)
+  const turnTo = (set) => (v) => { const l = one(); if (l) live(() => { set(l, v); restack(app.spine, app.rig, l.id); }); };
   const sizeTo = (axis) => (v) => { const l = one(); if (l) { l.size[axis] = v; live(() => restack(app.spine, app.rig)); } };
   const gapDial = dial('gapR', 'gapN', (v) => { const l = one(); if (l) live(() => liftLevel(app.spine, app.rig, l.id, v - gapUnder(app.spine, app.rig, l.id))); });
   const angleDials = [dial('angF', 'angFn', turnTo((l, v) => { l.tilt[0] = v; })), dial('angS', 'angSn', turnTo((l, v) => { l.tilt[1] = v; })), dial('angT', 'angTn', turnTo((l, v) => { l.turn = v; }))];
   const sizeDials = [dial('sizeW', 'sizeWn', sizeTo(0)), dial('sizeD', 'sizeDn', sizeTo(1)), dial('sizeH', 'sizeHn', sizeTo(2))];
-  $('angZero').addEventListener('click', () => { const l = one(); if (l) app.change(() => { l.tilt[0] = 0; l.turn = 0; restack(app.spine, app.rig); }); });
+  $('angZero').addEventListener('click', () => { const l = one(); if (l) app.change(() => { l.tilt[0] = 0; l.turn = 0; restack(app.spine, app.rig, l.id); }); });
+  $('stiffOn').addEventListener('change', () => { app.stiff = $('stiffOn').checked; stiffen(app.spine, app.rig, app.stiff); app.redraw(); sync(); });
   $('boneTypical').addEventListener('click', () => { const l = one(); if (l) { l.size = typicalSize(l.id); app.change(() => restack(app.spine, app.rig)); } });
   const step = (by) => () => { const list = ids(), i = list.indexOf(app.picked.id) + by; if (i >= 0 && i < list.length) app.pick({ kind: 'level', id: list[i] }); };
   $('boneUp').addEventListener('click', step(-1)); $('boneDown').addEventListener('click', step(1));
@@ -96,8 +98,11 @@ export function setupBuilder(app) {
     $('boneName').textContent = l.id;
     pressed('#oneOn [data-tool]', 'tool', tool.one);
     each('#oneOn [data-toolpane]', (p) => { p.hidden = p.dataset.toolpane !== tool.one; });
-    const last = ids().indexOf(l.id) === ids().length - 1, typ = typicalSize(l.id);
-    $('gapRow').hidden = last;
+    const last = ids().indexOf(l.id) === ids().length - 1, typ = typicalSize(l.id), block = blockOf(app.spine, app.rig, l.id);
+    $('oneFused').hidden = !block;
+    if (block) $('oneFused').textContent = l.id + ' is part of the fused stretch from ' + block.top + ' to ' + block.bottom + '. That stretch moves and turns as one block.';
+    // a fused joint has no space to change
+    $('gapRow').hidden = last || (!!block && block.bottom !== l.id);
     if (!last) gapDial(round1(gapUnder(app.spine, app.rig, l.id)));
     angleDials[0](round1(l.tilt[0])); angleDials[1](round1(l.tilt[1])); angleDials[2](round1(l.turn));
     sizeDials.forEach((set, i) => set(half(l.size[i]), Math.floor(typ[i] * 0.6), Math.ceil(typ[i] * 1.6)));
@@ -122,12 +127,20 @@ export function setupBuilder(app) {
   }
   const pickEnds = () => { const top = $('strTop').value, bottom = $('strBottom').value, list = ids(); app.pick(top && bottom && top !== bottom ? { kind: 'stretch', top: list.indexOf(top) < list.indexOf(bottom) ? top : bottom, bottom: list.indexOf(top) < list.indexOf(bottom) ? bottom : top } : { kind: 'stretch', top: top || bottom || null, bottom: null }); };
   $('strTop').addEventListener('change', pickEnds); $('strBottom').addEventListener('change', pickEnds);
-  $('straighten').addEventListener('click', () => app.change(() => straighten(app.spine, app.rig)));
+  $('straighten').addEventListener('click', () => {
+    app.change(() => straighten(app.spine, app.rig));
+    const kept = (app.rig.blocks || []).length && levels().some((l) => Math.abs(l.tilt[0]) > 0.5 || Math.abs(l.turn) > 0.5);
+    app.say(kept ? 'The fused part kept its shape. Untick "Fused parts stay stiff" to straighten it too.' : '');
+  });
 
   function stretchBox() {
     const s = stretch(), p = app.picked && app.picked.kind === 'stretch' ? app.picked : {}, all = [['', 'choose'], ...ids().map((id) => [id, id])];
     options($('strTop'), all, p.top || ''); options($('strBottom'), all, p.bottom || '');
     $('stretchOn').hidden = !s;
+    const stiffIds = s ? ids().slice(ids().indexOf(s.top), ids().indexOf(s.bottom) + 1).map((id) => blockOf(app.spine, app.rig, id)) : [];
+    const whole = stiffIds.length > 0 && stiffIds.every((b) => b && b.top === stiffIds[0].top), some = stiffIds.find((b) => b);
+    $('stretchFused').hidden = !some;
+    if (some) $('stretchFused').textContent = whole ? 'This stretch lies inside the fused part from ' + some.top + ' to ' + some.bottom + ', so it cannot be bent. Untick "Fused parts stay stiff" above to reshape it.' : 'The fused part from ' + some.top + ' to ' + some.bottom + ' stays stiff. The bend goes into the joints that are free.';
     $('stretchHint').textContent = s ? 'Click two other vertebrae to pick a different stretch.' : p.top ? p.top + ' is one end. Now click the vertebra at the other end.' : 'Click the two vertebrae at the ends of the stretch, or choose them here.';
     if (!s) return;
     pressed('#stretchOn [data-tool]', 'tool', tool.stretch); pressed('[data-plane]', 'plane', plane);
@@ -347,7 +360,9 @@ export function setupBuilder(app) {
     const set = (at, kinds) => ({ spec: { at, handles: Object.entries(kinds).map(([name, kind]) => ({ name, kind, axis: AXES[name] })) }, active: (drag && drag.name) || hot });
     const l = one(), s = stretch(), m = markOf();
     if (tab === 'shape' && l) {
-      if (tool.one === 'move') return set(l.centre, { left: 'double', back: 'double', ...(ids().indexOf(l.id) < ids().length - 1 ? { up: 'arrow' } : {}) });
+      // (no up arrow where there is no space to change: the bottom vertebra, and one fused to the one below)
+      const block = blockOf(app.spine, app.rig, l.id), lift = ids().indexOf(l.id) < ids().length - 1 && !(block && block.bottom !== l.id);
+      if (tool.one === 'move') return set(l.centre, { left: 'double', back: 'double', ...(lift ? { up: 'arrow' } : {}) });
       if (tool.one === 'turn') return set(l.centre, { left: 'ring', back: 'ring', up: 'ring' });
       const f = levelFrame(l);
       return { spec: { at: l.centre, handles: [{ name: 'left', kind: 'knob', axis: f.left }, { name: 'back', kind: 'knob', axis: f.back }, { name: 'up', kind: 'knob', axis: f.up }] }, active: (drag && drag.name) || hot };
@@ -382,7 +397,7 @@ export function setupBuilder(app) {
       const soft = $('softOn').checked;
       live(() => { if (name === 'up') liftLevel(spine, rig, l.id, by); else if (soft) pullLevel(spine, rig, l.id, name === 'left' ? by : 0, name === 'back' ? by : 0); else moveAlone(spine, rig, l.id, name === 'left' ? by : 0, name === 'back' ? by : 0); });
     } else if (l && tool.one === 'turn') {
-      live(() => { if (name === 'up') l.turn += turn; else if (name === 'back') l.tilt[0] = Math.max(-80, Math.min(80, l.tilt[0] + turn)); else l.tilt[1] = Math.max(-80, Math.min(80, l.tilt[1] - turn)); restack(spine, rig); });
+      live(() => { if (name === 'up') l.turn += turn; else if (name === 'back') l.tilt[0] = Math.max(-80, Math.min(80, l.tilt[0] + turn)); else l.tilt[1] = Math.max(-80, Math.min(80, l.tilt[1] - turn)); restack(spine, rig, l.id); });
     } else if (l && tool.one === 'size') {
       const j = { left: 0, back: 1, up: 2 }[name], typ = typicalSize(l.id);
       l.size[j] = Math.max(typ[j] * 0.5, Math.min(typ[j] * 1.8, l.size[j] + 2 * by));
@@ -499,6 +514,7 @@ export function setupBuilder(app) {
     if (!app.spine) return;
     pressed('[data-mode]', 'mode', mode);
     $('oneBox').hidden = mode !== 'one'; $('stretchBox').hidden = mode !== 'stretch';
+    $('stiffRow').hidden = !(app.spine.fused || []).length; $('stiffOn').checked = app.stiff;
     pressed('[data-hw]', 'hw', hwMode);
     $('easyBox').hidden = hwMode !== 'easy'; $('handBox').hidden = hwMode !== 'hand';
     oneBox(); stretchBox(); sheet(); pieceBox(); markBox();

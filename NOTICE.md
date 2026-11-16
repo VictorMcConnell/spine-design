@@ -6,7 +6,7 @@ app comes from somebody else's work and keeps its own licence.
 ## Bone shapes: BodyParts3D
 
 The shapes of the 24 vertebrae and the sacrum in `src/shapes/bodyparts3d.js`, and so in
-`dist/index.html`, are made from the BodyParts3D anatomy models.
+`index.html`, are made from the BodyParts3D anatomy models.
 
 > BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International
 

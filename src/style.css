@@ -10,7 +10,12 @@ body { background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -app
 #ribbon button { padding: 5px 10px; }
 #ribbon .switch { display: flex; align-items: center; gap: 5px; margin-right: 4px; }
 #ribbon button[aria-expanded="true"] { border-color: var(--accent); background: #30345a; }
-.menu { position: absolute; z-index: 5; top: 48px; right: 12px; width: min(330px, 92vw); padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #1b1c22; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+.menu h3 { margin: 10px 0 4px; }
+.menu h3:first-child { margin-top: 0; }
+#linkText { width: 100%; margin: 4px 0; padding: 5px 7px; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; background: #121317; color: var(--ink); }
+/* on a narrower screen the label of the view buttons makes way, so the ribbon fits */
+@media (max-width: 1420px) { #ribbon .group[aria-label="Look from"] span { display: none; } }
+.menu { position: absolute; z-index: 5; top: 48px; right: 12px; width: min(330px, 92vw); max-height: calc(100vh - 62px); overflow: auto; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #1b1c22; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
 .foot { margin-top: 10px; }
 main { flex: 1; min-height: 0; display: flex; }
 #stage { position: relative; flex: 1; min-width: 0; }
@@ -96,6 +101,17 @@ input[type="color"] { width: 34px; height: 26px; padding: 0; border: 1px solid v
 #sheet button[data-on="yes"] { background: #6a5a2a; border-color: #d2b55a; color: #fff; }
 #sheet tr.picked td:first-child button { color: #ffc84d; }
 #sheet button[data-col] { touch-action: none; }
+.note { margin: 6px 0; padding: 6px 9px; border-left: 3px solid #d2b55a; background: rgba(210, 181, 90, 0.09); border-radius: 0 6px 6px 0; color: var(--ink); }
+/* the note shown when the app opens */
+#welcome { width: min(560px, 94vw); max-height: 92vh; overflow: auto; padding: 20px 22px; border: 1px solid var(--line); border-radius: 14px; background: #1b1c22; color: var(--ink); box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55); }
+#welcome::backdrop { background: rgba(8, 9, 12, 0.72); }
+#welcome h2 { margin: 0 0 10px; font-size: 20px; }
+#welcome p { margin: 0 0 11px; line-height: 1.5; }
+#welcome .check { margin: 4px 0 12px; }
+#welcome a { color: #aab4ff; }
+button.main { background: var(--accent); border-color: var(--accent); color: #101116; font-weight: 650; padding: 8px 18px; }
+button.plain { border: 0; background: none; padding: 0; color: var(--muted); text-decoration: underline; font: inherit; cursor: pointer; }
+button.plain:hover { color: var(--ink); background: none; }
 /* a hidden thing stays hidden, whatever its class says about display */
 [hidden] { display: none !important; }
 @media (max-width: 760px) {

@@ -77,6 +77,27 @@ A pain mark is either a spot (`at`) or a stretch (`from` and `to`). Its `strengt
 (mild) to 10 (the worst) and sets its colour, from yellow to red. Without it the mark counts
 as 5. A note is a pin with a few words.
 
+## A spine in a link
+
+The Share menu makes a link that holds a whole spine file. The file goes into the part of
+the address after the # sign, as `#spine=` followed by one letter and text in base 64 (the
+kind that is safe in addresses, without padding):
+
+- `z`: the JSON text of the file, squeezed with raw deflate.
+- `j`: the JSON text as it is, for a browser that cannot squeeze.
+
+A plain spine makes a link of about 1,100 characters, one with rods and screws about 3,500.
+The app refuses a link that unpacks to more than 2 MB, checks the result like any opened
+file and then takes the link out of the address bar. `src/io/share.js` does the packing.
+
+## Fused stretches
+
+`fused` lists the stretches that are fused, each as its top and bottom vertebra. A file can
+hold several. The builder treats each one as a stiff block while "Fused parts stay stiff"
+is ticked: the vertebrae of a block keep their places against each other, and bending the
+spine only changes the joints outside the blocks. The file itself stores no stiffness. It
+stores where every vertebra is, as always.
+
 ## Checking a file
 
 `validateSpine` in `src/core/spinefile.js` checks a file and returns any problems in plain

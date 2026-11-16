@@ -1,0 +1,12 @@
+# Sent with every page by hosts that read this file (Cloudflare Pages does).
+# Written by tools/build.mjs from tools/headers.txt. Do not edit _headers by hand.
+# The first line is the same rule the page carries inside itself, plus a ban on showing the
+# site inside a frame on another site. The others tell the browser not to guess file types,
+# not to pass on where a visitor came from and not to offer camera, microphone or location.
+/*
+  Content-Security-Policy: {{policy}}; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
