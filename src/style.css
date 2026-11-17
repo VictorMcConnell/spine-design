@@ -1,0 +1,386 @@
+/* The page has one shape on every screen: the model, the four things to work on (Shape,
+   Hardware, Pain, Look), the tools of the one that is open, and a card for what is selected.
+   On a phone the four sit along the bottom, the tools above them, and a card takes the place
+   of the tools. On a wide screen the four sit in the top bar and the cards in a column
+   beside the model. The rules for the wide screen are at the end. */
+:root { --bg: #131419; --surface: #1c1e27; --line: #2c2f3c; --ink: #eceae5; --soft: #a9adbb; --accent: #9ca3ff; --on-accent: #14151c; --pressed: #343849; --toggle: #2b2f4a; --toggle-ink: #d5d8ff; --second: #262938; --remove: #ffa794; --edge: #767b96; --tabs: 62px; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { position: relative; display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: none; padding-bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); background: var(--bg); color: var(--ink); font: 15px/1.4 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+@supports (height: 100dvh) { html, body { height: 100dvh; } }
+/* a hidden thing stays hidden, whatever its class says about display */
+[hidden] { display: none !important; }
+/* words for a screen reader only: what the picture shows, said as text */
+.sr { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+a { color: #b4baff; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+
+/* ---- the things to press */
+button, select, input { font: inherit; color: var(--ink); }
+button, select, label { touch-action: manipulation; }
+button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--second); cursor: pointer; }
+button:hover { border-color: #4a4f66; }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: 0.4; cursor: default; border-color: var(--line); }
+button[aria-pressed="true"] { border-color: var(--accent); background: var(--toggle); color: var(--toggle-ink); }
+button.main { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 650; }
+button.quiet { background: none; border-color: transparent; color: var(--soft); padding: 8px; }
+button.quiet.warn { color: var(--remove); }
+.i { flex: none; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+select { min-height: 40px; padding: 6px 8px; border: 1px solid var(--edge); border-radius: 10px; background: var(--second); max-width: 100%; }
+input[type="number"], input[type="text"] { min-height: 36px; padding: 4px 7px; border: 1px solid var(--edge); border-radius: 9px; background: var(--bg); }
+input[type="number"] { width: 4.6em; }
+input[type="range"] { accent-color: var(--accent); min-width: 0; height: 28px; margin: 0; }
+input[type="checkbox"] { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: none; }
+input[type="color"] { width: 40px; height: 30px; padding: 0; border: 1px solid var(--edge); border-radius: 8px; background: none; }
+h2 { font-size: 16px; margin: 0; }
+h3 { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--soft); margin: 14px 0 6px; }
+.small { font-size: 12.5px; color: var(--soft); margin: 4px 0; }
+.foot { margin-top: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.row.two > * { flex: 1 1 0; }
+.gap { flex: 1; }
+.between { justify-content: space-between; }
+.check { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: 13.5px; }
+.pair { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; font-size: 13.5px; color: var(--soft); }
+.pair input[type="text"], .pair select { flex: 1; min-width: 0; color: var(--ink); }
+.sitelinks { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.sitelinks a { padding: 4px 0; }
+.note { margin: 6px 0; padding: 6px 9px; border-left: 3px solid #d2b55a; background: rgba(210, 181, 90, 0.09); border-radius: 0 6px 6px 0; color: var(--ink); }
+/* a row of choices of which one is on */
+.seg { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.seg button { flex: 1; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 9px; background: none; color: var(--soft); white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--pressed); color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+/* a slider with its name, what it is set to in words, and a box for the number */
+.dial { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; margin: 7px 0; font-size: 13.5px; color: var(--soft); }
+.dial b { color: var(--ink); font-weight: 600; }
+.dial span { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; }
+.dial span input[type="range"] { flex: 1; }
+.dial i { font-style: normal; font-size: 12px; min-width: 1.6em; }
+.dial:has(b) input[type="number"], .dial:has(b) i { display: none; }
+.choices { display: grid; gap: 6px; margin: 6px 0; }
+.choices button { display: block; text-align: left; padding: 8px 11px; line-height: 1.3; }
+.choices button strong { display: block; }
+.choices button span { font-size: 12px; color: var(--soft); }
+.sideRow { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 6px; margin: 8px 0; font-size: 13.5px; color: var(--soft); }
+.seg.four button { padding: 6px 2px; font-size: 12px; white-space: normal; line-height: 1.15; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.swatches > span { flex: 0 0 100%; font-size: 12.5px; color: var(--soft); }
+.swatch { width: 26px; height: 26px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid transparent; outline: 1px solid rgba(255, 255, 255, 0.25); }
+.swatch[aria-pressed="true"] { border-color: #fff; outline: 2px solid var(--accent); background-clip: padding-box; }
+.swatch.none { width: auto; height: 28px; border-radius: 8px; padding: 2px 9px; font-size: 12px; outline: 0; border: 1px solid var(--line); }
+details.fold { margin: 10px 0; }
+details.fold summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; font-size: 13.5px; }
+.checks label { display: flex; gap: 8px; align-items: center; }
+.colors label { display: flex; gap: 6px; align-items: center; }
+
+/* ---- the top bar */
+#topbar { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-width: 0; padding: max(10px, env(safe-area-inset-top)) 10px 6px; }
+#topbar .left, #topbar .right { display: flex; align-items: center; gap: 6px; min-width: 0; }
+#topbar h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; font-size: 16px; white-space: nowrap; }
+.tb { min-height: 44px; padding: 0 12px; border-radius: 13px; background: var(--surface); white-space: nowrap; }
+/* (on a phone the top bar has no room for every word) */
+@media (max-width: 479px) { #viewBtn span { display: none; } #viewBtn { width: 44px; padding: 0; } }
+@media (max-width: 359px) { #newBtn span { display: none; } #newBtn { width: 44px; padding: 0; } }
+.tb.icon { width: 44px; padding: 0; }
+.tb.main { background: var(--accent); }
+.rule { width: 1px; height: 22px; background: var(--line); }
+.roomy { display: none !important; }
+/* the four things to work on */
+#modes { position: fixed; z-index: 3; left: 0; right: 0; bottom: 0; height: calc(var(--tabs) + env(safe-area-inset-bottom)); padding: 4px 8px env(safe-area-inset-bottom); display: flex; border-top: 1px solid var(--line); background: #0f1014; }
+#modes button { position: relative; flex: 1; flex-direction: column; gap: 2px; min-height: 0; padding: 0; border: 0; border-radius: 12px; background: none; color: var(--soft); font-size: 12px; }
+#modes button[aria-current="true"] { color: var(--accent); font-weight: 650; }
+#modes button[aria-current="true"]::before { content: ""; position: absolute; top: -4px; left: 50%; width: 34px; height: 3px; margin-left: -17px; border-radius: 2px; background: var(--accent); }
+.menu { position: fixed; z-index: 6; top: calc(max(10px, env(safe-area-inset-top)) + 50px); right: 12px; display: flex; flex-direction: column; min-width: 190px; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55); }
+.menu button { justify-content: flex-start; border: 0; background: none; padding: 10px 12px; }
+.menu button:hover { background: var(--second); }
+.menu .pairrow { display: flex; gap: 4px; margin-top: 4px; }
+.menu .pairrow button { flex: 1; justify-content: center; background: var(--second); }
+
+/* ---- the model, the flat view beside it, the tools, and the card */
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) auto auto; }
+#stage { grid-column: 1; grid-row: 1; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+#view { width: 100%; height: 100%; display: block; touch-action: none; }
+#view:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+#stage.placing #view, #stage.drawing #view { cursor: crosshair; }
+#labels, #tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#labels span { position: absolute; left: 0; top: 0; font-size: 11px; font-weight: 650; padding: 0 5px; border-radius: 9px; background: rgba(19, 20, 25, 0.78); border: 1px solid var(--line); white-space: nowrap; }
+#tagLines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#tagLines line { stroke: rgba(236, 234, 229, 0.8); stroke-width: 1.5; }
+#stage.pale #tagLines line { stroke: rgba(30, 31, 36, 0.75); }
+#tags span { position: absolute; left: 0; top: 0; font-size: 12px; padding: 1px 7px; border-radius: 9px; background: rgba(19, 20, 25, 0.82); border: 1px solid var(--line); white-space: nowrap; color: var(--ink); }
+#stage.tagsLive #tags span { pointer-events: auto; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+/* one line of help for the tool in hand, and under it what the app has to report */
+#says { position: absolute; z-index: 2; left: 10px; right: 10px; top: 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+#says p { margin: 0; max-width: 100%; padding: 7px 13px; border: 1px solid var(--line); border-radius: 13px; background: rgba(28, 30, 39, 0.93); font-size: 13.5px; line-height: 1.35; text-align: center; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); }
+#says p:empty { display: none; }
+#status { border-color: rgba(242, 194, 87, 0.55) !important; color: #f6e3b4; }
+#problemBox { position: absolute; z-index: 4; left: 12px; right: 12px; top: 56px; max-width: 460px; margin: 0 auto; padding: 10px 12px; border: 1px solid #b9853a; border-radius: 12px; background: var(--surface); font-size: 13px; }
+#problemBox ul { margin: 4px 0 8px; padding-left: 18px; }
+#stripBtn { position: absolute; z-index: 2; right: 10px; bottom: 10px; min-height: 40px; padding: 0 12px; border-radius: 12px; background: rgba(28, 30, 39, 0.93); font-size: 13px; }
+#stripBtn .i { width: 18px; height: 18px; }
+#cleanOff { position: absolute; z-index: 5; left: 50%; bottom: 18px; transform: translateX(-50%); white-space: nowrap; background: rgba(28, 30, 39, 0.93); font-size: 13px; animation: goAway 0.7s 3s forwards; }
+@keyframes goAway { to { opacity: 0; pointer-events: none; } }
+/* the pad to draw the curve on: dots over the view, and the line being drawn */
+#drawPad { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(156, 163, 255, 0.42) 1.2px, transparent 1.6px); background-size: 26px 26px; }
+/* (touch-action is set on the sheet itself: browsers do not take it from the shapes inside an SVG, and without it a finger that drags a point is taken for a scroll after a short way) */
+#drawSvg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+#drawLine { stroke: #ffc84d; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+#anchorPath { fill: none; stroke: #ffc94d; stroke-width: 2.5; stroke-linejoin: round; }
+#anchorHit { fill: none; stroke: transparent; stroke-width: 26; pointer-events: stroke; cursor: copy; }
+#anchorDots circle { fill: #14151c; stroke: #ffc94d; stroke-width: 2.5; pointer-events: auto; cursor: grab; touch-action: none; }
+#anchorDots circle.picked { fill: #ffc94d; }
+#anchorDots circle.base { stroke: #8d8f99; cursor: default; }
+
+/* the flat view beside the model */
+#strip { grid-column: 2; grid-row: 1; min-height: 0; overflow: auto; padding: 6px 8px 6px 0; }
+#mapBox { display: flex; flex-direction: column; align-items: center; }
+#mapNeckRow { margin: 4px 0 0; font-size: 12px; color: var(--soft); white-space: nowrap; }
+#mapNeckRow input { width: 16px; height: 16px; }
+#mapWrap, #blocksWrap { border: 1px solid var(--line); border-radius: 12px; background: #15161c; overflow: hidden; touch-action: none; }
+#map, #blocks { display: block; user-select: none; -webkit-user-select: none; }
+#blocks { width: 100%; height: auto; }
+#map text { font: 600 11px system-ui, sans-serif; fill: #2b2618; pointer-events: none; }
+#map .bone { fill: #d9c39a; }
+#map .bone.stiff { fill: #a9b8cc; }
+#map .bone.picked { stroke: #ffc94d; stroke-width: 2.5; }
+#map .bone[data-bone] { cursor: pointer; }
+#map .bridge { fill: #8ea3c2; }
+#map .empty { fill: rgba(255, 255, 255, 0.03); stroke: #5d606c; stroke-dasharray: 3 3; }
+#map .hit { fill: transparent; cursor: pointer; }
+#map .hit:hover + .empty, #map g:hover > .empty { stroke: var(--accent); }
+#map .gapline { stroke: #4a4d58; stroke-dasharray: 2 4; }
+#map g[data-gap]:hover .gapline { stroke: var(--accent); }
+#map .ring { fill: none; stroke: #ffc94d; stroke-width: 2.5; }
+#map .lock { fill: none; stroke: #fff; stroke-width: 1.5; stroke-dasharray: 2 2; }
+#map .side { font-size: 11px; fill: #8d8f99; font-weight: 500; }
+#map .cut { stroke: #8d8f99; stroke-width: 1.6; stroke-dasharray: 2 5; fill: none; }
+#map .snip { stroke: #ff8a7a; stroke-width: 2; }
+/* Where the tool in hand can be used shows softly on the map: empty spots for a screw or a hook,
+   the gaps that can take a cross-link, the parts a rod can run from. */
+@keyframes breathe { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+#map .halo, #map .ghost { fill: none; stroke: none; pointer-events: none; }
+#map[data-tool="screw"] .empty { stroke: #c7d1e6; fill: rgba(199, 209, 230, 0.12); animation: breathe 2.6s ease-in-out infinite; }
+#map[data-tool="hook-down"] .empty, #map[data-tool="hook-up"] .empty { stroke: #b79af2; fill: rgba(183, 154, 242, 0.13); animation: breathe 2.6s ease-in-out infinite; }
+#map[data-tool="link"] g.can .ghost { stroke: #f2c257; stroke-width: 4.5; stroke-dasharray: 0.1 8; stroke-linecap: round; animation: breathe 2.6s ease-in-out infinite; }
+#map[data-tool="link"] g.can:hover .ghost { animation: none; opacity: 1; }
+#map[data-tool="rod"] g.full .halo { stroke: #7fb2ff; stroke-width: 2; fill: rgba(127, 178, 255, 0.14); animation: breathe 2.6s ease-in-out infinite; }
+#map[data-tool="rod"] g.full .hit { cursor: crosshair; }
+#map.arming[data-tool="rod"] g.full .halo { stroke: none; fill: none; animation: none; }
+#map.arming[data-tool="rod"] g.mate .halo { stroke: #7fb2ff; stroke-width: 2.5; fill: rgba(127, 178, 255, 0.2); animation: breathe 1.6s ease-in-out infinite; }
+#map.arming[data-tool="rod"] g.armed .halo { stroke: #ffc94d; stroke-width: 3.5; fill: rgba(255, 201, 77, 0.28); opacity: 1; }
+#map[data-tool="erase"] g.linked .hit { stroke: #ff8a7a; stroke-width: 1.4; stroke-dasharray: 3 3; fill: rgba(255, 138, 122, 0.07); rx: 6px; }
+#map[data-tool="erase"] g.full .halo { stroke: #ff8a7a; stroke-width: 1.6; stroke-dasharray: 3 3; animation: breathe 2.6s ease-in-out infinite; }
+/* the block of the bone that was pressed on the model lights up for a moment. The one under the pointer is marked more softly. */
+#map .bone, #blocks .bone { transition: fill 0.35s, stroke 0.35s; }
+#map .bone.peek, #blocks g.peek .bone { stroke: #ffd76a; stroke-width: 1.8; }
+#map .bone.glow, #blocks g.glow .bone { fill: #ffe7ad; stroke: #fff; stroke-width: 3; filter: drop-shadow(0 0 7px #ffc94d); }
+@media (prefers-reduced-motion: reduce) { #map .empty, #map .ghost, #map .halo, #map .gapline { animation: none !important; } #cleanOff { animation-duration: 0.01s; } }
+#blocksBox { width: 250px; }
+#blocksBox .seg { margin-bottom: 6px; }
+#blocksBox .seg button { font-size: 12.5px; padding: 6px 4px; }
+#blocks text { font: 600 10.5px system-ui, sans-serif; fill: #2b2618; pointer-events: none; }
+#blocks .side { font-size: 11px; fill: #8d8f99; font-weight: 500; }
+#blocks .plumb { stroke: #3c3f4a; stroke-dasharray: 3 5; }
+#blocks g[data-block] { cursor: grab; }
+#blocks .bone { fill: #d9c39a; }
+#blocks .stiff .bone { fill: #a9b8cc; }
+#blocks .locked .bone { fill: #77705f; }
+#blocks .locked text { fill: #f3efe6; }
+#blocks .hot .bone { stroke: #ffc94d; stroke-width: 2.5; }
+#blocks .shackle { fill: none; stroke: #f3efe6; stroke-width: 1.6; }
+#blocks .padlock { fill: #f3efe6; }
+
+/* the tools of what is open, and above them the few choices of the tool in hand */
+#tools { grid-column: 1 / -1; grid-row: 2; display: flex; flex-direction: column; gap: 8px; padding: 6px 10px 8px; min-width: 0; }
+#opts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+#opts > span { display: contents; }
+#opts button { white-space: nowrap; }
+#opts > button, #opts > span > button, #opts .chips button { border-radius: 12px; background: var(--surface); font-size: 13.5px; }
+#opts > button[aria-pressed="true"], #opts .chips button[aria-pressed="true"], #opts > span > button[aria-pressed="true"] { background: var(--toggle); }
+#opts button.main { background: var(--accent); }
+#opts .i { width: 18px; height: 18px; }
+#tray .tools { display: flex; gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+#tray button { position: relative; flex: 1 1 0; min-width: 0; flex-direction: column; gap: 3px; min-height: 58px; padding: 4px 2px; border: 0; border-radius: 13px; background: none; color: var(--soft); font-size: 11.5px; white-space: nowrap; }
+#tray button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 650; }
+#tray kbd { display: none; }
+body[data-at="look"] #tools, body.carded #tools { display: none; }
+
+/* the card of what is selected, or of a tool that works with sliders */
+#side { grid-column: 1 / -1; grid-row: 3; min-width: 0; }
+#card { max-height: 47dvh; overflow: auto; overscroll-behavior: contain; scroll-padding-bottom: 76px; padding: 10px 14px 12px; border: 1px solid var(--line); border-bottom: 0; border-radius: 18px 18px 0 0; background: var(--surface); }
+#card header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+#card header h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#card header .i { color: var(--accent); }
+#card header button.main { padding: 8px 16px; }
+#card .seg { background: var(--bg); margin: 8px 0; }
+#card h3:first-child { margin-top: 2px; }
+/* the three questions: short on a phone, and the button that does it stays in view */
+[data-card="fill"] > .small, [data-card="fill"] .choices span { display: none; }
+[data-card="fill"] .choices { grid-template-columns: 1fr 1fr; }
+[data-card="fill"] h3 { margin: 10px 0 4px; }
+[data-card="fill"] .row:has(#gBuild) { position: sticky; bottom: -12px; margin: 10px -14px -12px; padding: 8px 14px 12px; background: var(--surface); border-top: 1px solid var(--line); }
+#gBuild { flex: 1; min-height: 46px; }
+#card select { min-width: 5em; }
+#listBox, .fine { display: none; }
+/* On a phone a card that opens when something on the model is tapped stays short, so the model
+   hardly moves under the finger. What is used less sits behind "More". */
+.extra { display: none; }
+.more-on .extra { display: block; }
+button.more { min-height: 32px; margin: 0 0 0 -8px; padding: 4px 8px; font-size: 13px; }
+button.more::after { content: ""; width: 7px; height: 7px; margin-left: 2px; border-right: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.more-on button.more::after { transform: translateY(2px) rotate(-135deg); }
+[data-card="piece"] .swatches, [data-card="rod"] .swatches { flex-wrap: nowrap; overflow-x: auto; margin: 4px 0; padding: 3px 2px; scrollbar-width: none; }
+[data-card="piece"] .swatches > span, [data-card="rod"] .swatches > span { flex: none; margin-right: 4px; }
+[data-card="piece"] .swatch, [data-card="rod"] .swatch { flex: none; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+/* (the card of One bone keeps its height while a vertebra is picked, and the sliders of the curve stay in place while its ends are picked) */
+[data-card="one"] { min-height: 232px; }
+.off { opacity: 0.35; pointer-events: none; }
+/* (on a phone the two less used sliders of the curve share a row) */
+#stretchOn { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+#stretchOn > * { grid-column: 1 / -1; }
+#stretchOn > .dial:nth-of-type(n+3) { grid-column: auto; }
+.thumbs { display: grid; grid-template-columns: repeat(5, minmax(0, 92px)); gap: 6px; }
+.thumbs button { flex-direction: column; gap: 4px; min-width: 0; padding: 4px 4px 5px; border-radius: 12px; background: var(--bg); font-size: 11.5px; color: var(--soft); }
+.thumbs button[aria-pressed="true"] { color: var(--ink); }
+.thumbs img { display: block; width: 100%; aspect-ratio: 132 / 156; object-fit: cover; border-radius: 8px; background: #0f1014; }
+.thumbs img:not([src]) { visibility: hidden; }
+#paletteRow button { padding: 6px 4px; font-size: 13px; }
+.backs button { width: 32px; height: 32px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--line); }
+.backs button[aria-pressed="true"] { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
+.backs [data-back="dark"] { background: #131419; } .backs [data-back="grey"] { background: #6e7078; } .backs [data-back="light"] { background: #edebe3; } .backs [data-back="white"] { background: #fff; } .backs [data-back="black"] { background: #000; }
+.backs .check { margin: 0; }
+
+/* ---- the sheets: where a sketch starts, how it is shared, and the note shown when the app opens */
+dialog { color: var(--ink); background: var(--surface); border: 1px solid var(--line); }
+dialog::backdrop { background: rgba(8, 9, 12, 0.68); }
+dialog header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+dialog header h2 { flex: 1; font-size: 18px; }
+button.icon { width: 40px; padding: 0; }
+#start, #share { width: 100%; max-width: 100%; max-height: 88dvh; margin: auto 0 0; overflow: auto; overscroll-behavior: contain; padding: 8px 16px max(16px, env(safe-area-inset-bottom)); border-bottom: 0; border-radius: 20px 20px 0 0; }
+.grab { width: 40px; height: 4px; margin: 0 auto 8px; border-radius: 2px; background: var(--line); }
+#galleryList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+#galleryList h3 { grid-column: 1 / -1; margin: 8px 0 0; }
+#galleryList button { flex-direction: column; justify-content: flex-start; gap: 6px; padding: 8px 6px; border-radius: 14px; background: var(--bg); text-align: center; }
+#galleryList svg { width: 100%; height: 96px; }
+#galleryList strong { display: block; font-size: 12.5px; font-weight: 600; line-height: 1.25; }
+#galleryList span { display: none; font-size: 12px; color: var(--soft); }
+button.big { display: flex; justify-content: flex-start; gap: 12px; width: 100%; min-height: 60px; margin: 8px 0; padding: 10px 14px; border-radius: 14px; text-align: left; }
+button.big span { display: flex; flex-direction: column; }
+button.big em { font-style: normal; font-size: 12.5px; color: var(--soft); }
+button.big.main em { color: rgba(20, 21, 28, 0.78); font-weight: 400; }
+#linkText { width: 100%; margin: 0 0 4px; font-size: 12px; }
+#printBox { margin: 0 0 8px; padding: 4px 12px 8px; border: 1px solid var(--line); border-radius: 14px; }
+#welcome { width: min(560px, 94vw); max-height: 92dvh; overflow: auto; padding: 20px 22px; border-radius: 16px; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55); }
+#welcome h2 { margin: 0 0 10px; font-size: 20px; }
+#welcome p { margin: 0 0 11px; line-height: 1.5; }
+#welcome .check { margin: 4px 0 12px; }
+#welcome a { color: #b4baff; }
+
+/* On a very narrow screen the words of the tools go on two lines. */
+@media (max-width: 359px) { #tray button { font-size: 10.5px; line-height: 1.1; white-space: normal; } }
+/* A narrow and very short screen (a desktop zoomed to 400%): the page scrolls up and down, so that the model keeps
+   some height. The four modes go into the top bar, where they wrap onto a row of their own. */
+@media (max-width: 599px) and (max-height: 430px) {
+  html, body { height: auto; min-height: 100dvh; }
+  body { overflow: visible; padding-bottom: 0; }
+  #topbar { flex-wrap: wrap; }
+  #modes { position: static; order: 3; flex: 0 0 100%; height: 50px; padding: 2px 0; border-top: 0; background: none; }
+  #modes button[aria-current="true"]::before { top: auto; bottom: 0; }
+  main { flex: none; grid-template-rows: auto auto auto; }
+  #stage { height: 230px; }
+  #card { max-height: none; }
+}
+
+/* ---- the clean view: the model alone, for a picture of the screen */
+body.clean { padding-bottom: 0; }
+body.clean #topbar, body.clean #tools, body.clean #side, body.clean #strip, body.clean #says, body.clean #stripBtn { display: none !important; }
+body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
+
+/* ================= a wide screen: a desktop, a tablet on its side =================
+   (and a phone on its side, which is wide and short) */
+@media (min-width: 900px), (min-width: 600px) and (max-height: 559px) {
+  body { padding-bottom: 0; }
+  #topbar { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; height: 56px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #17181f; }
+  #topbar .right { justify-self: end; }
+  .tb { min-height: 38px; border-radius: 11px; background: var(--second); }
+  .tb.icon { width: 38px; }
+  #modes { position: static; height: auto; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 13px; background: var(--bg); }
+  #modes button { flex: none; flex-direction: row; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: 10px; font-size: 14px; }
+  #modes button[aria-current="true"] { background: var(--pressed); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
+  #modes button[aria-current="true"]::before { display: none; }
+  #modes .i { width: 19px; height: 19px; }
+  .menu { top: 60px; }
+  main { grid-template-columns: auto minmax(0, 1fr) 320px; grid-template-rows: minmax(0, 1fr) auto; }
+  #strip { grid-column: 1; grid-row: 1 / 3; padding: 10px 0 10px 10px; }
+  #stage { grid-column: 2; grid-row: 1; }
+  #tools { grid-column: 2; grid-row: 2; align-items: center; padding: 6px 12px 12px; }
+  body.carded #tools { display: flex; }
+  #tray button { flex: none; width: 78px; min-height: 60px; font-size: 12px; }
+  #tray kbd { display: block; position: absolute; left: 7px; top: 4px; font: 10px system-ui, sans-serif; color: var(--soft); opacity: 0.8; }
+  #tray button[aria-pressed="true"] kbd { color: var(--on-accent); }
+  #says { top: 12px; }
+  #says p { max-width: 560px; }
+  #stripBtn { left: 10px; right: auto; }
+  #side { grid-column: 3; grid-row: 1 / 3; overflow: auto; padding: 14px 16px; border-left: 1px solid var(--line); background: var(--surface); }
+  #card { max-height: none; overflow: visible; padding: 0 0 12px; margin-bottom: 14px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+  body[data-at="look"] #card { border-bottom: 0; margin-bottom: 0; }
+  #listBox { display: block; }
+  body[data-at="look"] #listBox { display: none; }
+  #listBox h2 { margin-bottom: 4px; }
+  #list button { display: block; width: 100%; min-height: 0; margin: 4px 0; padding: 7px 10px; text-align: left; font-size: 13.5px; background: var(--bg); }
+  .fine { display: block; }
+  .pair.fine, .row.fine { display: flex; }
+  .dial:has(b) input[type="number"], .dial:has(b) i { display: block; }
+  #stretchOn { display: block; }
+  .extra { display: block; }
+  button.more { display: none; }
+  [data-card="piece"] .swatches, [data-card="rod"] .swatches { flex-wrap: wrap; overflow: visible; margin: 8px 0; padding: 0; }
+  [data-card="piece"] .swatches > span, [data-card="rod"] .swatches > span { flex: 0 0 100%; }
+  .duo { display: block; }
+  [data-card="one"] { min-height: 0; }
+  [data-card="fill"] > .small { display: block; }
+  [data-card="fill"] .choices span { display: inline; }
+  [data-card="fill"] .choices { grid-template-columns: 1fr; }
+  [data-card="fill"] .row:has(#gBuild) { position: static; margin: 10px 0 0; padding: 0; border: 0; background: none; }
+  .swatch { width: 24px; height: 24px; }
+  #start, #share { width: min(760px, 92vw); max-height: 88vh; margin: auto; padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px; }
+  #share { width: min(460px, 92vw); }
+  .grab { display: none; }
+  #galleryList { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  #galleryList svg { height: 120px; }
+  #galleryList span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+  body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
+}
+/* with room to spare, the top bar also holds the name, Open and Save, and the views as buttons of their own */
+@media (min-width: 1280px) and (min-height: 560px) {
+  .roomy { display: inline-flex !important; }
+  .rule.roomy { display: block !important; }
+  #topbar h1 { position: static; flex: none; width: auto; height: auto; clip-path: none; margin-right: 6px; }
+  /* (the views have buttons of their own here: the View menu, which also zooms and moves, makes do with its picture) */
+  #viewBtn span { display: none; }
+  #viewBtn { width: 38px; padding: 0; }
+  #topbar .views button { min-height: 30px; padding: 4px 10px; font-size: 13.5px; }
+}
+/* a phone on its side: everything a little smaller, and the column beside the model only while a card is open */
+@media (min-width: 600px) and (max-height: 559px) {
+  #topbar { height: 48px; padding: 0 max(10px, env(safe-area-inset-left)); }
+  #modes button { padding: 0 9px; font-size: 13px; }
+  main { grid-template-columns: auto minmax(0, 1fr) auto; }
+  #side { width: 300px; padding: 10px 12px; }
+  body:not(.carded) #side { display: none; }
+  #listBox { display: none; }
+  #tools { gap: 6px; padding: 4px 10px 6px; }
+  #tray button { width: 68px; min-height: 46px; gap: 1px; }
+  #tray kbd { display: none; }
+  #tray .tools { padding: 4px; border-radius: 15px; }
+  #opts button, #opts .seg button { min-height: 34px; }
+  [data-card="fill"] > .small, [data-card="fill"] .choices span { display: none; }
+  [data-card="fill"] .choices { grid-template-columns: 1fr 1fr; }
+  [data-card="fill"] .row:has(#gBuild) { position: sticky; bottom: -10px; margin: 10px -12px -10px; padding: 8px 12px 10px; background: var(--surface); border-top: 1px solid var(--line); }
+  #side { scroll-padding-bottom: 70px; }
+}

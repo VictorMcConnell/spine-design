@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spine Builder</title>
+<meta name="description" content="Sketch a spine in 3D and shape it to look like your own: curves, fusion, rods, screws and pain points. Free, open source and private. Nothing you build leaves your device.">
+<meta name="theme-color" content="#131419">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23191a20'/%3E%3Cg fill='%23d9c39a'%3E%3Crect x='20' y='8' width='22' height='9' rx='3.5'/%3E%3Crect x='23' y='20' width='22' height='9' rx='3.5'/%3E%3Crect x='24' y='32' width='22' height='9' rx='3.5'/%3E%3Crect x='21' y='44' width='22' height='10' rx='3.5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!--site-->
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-at="shape">
+<noscript><p style="font: 16px system-ui, sans-serif; padding: 24px; color: #eceae5; background: #131419;">Spine Builder draws in your browser and needs JavaScript switched on to do it. Nothing is sent anywhere.</p></noscript>
+<!-- the pictures on the buttons, drawn once here and used by name -->
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <symbol id="i-new" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 6 3 11l5 5"/><path d="M3 11h11a6 6 0 0 1 6 6v1"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="m16 6 5 5-5 5"/><path d="M21 11H10a6 6 0 0 0-6 6v1"/></symbol>
+  <symbol id="i-view" viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v7h14v-7"/></symbol>
+  <symbol id="i-shape" viewBox="0 0 24 24"><path d="M8 3c7 4 7 8 3 11s-2 6 2 7"/></symbol>
+  <symbol id="i-screw" viewBox="0 0 24 24"><path d="M8 3.5h8v3.5H8z"/><path d="M10 7v10.5l2 3.5 2-3.5V7"/><path d="M10 10.5l4 1.5M10 14l4 1.5"/></symbol>
+  <symbol id="i-pain" viewBox="0 0 24 24"><path d="M13 2.5 5 13.5h6l-1 8 8-11.5h-6l1-7.5Z"/></symbol>
+  <symbol id="i-look" viewBox="0 0 24 24"><path d="M12 3s6 6.2 6 11a6 6 0 0 1-12 0c0-4.8 6-11 6-11Z"/></symbol>
+  <symbol id="i-turn" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4h-4"/></symbol>
+  <symbol id="i-draw" viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1Z"/><path d="M14.5 6.5l3 3"/></symbol>
+  <symbol id="i-curve" viewBox="0 0 24 24"><path d="M5 20c0-9 14-7 14-16"/><path d="M5 20h3M5 20v-3M19 4h-3M19 4v3"/></symbol>
+  <symbol id="i-points" viewBox="0 0 24 24"><path d="M6 20c2-5 10-7 12-16"/><circle cx="6" cy="20" r="1.8"/><circle cx="12" cy="12.5" r="1.8"/><circle cx="18" cy="4" r="1.8"/></symbol>
+  <symbol id="i-one" viewBox="0 0 24 24"><rect x="8" y="9" width="8" height="6" rx="2"/><path d="M2.5 12H6M18 12h3.5M4.5 10l-2 2 2 2M19.5 10l2 2-2 2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-hook" viewBox="0 0 24 24"><path d="M11 4h6"/><path d="M14 4v9a4.5 4.5 0 0 1-9 0v-2"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M6 4v16M18 4v16M6 12h12"/></symbol>
+  <symbol id="i-rod" viewBox="0 0 24 24"><rect x="10.5" y="3" width="3" height="18" rx="1.5"/></symbol>
+  <symbol id="i-erase" viewBox="0 0 24 24"><path d="M5 15 14 6l5 5-9 9H7l-2-2a2 2 0 0 1 0-3Z"/><path d="M10 10l5 5M13 20h7"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M12 21s6-5.3 6-10a6 6 0 1 0-12 0c0 4.7 6 10 6 10Z"/><circle cx="12" cy="11" r="2"/></symbol>
+  <symbol id="i-both" viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M8 8l-4 4 4 4M16 8l4 4-4 4"/></symbol>
+  <symbol id="i-fill" viewBox="0 0 24 24"><path d="M5 19 16 8M14 6l4 4"/><path d="M18 2.5v3M16.5 4h3M6 5v2M5 6h2"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="3"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-3h5L16 7"/></symbol>
+  <symbol id="i-chain" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v4h4"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3V7Z"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+</svg>
+
+<header id="topbar">
+  <div class="left">
+    <h1>Spine Builder</h1>
+    <button id="newBtn" class="tb" aria-label="New sketch"><svg class="i"><use href="#i-new"/></svg><span>New</span></button>
+    <button id="openBtn" class="tb roomy">Open</button>
+    <button id="saveBtn" class="tb roomy">Save</button>
+    <input id="openFile" type="file" accept=".json,application/json" hidden>
+    <i class="rule roomy"></i>
+    <button id="undoBtn" class="tb icon" aria-label="Undo" disabled><svg class="i"><use href="#i-undo"/></svg></button>
+    <button id="redoBtn" class="tb icon" aria-label="Redo" disabled><svg class="i"><use href="#i-redo"/></svg></button>
+  </div>
+  <!-- the four things to work on: a bar along the bottom of a phone, a switch in the middle of the top bar on a wide screen -->
+  <nav id="modes" aria-label="What to work on">
+    <button data-tab="shape" aria-current="true"><svg class="i"><use href="#i-shape"/></svg><span>Shape</span></button>
+    <button data-tab="parts"><svg class="i"><use href="#i-screw"/></svg><span>Hardware</span></button>
+    <button data-tab="marks"><svg class="i"><use href="#i-pain"/></svg><span>Pain</span></button>
+    <button data-tab="look"><svg class="i"><use href="#i-look"/></svg><span>Look</span></button>
+  </nav>
+  <div class="right">
+    <div class="seg views roomy" role="group" aria-label="Look from"><button data-look="back">Back</button><button data-look="left">Side</button><button data-look="front">Front</button></div>
+    <button class="tb roomy" data-fit>Fit</button>
+    <button id="viewBtn" class="tb" aria-label="View" aria-haspopup="true" aria-expanded="false" aria-controls="viewMenu"><svg class="i"><use href="#i-view"/></svg><span>View</span></button>
+    <button id="shareBtn" class="tb main"><svg class="i"><use href="#i-share"/></svg><span>Share</span></button>
+  </div>
+</header>
+<div id="viewMenu" class="menu" role="group" aria-label="View" hidden>
+  <button data-look="back">From the back</button><button data-look="front">From the front</button><button data-look="left">From the left</button><button data-look="right">From the right</button>
+  <button data-fit>Fit the whole spine</button>
+  <div class="pairrow"><button data-zoom="in">Zoom in</button><button data-zoom="out">Zoom out</button></div>
+  <div class="pairrow"><button data-move="up">Move up</button><button data-move="down">Move down</button></div>
+</div>
+
+<main>
+  <section id="stage">
+    <canvas id="view" tabindex="0" role="application" aria-label="3D view of the spine. Arrow keys pick a vertebra and a side, Enter does what a tap does, plus and minus zoom." aria-describedby="sketchSays"></canvas>
+    <p id="sketchSays" class="sr"></p>
+    <div id="labels" aria-hidden="true"></div>
+    <svg id="tagLines" aria-hidden="true"></svg>
+    <div id="tags" aria-hidden="true"></div>
+    <div id="drawPad" hidden><svg id="drawSvg"><polyline id="drawLine" fill="none"></polyline><polyline id="anchorPath"></polyline><polyline id="anchorHit"></polyline><g id="anchorDots"></g></svg></div>
+    <!-- one line of help that changes with the tool in hand, and under it what the app has to report -->
+    <div id="says"><p id="coach" role="status"></p><p id="status" role="status"></p></div>
+    <!-- (what the tools have to say is written here by the code that runs them, and shown in the line of help) -->
+    <div hidden><p id="drawSay"></p><p id="traySay"></p><p id="rodSay"></p></div>
+    <div id="problemBox" class="warn" role="alert" hidden><strong>This file has problems</strong><ul id="problems"></ul><button id="problemsOk">OK</button></div>
+    <button id="stripBtn" aria-pressed="false" hidden><svg class="i"><use href="#i-map"/></svg><span>Map</span></button>
+    <button id="cleanOff" hidden>Tap the model to show the tools</button>
+  </section>
+
+  <!-- the flat view beside the model: the map of the hardware, or the blocks of the shape -->
+  <aside id="strip" aria-label="Flat view of the spine" hidden>
+    <div id="mapBox">
+      <div id="mapWrap"><svg id="map" role="img" aria-label="Map of the hardware, seen from the back. With a keyboard, use the 3D view: arrow keys and Enter."></svg></div>
+      <label class="check" id="mapNeckRow"><input type="checkbox" id="mapNeck">Show the neck</label>
+    </div>
+    <div id="blocksBox" hidden>
+      <div class="seg" role="group" aria-label="Seen from"><button data-chart="0" aria-pressed="true">From the back</button><button data-chart="1" aria-pressed="false">From the side</button></div>
+      <div id="blocksWrap"><svg id="blocks" role="img" aria-label="The vertebrae as blocks that can be dragged sideways. The Curve tool does the same with sliders."></svg></div>
+      <p class="small">Drag a block sideways and its neighbours follow.</p>
+    </div>
+  </aside>
+
+  <div id="tools">
+    <!-- the few choices that go with the tool in hand -->
+    <div id="opts">
+      <div class="seg" data-opts="shape:draw" role="group" aria-label="Draw it"><button data-draw="0" aria-pressed="false">From the back</button><button data-draw="1" aria-pressed="false">From the side</button></div>
+      <div class="seg" data-opts="shape:points" role="group" aria-label="A line with points"><button data-points="0" aria-pressed="false">From the back</button><button data-points="1" aria-pressed="false">From the side</button></div>
+      <span data-opts="shape:points"><button id="pointGone" hidden>Remove the point</button></span>
+      <div class="chips" data-opts="shape:lock" role="group" aria-label="Lock a part of the spine"><button data-lockpart="neck" aria-pressed="false">Neck</button><button data-lockpart="chest" aria-pressed="false">Chest</button><button data-lockpart="low" aria-pressed="false">Low back</button><button id="lockNone">Unlock all</button></div>
+      <div class="seg" data-opts="parts:hook" role="group" aria-label="Which way the hook points"><button data-hook="down" aria-pressed="true">Points down</button><button data-hook="up" aria-pressed="false">Points up</button></div>
+      <button id="bothBtn" class="toggle" data-opts="parts:screw parts:hook parts:rod" aria-pressed="true"><svg class="i"><use href="#i-both"/></svg>Both sides</button>
+      <button id="fillBtn" data-opts="parts:turn parts:screw"><svg class="i"><use href="#i-fill"/></svg>Fill it in for me</button>
+      <span data-opts="parts:rod"><button id="rodsPut" class="main">Rods through all parts</button></span>
+      <span data-opts="parts:rod"><button id="rodsOff" hidden>Take the rods off</button></span>
+      <span data-opts="parts:rod"><button id="rodFused" class="toggle" aria-pressed="false" hidden>Fused, stays stiff</button></span>
+      <button id="hwClear" data-opts="parts:erase">Remove all hardware</button>
+    </div>
+    <!-- the tools of the step that is open -->
+    <div id="tray" role="toolbar" aria-label="Tools">
+      <div class="tools" data-tools="shape">
+        <button data-t="turn" aria-pressed="false"><kbd>1</kbd><svg class="i"><use href="#i-turn"/></svg>Turn</button>
+        <button data-t="draw" aria-pressed="true"><kbd>2</kbd><svg class="i"><use href="#i-draw"/></svg>Draw</button>
+        <button data-t="curve" aria-pressed="false"><kbd>3</kbd><svg class="i"><use href="#i-curve"/></svg>Curve</button>
+        <button data-t="points" aria-pressed="false"><kbd>4</kbd><svg class="i"><use href="#i-points"/></svg>Points</button>
+        <button data-t="one" aria-pressed="false"><kbd>5</kbd><svg class="i"><use href="#i-one"/></svg>One bone</button>
+        <button data-t="lock" aria-pressed="false"><kbd>6</kbd><svg class="i"><use href="#i-lock"/></svg>Lock</button>
+      </div>
+      <div class="tools" data-tools="parts" hidden>
+        <button data-t="turn" aria-pressed="false"><kbd>1</kbd><svg class="i"><use href="#i-turn"/></svg>Turn</button>
+        <button data-t="screw" aria-pressed="true"><kbd>2</kbd><svg class="i"><use href="#i-screw"/></svg>Screw</button>
+        <button data-t="hook" aria-pressed="false"><kbd>3</kbd><svg class="i"><use href="#i-hook"/></svg>Hook</button>
+        <button data-t="link" aria-pressed="false"><kbd>4</kbd><svg class="i"><use href="#i-link"/></svg>Link</button>
+        <button data-t="rod" aria-pressed="false"><kbd>5</kbd><svg class="i"><use href="#i-rod"/></svg>Rod</button>
+        <button data-t="erase" aria-pressed="false"><kbd>6</kbd><svg class="i"><use href="#i-erase"/></svg>Erase</button>
+      </div>
+      <div class="tools" data-tools="marks" hidden>
+        <button data-t="turn" aria-pressed="false"><kbd>1</kbd><svg class="i"><use href="#i-turn"/></svg>Turn</button>
+        <button data-t="pain" aria-pressed="true"><kbd>2</kbd><svg class="i"><use href="#i-pain"/></svg>Pain point</button>
+        <button data-t="note" aria-pressed="false"><kbd>3</kbd><svg class="i"><use href="#i-note"/></svg>Note</button>
+      </div>
+    </div>
+  </div>
+
+  <aside id="side" aria-label="What is selected, and what is on this spine">
+    <!-- the card of the thing that is selected, or of the tool that works with sliders -->
+    <div id="card" hidden>
+      <section data-card="curve" hidden>
+        <header><svg class="i"><use href="#i-curve"/></svg><h2>Curve</h2><button id="straighten" class="quiet">Straighten all</button><button class="main" data-done>Done</button></header>
+        <div class="seg" role="group" aria-label="Which part of the spine"><button data-region="neck" aria-pressed="false">Neck</button><button data-region="chest" aria-pressed="false">Chest</button><button data-region="low" aria-pressed="false">Low back</button><button data-region="whole" aria-pressed="false">Whole</button></div>
+        <div class="pair fine"><label for="strTop">From</label><select id="strTop" aria-label="Stretch from"></select><label for="strBottom">to</label><select id="strBottom" aria-label="Stretch to"></select></div>
+        <p class="small fine" id="stretchHint"></p>
+        <div id="stretchOn">
+          <p class="small note" id="stretchFused" hidden></p>
+          <label class="dial">Sideways<b id="bow0Say"></b><span><input type="range" id="bow0R" min="-100" max="100"><input type="number" id="bow0N" min="-100" max="100"><i>°</i></span></label>
+          <label class="dial">Round or flat<b id="bow1Say"></b><span><input type="range" id="bow1R" min="-100" max="100"><input type="number" id="bow1N" min="-100" max="100"><i>°</i></span></label>
+          <label class="dial">Twist<b id="twistSay"></b><span><input type="range" id="twistR" min="-60" max="60"><input type="number" id="twistN" min="-60" max="60"><i>°</i></span></label>
+          <label class="dial">Lean<b id="offSay"></b><span><input type="range" id="offR" min="-80" max="80"><input type="number" id="offN" min="-80" max="80"><i>mm</i></span></label>
+          <label class="check"><input type="checkbox" id="curveFused">This stretch is fused: it keeps its shape</label>
+        </div>
+      </section>
+
+      <section data-card="one" hidden>
+        <header><svg class="i"><use href="#i-one"/></svg><h2>One bone</h2><button class="main" data-done>Done</button></header>
+        <div class="row between"><button id="boneUp">One up</button><select id="bonePick" aria-label="Vertebra"></select><button id="boneDown">One down</button></div>
+        <p class="small" id="oneHint">Tap a vertebra to pick it.</p>
+        <div id="oneOn" hidden>
+          <div class="seg" role="group" aria-label="What to change"><button data-tool="move">Move</button><button data-tool="turn">Turn</button><button data-tool="size">Size</button></div>
+          <p class="small note" id="oneFused" hidden></p>
+          <div data-toolpane="move">
+            <p class="small">Drag an arrow on the model, or drag the vertebra itself. Its neighbours follow.</p>
+            <label class="dial" id="gapRow">Space to the vertebra below<span><input type="range" id="gapR" min="0.5" max="20" step="0.5"><input type="number" id="gapN" min="0.5" max="20" step="0.5"><i>mm</i></span></label>
+          </div>
+          <div data-toolpane="turn" hidden>
+            <label class="dial">Top leans to the left<span><input type="range" id="angF" min="-60" max="60" step="0.5"><input type="number" id="angFn" min="-60" max="60" step="0.5"><i>°</i></span></label>
+            <label class="dial">Top leans back<span><input type="range" id="angS" min="-60" max="60" step="0.5"><input type="number" id="angSn" min="-60" max="60" step="0.5"><i>°</i></span></label>
+            <label class="dial">Front turned to the left<span><input type="range" id="angT" min="-60" max="60" step="0.5"><input type="number" id="angTn" min="-60" max="60" step="0.5"><i>°</i></span></label>
+            <div class="row"><button id="angZero">Take out its sideways lean and turn</button></div>
+          </div>
+          <div data-toolpane="size" hidden>
+            <label class="dial">Width<span><input type="range" id="sizeW" step="0.5"><input type="number" id="sizeWn" step="0.5"><i>mm</i></span></label>
+            <label class="dial">Depth<span><input type="range" id="sizeD" step="0.5"><input type="number" id="sizeDn" step="0.5"><i>mm</i></span></label>
+            <label class="dial">Height<span><input type="range" id="sizeH" step="0.5"><input type="number" id="sizeHn" step="0.5"><i>mm</i></span></label>
+            <div class="row"><button id="boneTypical">Back to the typical size</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section data-card="piece" hidden>
+        <header><svg class="i"><use href="#i-screw"/></svg><h2 id="pieceName"></h2><button id="pieceRemove" class="quiet warn">Remove</button><button id="pieceDone" class="main">Done</button></header>
+        <p class="small fine" id="pieceHow">Drag it over the bone to move it.</p>
+        <div class="seg" id="pieceFaceRow" role="group" aria-label="Which way the hook points"><button data-face="down">Points down</button><button data-face="up">Points up</button></div>
+        <div class="swatches" id="pieceColors" aria-label="Colour of this part"></div>
+        <button class="quiet more" data-more aria-expanded="false">More</button>
+        <div class="extra">
+          <div class="swatches" id="pieceKindColors" aria-label="Colour of all parts of this kind"></div>
+          <label class="dial" id="pieceThickRow">Thickness<span><input type="range" id="pieceThick" min="3.5" max="8" step="0.5"><input type="number" id="pieceThickN" min="3.5" max="8" step="0.5"><i>mm</i></span></label>
+          <label class="dial" id="pieceLongRow">Length<span><input type="range" id="pieceLong" min="10" max="65"><input type="number" id="pieceLongN" min="10" max="65"><i>mm</i></span></label>
+          <label class="check" id="pieceLockedRow" hidden><input type="checkbox" id="pieceLocked">Frozen: nothing moves or removes it until this is unticked</label>
+        </div>
+      </section>
+
+      <section data-card="rod" hidden>
+        <header><svg class="i"><use href="#i-rod"/></svg><h2 id="rodName"></h2><button class="main" data-done>Done</button></header>
+        <p class="small fine">Drag the rod between two of its parts to bend it there.</p>
+        <div class="swatches" id="rodColors" aria-label="Colour of this rod"></div>
+        <button class="quiet more" data-more aria-expanded="false">More</button>
+        <div class="extra">
+          <div class="swatches" id="rodKindColors" aria-label="Colour of all rods"></div>
+          <label class="dial">Thickness<span><input type="range" id="rodThick" min="3.5" max="7" step="0.5"><input type="number" id="rodThickN" min="3.5" max="7" step="0.5"><i>mm</i></span></label>
+          <div class="row"><button id="rodUnbend">Take the bends out</button></div>
+        </div>
+      </section>
+
+      <section data-card="bone" hidden>
+        <header><svg class="i"><use href="#i-one"/></svg><h2 id="gName"></h2><button id="gUp" class="quiet">Up</button><button id="gDown" class="quiet">Down</button><button class="main" data-done>Done</button></header>
+        <div class="sideRow"><span>Left</span><div class="seg four" data-gside="left"><button data-gput="screw">Screw</button><button data-gput="hook-down">Hook down</button><button data-gput="hook-up">Hook up</button><button data-gput="">Nothing</button></div></div>
+        <div class="sideRow"><span>Right</span><div class="seg four" data-gside="right"><button data-gput="screw">Screw</button><button data-gput="hook-down">Hook down</button><button data-gput="hook-up">Hook up</button><button data-gput="">Nothing</button></div></div>
+        <label class="check" id="gFusedRow"><input type="checkbox" id="gFused">Fused to the vertebra below</label>
+        <label class="check" id="gLinkRow"><input type="checkbox" id="gLink">Cross-link below it</label>
+      </section>
+
+      <section data-card="fill" hidden>
+        <header><svg class="i"><use href="#i-fill"/></svg><h2>Fill it in for me</h2><button class="quiet" data-done>Close</button></header>
+        <p class="small">Three questions, and the hardware is put on. Any spot can be changed after.</p>
+        <h3>1. Where is the fusion?</h3>
+        <div class="pair"><label for="gTop">From</label><select id="gTop" aria-label="Fusion from"></select><label for="gBottom">to</label><select id="gBottom" aria-label="Fusion to"></select></div>
+        <div class="row fine"><button id="gPick" aria-pressed="false">Or click its two ends on the model</button></div>
+        <h3>2. What holds it?</h3>
+        <div class="choices" role="group" aria-label="What holds it">
+          <button data-gkind="screws" aria-pressed="true"><strong>Screws</strong><span>on both sides of every vertebra</span></button>
+          <button data-gkind="hooksTop" aria-pressed="false"><strong>Hooks on top, screws below</strong><span>two pairs of hooks at the top</span></button>
+          <button data-gkind="alternate" aria-pressed="false"><strong>Screws on every other vertebra</strong><span>fewer screws on the same rods</span></button>
+          <button data-gkind="hooks" aria-pressed="false"><strong>Hooks</strong><span>on both sides of every vertebra</span></button>
+        </div>
+        <h3>3. Cross-links between the rods</h3>
+        <div class="seg" role="group" aria-label="Cross-links"><button data-glinks="0" aria-pressed="false">None</button><button data-glinks="1" aria-pressed="true">One</button><button data-glinks="2" aria-pressed="false">Two</button></div>
+        <div class="row"><button id="gBuild" class="main">Put it on the spine</button></div>
+        <p class="small" id="gSay" role="status"></p>
+      </section>
+
+      <section data-card="mark" hidden>
+        <header><svg class="i"><use href="#i-pain"/></svg><h2 id="markName">Pain point</h2><button id="markRemove" class="quiet warn">Remove</button><button class="main" data-done>Done</button></header>
+        <div class="duo">
+        <label class="dial" id="markStrongRow">How strong<b id="markStrongSay"></b><span><input type="range" id="markStrong" min="1" max="10"><input type="number" id="markStrongN" min="1" max="10"></span></label>
+        <label class="dial" id="markSizeRow">How wide<b id="markSizeSay"></b><span><input type="range" id="markSize" min="4" max="60"><input type="number" id="markSizeN" min="4" max="60"><i>mm</i></span></label>
+        </div>
+        <label class="pair">Label<input type="text" id="markText" maxlength="60"></label>
+        <div class="row"><button id="markLabelBack" hidden>Put the label back on its spot</button></div>
+      </section>
+
+      <section data-card="look" hidden>
+        <h3>Shading</h3>
+        <div class="thumbs" id="shades" role="group" aria-label="Shading"><button data-shade="soft"><img alt=""><span>Soft</span></button><button data-shade="clay"><img alt=""><span>Clay</span></button><button data-shade="drawing"><img alt=""><span>Drawing</span></button><button data-shade="xray"><img alt=""><span>X-ray</span></button><button data-shade="plain"><img alt=""><span>Plain</span></button></div>
+        <h3>Parts</h3>
+        <div class="seg" id="paletteRow" role="group" aria-label="Finish of the parts"><button data-palette="classic">Classic</button><button data-palette="metal">Metal</button><button data-palette="bright">Bright</button><button data-palette="bold">Bold</button><button id="byLevelBtn" aria-pressed="false">By level</button></div>
+        <h3>Background</h3>
+        <div class="row backs" id="backs" role="group" aria-label="Background"><button data-back="dark" aria-label="Dark"></button><button data-back="grey" aria-label="Grey"></button><button data-back="light" aria-label="Light"></button><button data-back="white" aria-label="White"></button><button data-back="black" aria-label="Black"></button><span class="gap"></span><label class="check"><input type="checkbox" id="labelsOn">Bone names</label></div>
+        <label class="dial">Bone, see-through to solid<span><input id="boneOpacity" type="range" min="10" max="100" value="100"></span></label>
+        <details class="fold" id="lookMore">
+          <summary>More</summary>
+          <div class="pair colors"><label>Bone <input type="color" id="colBone"></label><label>Discs <input type="color" id="colDisc"></label></div>
+          <label class="check"><input type="checkbox" id="simpleBones">Simple bone shapes (drawn from measurements)</label>
+          <h3>What is shown</h3>
+          <div class="checks" id="showChecks">
+            <label><input type="checkbox" data-group="vertebrae" checked>Vertebrae</label>
+            <label><input type="checkbox" data-group="discs" checked>Discs</label>
+            <label><input type="checkbox" data-group="rods" checked>Rods</label>
+            <label><input type="checkbox" data-group="screws" checked>Screws</label>
+            <label><input type="checkbox" data-group="hooks" checked>Hooks</label>
+            <label><input type="checkbox" data-group="crosslinks" checked>Cross-links</label>
+            <label><input type="checkbox" data-group="marks" checked>Pain and notes</label>
+          </div>
+          <div class="row"><button id="lookReset">Back to the usual look</button></div>
+        </details>
+        <div class="row"><button id="cleanBtn"><svg class="i"><use href="#i-eye"/></svg>Clean view, for a picture</button></div>
+      </section>
+    </div>
+
+    <!-- what is on this spine, as a list. A line of it selects that thing. -->
+    <div id="listBox">
+      <h2 id="name">Loading</h2>
+      <p id="about" class="small"></p>
+      <div id="list"></div>
+      <p class="small foot">A sketch of a spine you can shape to look like your own, for understanding and conversation. It does not measure or diagnose. Everything stays on this device.</p>
+      <p class="small foot" id="credit"></p>
+      <p class="small foot sitelinks" hidden><a data-page="privacy.html">Privacy</a><a data-page="terms.html">Terms</a><a data-page="accessibility.html">Accessibility</a></p>
+    </div>
+  </aside>
+</main>
+
+<dialog id="start" aria-labelledby="startTitle">
+  <div class="grab" aria-hidden="true"></div>
+  <header><h2 id="startTitle">Start a sketch</h2><button id="startClose" class="icon" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></header>
+  <p class="small">Pick the shape nearest to yours. Everything can be changed after. It replaces what is on screen. These are made-up shapes of common patterns, not a diagnosis.</p>
+  <div id="galleryList"></div>
+  <div class="row two"><button id="startOpen"><svg class="i"><use href="#i-folder"/></svg>Open a sketch</button><button id="aboutBtn">About and privacy</button></div>
+  <p class="small foot">Nothing you make leaves this device.</p>
+  <p class="small sitelinks" hidden><a data-page="privacy.html">Privacy</a><a data-page="terms.html">Terms</a><a data-page="accessibility.html">Accessibility</a></p>
+</dialog>
+
+<dialog id="share" aria-labelledby="shareTitle">
+  <div class="grab" aria-hidden="true"></div>
+  <header><h2 id="shareTitle">Share your sketch</h2><button id="shareClose" class="icon" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></header>
+  <button id="pictureBtn" class="big main"><svg class="i"><use href="#i-camera"/></svg><span><strong>Save a picture</strong><em>The view as it is now</em></span></button>
+  <button id="linkBtn" class="big"><svg class="i"><use href="#i-chain"/></svg><span><strong>Copy a link</strong><em>The link itself holds the whole sketch</em></span></button>
+  <input id="linkText" type="text" readonly hidden aria-label="The link to this sketch">
+  <button id="shSave" class="big"><svg class="i"><use href="#i-file"/></svg><span><strong>Save the file</strong><em>To open again later, on any device</em></span></button>
+  <button id="printBtn" class="big" aria-expanded="false"><svg class="i"><use href="#i-view"/></svg><span><strong>Print it in 3D</strong><em>A model file for a 3D printer</em></span></button>
+  <div id="printBox" hidden>
+    <label class="pair">Size<select id="stlScale"><option value="1">full size</option><option value="0.5" selected>half size</option><option value="0.3333">a third</option><option value="0.25">a quarter</option></select></label>
+    <label class="pair">Stand<select id="standKind"><option value="">none</option><option value="post">round base with a post</option><option value="hanger">tall hanger</option></select></label>
+    <label class="pair">Surface<select id="stlFinish"><option value="0">as on screen</option><option value="1" selected>smoother</option><option value="2">smoothest (a large file)</option></select></label>
+    <p class="small" id="standSay"></p>
+    <div class="row two"><button id="stlBtn">Save for printing (STL)</button><button id="objBtn">Save with colours (OBJ)</button></div>
+    <p class="small" id="stlSay">The file holds what is shown now. Its parts are separate shapes that overlap, and slicers join them on their own.</p>
+    <p class="small" id="objSay"></p>
+  </div>
+  <p class="small" id="shSay" role="status">Nothing is uploaded. The sketch stays on this device unless you send it.</p>
+</dialog>
+
+<dialog id="welcome" aria-labelledby="welcomeTitle">
+  <h2 id="welcomeTitle">Before you start</h2>
+  <p><strong>This is a sketching tool.</strong> Spine Builder is not a medical device and gives no medical advice. What you build here is a picture to think and talk with. It is not a measurement and not a diagnosis. Take questions about your own spine to the people who treat you.</p>
+  <p><strong>Your sketch stays with you.</strong> There are no accounts and no tracking. This page does not send what you build anywhere, and it carries a rule that stops it from contacting any server once it is open. Files you open are read by your own browser. A share link carries the sketch inside the link itself, so it goes only where you send it.</p>
+  <p><strong>What is kept on this device.</strong> Two small settings: how you set the look, and whether you ticked the box below. Nothing about your spine is kept. Close the page without saving and the sketch is gone.</p>
+  <p class="small" id="welcomeHost" hidden>Like any website, the service that hosts this page can see that a device asked for the page. It does not see what you do here.</p>
+  <p class="small" id="welcomeMore"></p>
+  <p class="small sitelinks" hidden><a data-page="privacy.html">Privacy</a><a data-page="terms.html">Terms</a><a data-page="accessibility.html">Accessibility</a></p>
+  <label class="check"><input type="checkbox" id="welcomeSkip">Do not show this again on this device</label>
+  <div class="row"><button id="welcomeGo" class="main" autofocus>Start building</button></div>
+</dialog>
+<script type="module" src="ui/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+[
+ {
+  "file": "average.spine.json",
+  "name": "Average spine",
+  "about": "A typical adult spine with no sideways curve, stacked from general measurements. Start here and shape it into your own.",
+  "group": "Start here"
+ },
+ {
+  "file": "curve-chest-45.spine.json",
+  "name": "One curve in the chest",
+  "about": "One main curve of 45° to the right from T5 to T12, with the bodies turned. The gentler bends above and below it bring the head back over the pelvis. The most common pattern in teenagers with scoliosis.",
+  "group": "Sideways curves"
+ },
+ {
+  "file": "curve-chest-70.spine.json",
+  "name": "A strong curve in the chest",
+  "about": "The same pattern at 70°, with more turn in the bodies.",
+  "group": "Sideways curves"
+ },
+ {
+  "file": "curve-two-chest.spine.json",
+  "name": "Two curves in the chest",
+  "about": "A short, stiff curve of about 40° to the left high in the chest and a larger one of 55° to the right below it. The top of the chest leans, which is what lifts one shoulder.",
+  "group": "Sideways curves"
+ },
+ {
+  "file": "curve-double.spine.json",
+  "name": "Two curves, an S shape",
+  "about": "A curve of 50° to the right in the chest and one of 40° to the left in the lower back.",
+  "group": "Sideways curves"
+ },
+ {
+  "file": "curve-triple.spine.json",
+  "name": "Three curves",
+  "about": "A curve high in the chest to the left, a larger one in the chest to the right and a third in the lower back to the left.",
+  "group": "Sideways curves"
+ },
+ {
+  "file": "curve-lower-back-35.spine.json",
+  "name": "One curve in the lower back",
+  "about": "One main curve of 35° to the left from T11 to L4, with gentler bends above and below it.",
+  "group": "Sideways curves"
+ },
+ {
+  "file": "curve-low-and-chest.spine.json",
+  "name": "A large curve low down, a smaller one above",
+  "about": "A curve of 55° to the left where the chest meets the lower back and a smaller one of 38° to the right above it.",
+  "group": "Sideways curves"
+ },
+ {
+  "file": "curve-long-c.spine.json",
+  "name": "One long curve, a C shape",
+  "about": "One long curve of 55° to the left that runs from the upper chest to the lower back, with a gentler bend under it that brings the spine back onto the pelvis.",
+  "group": "Sideways curves"
+ },
+ {
+  "file": "round-back.spine.json",
+  "name": "Round upper back",
+  "about": "The chest part rounds backward by about 65°, where 20° to 40° is usual. Seen from the side. This is the shape that goes with Scheuermann's kyphosis.",
+  "group": "Round and flat backs"
+ },
+ {
+  "file": "flat-back.spine.json",
+  "name": "Flat lower back",
+  "about": "The lower back has lost most of its hollow, so the trunk leans forward. Seen from the side.",
+  "group": "Round and flat backs"
+ },
+ {
+  "file": "hollow-back.spine.json",
+  "name": "Deep hollow in the lower back",
+  "about": "The lower back hollows by about 60°, more than usual. Seen from the side.",
+  "group": "Round and flat backs"
+ },
+ {
+  "file": "fusion-screws-t4-l1.spine.json",
+  "name": "Fusion with screws at every level",
+  "about": "A curve in the chest after surgery: fused from T4 to L1 with a screw on each side of every vertebra, two rods and a cross-link. Made up, not a real person.",
+  "group": "After surgery"
+ },
+ {
+  "file": "fusion-rods-t4-l4.spine.json",
+  "name": "Fusion with hooks on top and screws below",
+  "about": "What is left of an S shape after surgery: fused from T4 to L4, with hooks on the top two levels, screws below, two rods and two cross-links. Made up, not a real person.",
+  "group": "After surgery"
+ },
+ {
+  "file": "fusion-one-rod.spine.json",
+  "name": "One rod with a hook at each end",
+  "about": "The way many fusions were done from the 1960s into the 1990s: one straight rod on the inner side of the curve, held by a hook at each end. Fused from T4 to L2. Made up, not a real person.",
+  "group": "After surgery"
+ },
+ {
+  "file": "fusion-t4-l2.spine.json",
+  "name": "A real spine: scoliosis fusion, T4 to L2, rods to L4",
+  "about": "Made from the CT, MRI and X-rays of the person who started this project, shared by him as an example. Positions are his real ones. The bone shapes are general ones that the app sizes and places, not his own.",
+  "group": "After surgery"
+ }
+]
