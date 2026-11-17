@@ -11,6 +11,7 @@ import { packSpine, unpackSpine, linkFor, packedIn } from '../io/share.js';
 import { stlOf, objOf } from '../io/print.js';
 import { zipOf } from '../io/zip.js';
 import { standFor } from '../core/stand.js';
+import { setupGuide } from './guide.js';
 import { smoother } from '../core/smooth.js';
 import { rigOf, carry, stiffen, blockOf } from '../core/shape.js';
 import { fitRods } from '../core/place.js';
@@ -53,6 +54,9 @@ function showGlow(scroll) {
 }
 const app = {
   $, renderer, DETAIL, rig: null, picked: null, also: [], spots: [],
+  // the look as it is now, what it is when nothing is chosen, and a way to change it ('' for a colour gives the usual one)
+  look: () => look, usualLook: USUAL,
+  setLook(patch) { look = { ...look, ...patch }; for (const k of ['bone', 'disc']) if (!look[k]) look[k] = USUAL[k]; applyLook(); if (builder) builder.sync(); },
   frames: [],                          // things to do after every drawn frame (lines over the picture follow the view)
   held: new Set(),                     // the vertebrae locked in place while the curve is drawn or the blocks are slid
   glow: null,                          // the vertebra that was just clicked: its block on the map and the chart lights up for a moment
@@ -416,6 +420,7 @@ function showStand() {
   let wide = 0;
   if (stand) { const p = stand.stand[0].positions; let lo = Infinity, hi = -Infinity; for (let i = 0; i < p.length; i += 3) { lo = Math.min(lo, p[i]); hi = Math.max(hi, p[i]); } wide = Math.round((hi - lo) * printScale()); }
   $('standSay').textContent = stand ? stand.says + ' The stand is a part of its own, with a base about ' + wide + ' mm across at this size. It is shown with the spine now.' : '';
+  document.querySelectorAll('[data-stand]').forEach((b) => b.setAttribute('aria-pressed', stand ? 'true' : 'false'));
   app.redraw();
   if (stand) fitView();
 }
@@ -472,7 +477,6 @@ function applyLook(save = true) {
   document.querySelectorAll('[data-back]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.back === look.back ? 'true' : 'false'));
   renderer.setShading(look.shade);
   document.querySelectorAll('[data-shade]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.shade === look.shade ? 'true' : 'false'));
-  $('colBone').value = look.bone; $('colDisc').value = look.disc; $('byLevelBtn').setAttribute('aria-pressed', look.byLevel ? 'true' : 'false');
   $('simpleBones').checked = !!look.simple; setBoneStyle(look.simple ? 'drawn' : 'real');
   if (save) keepLook();
   app.redraw();
@@ -502,6 +506,35 @@ function makeThumbs() {
     b.querySelector('img').src = small.toDataURL('image/jpeg', 0.82);
   });
   renderer.setShading(look.shade);
+}
+
+// Reset the view: everything about how the sketch is drawn goes back to how it starts. The shading, the background,
+// what is shown, every colour (the ones kept in the sketch too, so Undo brings those back) and the whole spine in view.
+const KINDS = ['rods', 'screws', 'hooks', 'crosslinks'];
+function resetView() {
+  if (!spine) return;
+  const hw = spine.hardware, colored = !!hw.colors || KINDS.some((k) => hw[k].some((p) => p.color)) || spine.levels.some((l) => l.color);
+  look = { ...USUAL }; $('boneOpacity').value = 100; $('labelsOn').checked = false;
+  document.querySelectorAll('#showChecks [data-group]').forEach((c) => { c.checked = true; });
+  setClean(false);
+  if (colored) app.change(() => { delete hw.colors; for (const k of KINDS) for (const p of hw[k]) delete p.color; for (const l of spine.levels) delete l.color; }, { ride: false });
+  applyLook(); if (builder) builder.sync();
+  renderer.look(0); fitView();
+  app.say('The view is back to how it starts.' + (colored ? ' Undo brings the colors back.' : ''));
+}
+// Reset the model: a straight normal spine with nothing on it. The sketch that was open stays in the history.
+function resetModel() {
+  if (!spine) return;
+  const had = changed();
+  openExample(START).then(() => setTimeout(() => app.say(had ? 'A straight normal spine. Undo brings back the sketch you had.' : 'A straight normal spine.'), 60));
+}
+// The stand under the model, on or off. Which stand it is, and its size, are set with the print in the Share sheet.
+let standWas = 'post';
+function setStand(on) {
+  if ($('standKind').value) standWas = $('standKind').value;
+  $('standKind').value = on ? standWas : '';
+  showStand(); if (!on) fitView();
+  app.say(on ? 'The model stands on its stand. Share has the settings for printing it.' : 'The stand is off.');
 }
 
 // The clean view: the tools are put away so that the model stands alone, for a picture of the screen.
@@ -563,23 +596,38 @@ if (!renderer) {
   $('redoBtn').addEventListener('click', redo);
   document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { look.back = b.dataset.back; applyLook(); }));
   document.querySelectorAll('[data-shade]').forEach((b) => b.addEventListener('click', () => { look.shade = b.dataset.shade; applyLook(); }));
-  $('colBone').addEventListener('input', () => { look.bone = $('colBone').value; applyLook(); });
-  $('colDisc').addEventListener('input', () => { look.disc = $('colDisc').value; applyLook(); });
-  $('byLevelBtn').addEventListener('click', () => { look.byLevel = !look.byLevel; applyLook(); });
   $('simpleBones').addEventListener('change', () => { look.simple = $('simpleBones').checked; applyLook(); });
   // the bone shapes come from an open anatomy collection that asks to be named
   $('credit').textContent = 'Bone shapes: ' + SHAPE_CREDIT + '. Resized and placed for this app.';
-  $('lookReset').addEventListener('click', () => { look = { ...USUAL }; $('boneOpacity').value = 100; $('labelsOn').checked = false; document.querySelectorAll('#showChecks [data-group]').forEach((c) => { c.checked = true; }); applyLook(); });
-  // the View menu of a narrow screen: its button opens it, a press on one of its lines or beside it closes it, and so does Esc
-  const viewMenu = (open) => { $('viewMenu').hidden = !open; $('viewBtn').setAttribute('aria-expanded', open ? 'true' : 'false'); };
-  // (opened from the keyboard, the menu takes the focus, and gives it back to its button when it closes)
-  $('viewBtn').addEventListener('click', (e) => { e.stopPropagation(); const open = $('viewMenu').hidden; viewMenu(open); if (open && e.detail === 0) $('viewMenu').querySelector('button').focus(); });
-  $('viewMenu').addEventListener('click', (e) => { if (!e.target.closest('[data-zoom],[data-move]')) { const had = $('viewMenu').contains(document.activeElement); viewMenu(false); if (had) $('viewBtn').focus(); } });
-  $('viewMenu').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); viewMenu(false); $('viewBtn').focus(); } });
+  document.querySelectorAll('[data-reset]').forEach((b) => b.addEventListener('click', () => (b.dataset.reset === 'view' ? resetView() : resetModel())));
+  document.querySelectorAll('[data-stand]').forEach((b) => b.addEventListener('click', () => setStand(!$('standKind').value)));
+  // A small menu under a button of the top bar (View, and Reset on a wide screen): its button opens it, a press on one
+  // of its lines or beside it closes it, and so does Esc. It hangs from the right edge of its button.
+  const menus = [];
+  function menu(btnId, boxId) {
+    const btn = $(btnId), box = $(boxId);
+    const set = (open) => {
+      box.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) box.style.right = Math.max(8, Math.min(window.innerWidth - btn.getBoundingClientRect().right, window.innerWidth - 8 - box.offsetWidth)) + 'px';
+    };
+    // (opened from the keyboard, the menu takes the focus, and gives it back to its button when it closes)
+    btn.addEventListener('click', (e) => { e.stopPropagation(); const open = box.hidden; menus.forEach((m) => m(false)); set(open); if (open && e.detail === 0) box.querySelector('button').focus(); });
+    box.addEventListener('click', (e) => { if (!e.target.closest('[data-zoom],[data-move]')) { const had = box.contains(document.activeElement); set(false); if (had) btn.focus(); } });
+    box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); set(false); btn.focus(); } });
+    document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#' + boxId) && !e.target.closest('#' + btnId)) set(false); });
+    menus.push(set);
+  }
+  menu('viewBtn', 'viewMenu'); menu('resetBtn', 'resetMenu');
+  const viewMenu = (open) => menus.forEach((m) => m(open));
+  // the guide: what the tools do, and the tour
+  const guide = setupGuide(app, { builder: () => builder, fresh: () => openExample(START), changed, setStand });
+  $('guideBtn').addEventListener('click', () => guide.open());
+  document.querySelectorAll('[data-guide]').forEach((b) => b.addEventListener('click', () => guide.open()));
+  $('startTour').addEventListener('click', () => { $('start').close(); guide.tour(); });
+  sheet('guide', 'guideClose');
   // Zooming and moving the picture with one finger or one key: the same as a pinch and a drag with two fingers.
   document.querySelectorAll('[data-zoom]').forEach((b) => b.addEventListener('click', () => { const c = renderer.camera; c.distance = Math.max(80, Math.min(4000, c.distance * (b.dataset.zoom === 'in' ? 0.8 : 1.25))); renderer.requestDraw(); }));
   document.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => { const c = renderer.camera; c.target = [c.target[0], c.target[1], c.target[2] + (b.dataset.move === 'up' ? -1 : 1) * c.distance * 0.1]; renderer.requestDraw(); }));
-  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#viewMenu') && !e.target.closest('#viewBtn')) viewMenu(false); });
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') { viewMenu(false); if (document.body.classList.contains('clean')) setClean(false); } });
   window.addEventListener('keydown', (e) => {
     if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
@@ -595,5 +643,5 @@ if (!renderer) {
   welcome(false);
   if (startNext && !$('welcome').open) { startNext = false; openStart(); }
   // handy when trying things in the browser console
-  window.spineBuilder = { renderer, app, builder, current: () => spine, show, openExample };
+  window.spineBuilder = { renderer, app, builder, guide, current: () => spine, show, openExample };
 }

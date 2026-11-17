@@ -17,6 +17,7 @@ import { rayMesh, rayPoint } from '../core/pick.js';
 import { gizmoHit, dragAlong, dragAround } from '../view/gizmo.js';
 import { vAdd, vSub, vScale, vLerp, vDist, vDot } from '../core/vec.js';
 import { setupEasy, swatches } from './easy.js';
+import { PALETTES, FINISHES } from '../core/hardware.js';
 import { setupChart } from './chart.js';
 
 const PART_NAMES = { screws: 'Screw', hooks: 'Hook', crosslinks: 'Cross-link', rods: 'Rod' };
@@ -281,8 +282,6 @@ export function setupBuilder(app) {
   const thick = dial('pieceThick', 'pieceThickN', (v) => { const s = pieceOf(); if (s && app.picked.kind === 'screws') { resizeScrew(s, v, 0); again(false); } });
   const long = dial('pieceLong', 'pieceLongN', (v) => { const s = pieceOf(); if (s && app.picked.kind === 'screws') { resizeScrew(s, 0, v); again(false); } });
   const rodThick = dial('rodThick', 'rodThickN', (v) => { const r = pieceOf(); if (r && app.picked.kind === 'rods') { r.diameter = v; again(false); } });
-  // a colour for the selected parts, or none to give them back the colour of their kind
-  const colored = (name) => { const all = chosen(); if (!all.length) return; for (const c of all) { if (name) c.piece.color = name; else delete c.piece.color; } again(true); };
   each('[data-face]', (b) => b.addEventListener('click', () => {
     const hooks = chosen().filter((c) => c.kind === 'hooks' && !c.piece.locked);
     if (hooks.length) app.change(() => hooks.forEach((c) => faceHook(app.spine, c.piece, b.dataset.face)), { ride: false });
@@ -294,13 +293,10 @@ export function setupBuilder(app) {
     const all = chosen(), p = pieceOf(), kind = p ? app.picked.kind : '', many = all.length > 1, lone = many ? null : p;
     const word = (k) => PART_NAMES[k].toLowerCase(), plural = { screws: 'screws', hooks: 'hooks', crosslinks: 'cross-links', rods: 'rods' };
     if (!p) return;
-    const kinds = [...new Set(all.map((c) => c.kind))], shared = all.every((c) => (c.piece.color || '') === (all[0].piece.color || '')) ? all[0].piece.color || '' : null;
     if (kind === 'rods' && !many) {
       const bends = (p.via || []).length;
       $('rodName').textContent = 'Rod, ' + p.side + ' side' + (!p.auto ? ', traced' : bends ? ', bent in ' + bends + (bends === 1 ? ' place' : ' places') : '');
       rodThick(p.diameter || 5.5);
-      swatches($('rodColors'), 'This rod', p.color || '', colored, true);
-      swatches($('rodKindColors'), 'All rods', easy.kindColor('rods'), (name) => easy.setKindColor('rods', name));
       $('rodUnbend').disabled = !bends;
       return;
     }
@@ -312,9 +308,6 @@ export function setupBuilder(app) {
     const hooks = all.filter((c) => c.kind === 'hooks');
     $('pieceFaceRow').hidden = hooks.length !== all.length;
     pressed('[data-face]', 'face', hooks.length && hooks.every((c) => (c.piece.faces || 'down') === (hooks[0].piece.faces || 'down')) ? hooks[0].piece.faces || 'down' : 'none');
-    swatches($('pieceColors'), many ? 'These parts' : 'This ' + word(kind), shared === null ? '?' : shared, colored, true);
-    $('pieceKindColors').hidden = kinds.length !== 1;
-    if (kinds.length === 1) swatches($('pieceKindColors'), 'All ' + plural[kinds[0]], easy.kindColor(kinds[0]), (name) => easy.setKindColor(kinds[0], name));
     // (parts can be frozen in a spine file. The switch shows for those, so they can be let go.)
     $('pieceLockedRow').hidden = !frozen;
     $('pieceLocked').checked = all.every((c) => c.piece.locked); $('pieceLocked').indeterminate = frozen && !$('pieceLocked').checked;
@@ -528,6 +521,7 @@ export function setupBuilder(app) {
     if (!app.spine) return;
     // (in the clean view, with the tools put away, a tap brings them back)
     if (document.body.classList.contains('clean')) { app.clean(false); return; }
+    if (tab === 'look') { paintTap(e); return; }
     if (tab === 'marks') {
       // a tap on a pain point or a note selects it. Anywhere else, the tool in hand puts a new one there.
       const m = hitThing(e, true);
@@ -664,12 +658,21 @@ export function setupBuilder(app) {
   const markNear = (l) => app.spine.marks.findIndex((m) => Math.abs(markSpot(m)[2] - l.centre[2]) <= l.size[2] / 2 + 4);
   function kbTell() {
     const l = levelOf(kb.id);
-    if (tab === 'parts') { const p = sidePart(kb.id, kb.side); app.say(kb.id + ', ' + kb.side + ' side: ' + (p ? 'a ' + PART_NAMES[p.kind].toLowerCase() : 'nothing') + '.'); }
+    if (tab === 'parts' || tab === 'look') { const p = sidePart(kb.id, kb.side); app.say(kb.id + ', ' + kb.side + ' side: ' + (p ? 'a ' + PART_NAMES[p.kind].toLowerCase() : 'nothing') + '.'); }
     else if (tab === 'marks') { const i = markNear(l); app.say(kb.id + (i >= 0 ? ': ' + (app.spine.marks[i].text || (app.spine.marks[i].kind === 'note' ? 'a note' : 'a pain point')) : '') + '.'); }
     else app.say(kb.id + (app.held.has(kb.id) ? ', locked.' : '.'));
   }
   function kbTap() {
     const id = kb.id, side = kb.side, l = levelOf(id), p = app.picked || {};
+    if (tab === 'look') {
+      // With the brush, Enter paints the part on this side of the vertebra. Where there is none, or it has that colour already, it paints the vertebra.
+      const part = sidePart(id, side), piece = part && hw()[part.kind][part.index];
+      if (colorWhat !== 'one') { colorWhat = part ? part.kind : 'bone'; sync(); return; }
+      const target = piece && (piece.color || '') !== brush ? piece : l;
+      app.change(() => { if (brush) target.color = brush; else delete target.color; }, { ride: false });
+      app.say((target === l ? id : PART_NAMES[part.kind] + ' at ' + id + ', ' + side) + (brush ? ' has a color of its own now.' : ' has the color of the rest again.'));
+      return;
+    }
     if (tab === 'shape') {
       const t = hand.shape;
       if (t === 'lock') chart.tapLock(id);
@@ -754,6 +757,8 @@ export function setupBuilder(app) {
               : kind === 'level' ? 'Choose what ' + app.picked.id + ' carries.'
                 : t === 'turn' ? Press() + ' a part or a vertebra to change it. Drag to turn the model.'
                   : t === 'rod' ? $('rodSay').textContent : $('traySay').textContent;
+    } else if (tab === 'look') {
+      text = colorWhat === 'one' ? Press() + ' a part or a vertebra to ' + (brush ? 'give it this color.' : 'give it back the color of the rest.') : 'Pick what the color goes on, then the color. Drag to turn the model.';
     } else if (tab === 'marks') {
       text = markOf() ? 'Drag its arrows to move it, or its label to move the words.' : marking === 'pain' ? Press() + ' the spot that hurts.' : marking === 'note' ? Press() + ' the spot the note is about.' : app.spine.marks.length ? Press() + ' a pain point or a note to change it.' : turnSays;
     }
@@ -761,6 +766,66 @@ export function setupBuilder(app) {
   }
   // (what the tools say is written into three hidden lines by the code that runs them: show it when it changes)
   if (window.MutationObserver) new MutationObserver(coach).observe($('drawSay').parentElement, { childList: true, characterData: true, subtree: true });
+
+  // ---------------------------------------------------------------- colours: all of them are set on the Look card
+  // A colour goes on one kind of hardware, on the bone, on the discs, or on one part: with "One part", a tap on the
+  // model paints what is under it. The last thing done is what shows: a set of colours, a colour for a kind and
+  // "By level" take away the own colours of the parts they are about, so nothing set earlier stays behind unseen.
+  const SAYS = { rods: 'All rods', screws: 'All screws', hooks: 'All hooks', crosslinks: 'All cross-links', bone: 'All vertebrae', disc: 'All discs', one: 'One part' };
+  const KIND_KEYS = Object.keys(PART_NAMES);
+  let colorWhat = 'screws', brush = 'red';
+  const hexOf = (name) => (FINISHES[name] ? '#' + FINISHES[name].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('') : name);
+  const owned = () => KIND_KEYS.reduce((n, k) => n + hw()[k].filter((p) => p.color).length, 0) + app.spine.levels.filter((l) => l.color).length;
+  const dropOwn = (kinds, bones = false) => { for (const k of kinds) for (const p of hw()[k]) delete p.color; if (bones) for (const l of app.spine.levels) delete l.color; };
+  const hasOwn = (kinds, bones = false) => kinds.some((k) => hw()[k].some((p) => p.color)) || (bones && app.spine.levels.some((l) => l.color));
+  function colorPicked(name) {
+    const what = colorWhat;
+    if (what === 'one') { brush = name; showColors(); coach(); return; }
+    if (what === 'bone' || what === 'disc') {
+      if (what === 'bone' && hasOwn([], true)) app.change(() => dropOwn([], true), { ride: false });
+      app.setLook({ [what]: name ? hexOf(name) : '' });
+      return;
+    }
+    if ((what === 'screws' || what === 'hooks') && app.look().byLevel) app.setLook({ byLevel: false });
+    app.change(() => { dropOwn([what]); const c = { ...(hw().colors || {}) }; if (name) c[what] = name; else delete c[what]; hw().colors = c; }, { ride: false });
+  }
+  each('[data-palette]', (b) => b.addEventListener('click', () => {
+    if (app.look().byLevel) app.setLook({ byLevel: false });
+    app.change(() => { dropOwn(KIND_KEYS); hw().colors = { ...PALETTES[b.dataset.palette] }; }, { ride: false });
+  }));
+  $('byLevelBtn').addEventListener('click', () => {
+    const on = !app.look().byLevel;
+    if (on && hasOwn(['screws', 'hooks'])) app.change(() => dropOwn(['screws', 'hooks']), { ride: false });
+    app.setLook({ byLevel: on });
+  });
+  each('#colorWhat [data-what]', (b) => b.addEventListener('click', () => { colorWhat = b.dataset.what; sync(); }));
+  $('ownClear').addEventListener('click', () => app.change(() => dropOwn(KIND_KEYS, true), { ride: false }));
+  // (from the card of a part: its colour is set on the Look card, with the brush)
+  each('[data-tocolor]', (b) => b.addEventListener('click', () => { colorWhat = 'one'; showTab('look'); }));
+  // A tap on the model with Look open. With "One part" it paints. Otherwise it shows the colour of that kind of thing.
+  function paintTap(e) {
+    const what = hitThing(e, false), hit = what ? null : hitLevel(e);
+    if (!what && !hit) return;
+    if (colorWhat !== 'one') { colorWhat = what ? what.kind : 'bone'; sync(); return; }
+    const target = what ? hw()[what.kind][what.index] : hit.level;
+    app.change(() => { if (brush) target.color = brush; else delete target.color; }, { ride: false });
+    app.say((what ? PART_NAMES[what.kind] + (target.level ? ' at ' + target.level : '') : hit.level.id) + (brush ? ' has a color of its own now.' : ' has the color of the rest again.'));
+  }
+  function showColors() {
+    const look = app.look(), what = colorWhat, n = owned();
+    pressed('[data-palette]', 'palette', look.byLevel ? '' : easy.paletteNow());
+    $('byLevelBtn').setAttribute('aria-pressed', look.byLevel ? 'true' : 'false');
+    pressed('#colorWhat [data-what]', 'what', what);
+    const now = what === 'one' ? brush : what === 'bone' || what === 'disc' ? (look[what] === app.usualLook[what] ? '' : look[what]) : easy.kindColor(what);
+    swatches($('lookColors'), SAYS[what], now, colorPicked, what === 'one' ? 'like the rest' : what === 'bone' || what === 'disc' ? 'the usual' : false, true);
+    $('colorSay').textContent = what === 'one' ? Press() + ' a part or a vertebra on the model to ' + (brush ? 'give it this color.' : 'give it back the color of the rest.')
+      : (what === 'screws' || what === 'hooks') && look.byLevel ? 'By level is on, so each one has the color of its vertebra. A color picked here turns that off.'
+        : SAYS[what] + ' take this color.';
+    $('ownRow').hidden = !n;
+    $('ownSay').textContent = n + (n === 1 ? ' part has' : ' parts have') + ' a color of ' + (n === 1 ? 'its' : 'their') + ' own.';
+    // (on a small screen the card scrolls: with the brush in hand, keep the colours and the line about painted parts in view)
+    if (what === 'one' && !wide() && !$('card').hidden) (n ? $('ownRow') : $('colorSay')).scrollIntoView({ block: 'nearest' });
+  }
 
   // ---------------------------------------------------------------- everything on the page that depends on the state
   function cardNow() {
@@ -784,6 +849,7 @@ export function setupBuilder(app) {
     each('#opts [data-opts]', (el) => { el.hidden = !el.dataset.opts.split(' ').includes(tab + ':' + t); some = some || !el.hidden; });
     $('opts').hidden = !some;
     pressed('[data-hook]', 'hook', hookFace); $('bothBtn').setAttribute('aria-pressed', both ? 'true' : 'false');
+    if (tab === 'look') showColors();
     // the flat view beside the model: the map with the hardware, and on a wide screen the blocks with the shape
     const can = tab === 'parts' || (tab === 'shape' && wide()), on = can && stripOn[tab];
     $('strip').hidden = !on; $('mapBox').hidden = tab !== 'parts'; $('blocksBox').hidden = tab !== 'shape';
@@ -824,6 +890,12 @@ export function setupBuilder(app) {
     markAt(clientX, clientY) { return easy.markAt({ clientX, clientY }); },
     // the kind of part under a point of the page ('screws', 'hooks', 'crosslinks', 'rods'), if there is one
     thingAt(clientX, clientY) { const what = hitThing({ clientX, clientY }, false); return what ? what.kind : null; },
+    // what the colour on the Look card goes on ('rods', 'screws', 'hooks', 'crosslinks', 'bone', 'disc', or 'one' for the brush), and the colour of the brush
+    colorOn(what, color) { colorWhat = what; if (what === 'one' && color !== undefined) brush = color; sync(); },
+    colors: () => ({ what: colorWhat, brush, own: owned() }),
+    // what a tap at a point of the page does with the brush of the Look card, and with the tool for pain points or notes (the tour uses these)
+    paintAt(clientX, clientY) { paintTap({ clientX, clientY }); },
+    painAt(clientX, clientY) { addMark({ clientX, clientY }); },
     workOn,
   };
 }

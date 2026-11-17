@@ -55,6 +55,7 @@ export function validateSpine(spine) {
     if (seen.has(l.id)) problems.push(name + ' is in the file twice.');
     seen.add(l.id);
     if (!isPoint(l.centre)) problems.push(name + ' has no usable position.');
+    if (l.color !== undefined && (typeof l.color !== 'string' || !/^([a-z]+|#[0-9a-f]{6})$/i.test(l.color) || (l.color[0] !== '#' && !COLOR_NAMES.includes(l.color)))) problems.push(name + ' has a colour the app does not know.');
     if (!Array.isArray(l.tilt) || l.tilt.length !== 2 || l.tilt.some((v) => typeof v !== 'number' || Math.abs(v) > 85)) problems.push(name + ' has a tilt the app cannot use.');
     if (typeof l.turn !== 'number' || !isFinite(l.turn)) problems.push(name + ' has no turn.');
     if (!isPoint(l.size) || l.size.some((v) => v <= 0)) problems.push(name + ' has no usable size.');

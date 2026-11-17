@@ -10,7 +10,7 @@
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23191a20'/%3E%3Cg fill='%23d9c39a'%3E%3Crect x='20' y='8' width='22' height='9' rx='3.5'/%3E%3Crect x='23' y='20' width='22' height='9' rx='3.5'/%3E%3Crect x='24' y='32' width='22' height='9' rx='3.5'/%3E%3Crect x='21' y='44' width='22' height='10' rx='3.5'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Un3ih8ChzzPxU+hnXIulspvTLpEqAAH8jDAxfdVWsOY=' 'sha256-8nJu+g6brOi3ERv6c3Y5QPUUNvs0a/n88thHmlzRTiA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-svoxqxa1U8feDnKKm9bJX4fRf26HaozX0EoTPI4uVPI=' 'sha256-Nlhf3I+uNPTUPPWgi5AYxwaqRLA+DhpAtuUo28DzPro='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="canonical" href="https://spine-design.com/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Spine Builder">
@@ -91,7 +91,22 @@ h3 { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: 
 .swatches > span { flex: 0 0 100%; font-size: 12.5px; color: var(--soft); }
 .swatch { width: 26px; height: 26px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid transparent; outline: 1px solid rgba(255, 255, 255, 0.25); }
 .swatch[aria-pressed="true"] { border-color: #fff; outline: 2px solid var(--accent); background-clip: padding-box; }
-.swatch.none { width: auto; height: 28px; border-radius: 8px; padding: 2px 9px; font-size: 12px; outline: 0; border: 1px solid var(--line); }
+.swatch.none { width: auto; height: 28px; border-radius: 8px; padding: 2px 9px; font-size: 12px; outline: 0; border: 1px solid var(--edge); }
+.swatch.none[aria-pressed="true"] { border-color: var(--accent); outline: 0; }
+/* (any other colour: a small rainbow that opens the colour picker of the device) */
+.swatch.any { position: relative; display: inline-block; overflow: hidden; background: conic-gradient(#e53, #ec3, #5c5, #3bd, #65e, #e5a, #e53); cursor: pointer; }
+.swatch.any.on { border-color: #fff; outline: 2px solid var(--accent); }
+.swatch.any input { position: absolute; inset: -6px; width: 200%; height: 200%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.swatch.any:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+#lookColors > span { display: none; }
+#lookColors { margin: 10px 0 6px; gap: 7px; }
+#colorWhat { justify-content: flex-start; margin: 10px 0 0; }
+#colorWhat button { min-height: 34px; padding: 5px 11px; border-radius: 17px; border-color: var(--edge); background: none; font-size: 13.5px; }
+#colorWhat button[aria-pressed="true"] { border-color: var(--accent); background: var(--toggle); color: var(--toggle-ink); font-weight: 600; }
+#colorWhat [data-what="one"] { margin-left: auto; }
+#colorSay { margin: 0 0 4px; }
+#ownRow { margin: 0 0 4px; justify-content: space-between; }
+#ownRow button { min-height: 32px; padding: 4px 10px; border-color: var(--edge); color: var(--ink); }
 details.fold { margin: 10px 0; }
 details.fold summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; font-size: 13.5px; }
@@ -105,11 +120,16 @@ details.fold summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .tb { min-height: 44px; padding: 0 12px; border-radius: 13px; background: var(--surface); white-space: nowrap; }
 /* (on a phone the top bar has no room for every word) */
 @media (max-width: 479px) { #viewBtn span { display: none; } #viewBtn { width: 44px; padding: 0; } }
-@media (max-width: 359px) { #newBtn span { display: none; } #newBtn { width: 44px; padding: 0; } }
+/* (the guide is a question mark at every size: the words would crowd the bar) */
+#guideBtn span { display: none; }
+#guideBtn { width: 44px; padding: 0; }
+@media (max-width: 429px) { #newBtn span { display: none; } #newBtn { width: 44px; padding: 0; } }
+/* (a very narrow screen has the guide under View) */
+@media (max-width: 359px) { #guideBtn { display: none; } }
 .tb.icon { width: 44px; padding: 0; }
 .tb.main { background: var(--accent); }
 .rule { width: 1px; height: 22px; background: var(--line); }
-.roomy { display: none !important; }
+.roomy, .vast { display: none !important; }
 /* the four things to work on */
 #modes { position: fixed; z-index: 3; left: 0; right: 0; bottom: 0; height: calc(var(--tabs) + env(safe-area-inset-bottom)); padding: 4px 8px env(safe-area-inset-bottom); display: flex; border-top: 1px solid var(--line); background: #0f1014; }
 #modes button { position: relative; flex: 1; flex-direction: column; gap: 2px; min-height: 0; padding: 0; border: 0; border-radius: 12px; background: none; color: var(--soft); font-size: 12px; }
@@ -119,6 +139,13 @@ details.fold summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .menu button { justify-content: flex-start; border: 0; background: none; padding: 10px 12px; }
 .menu button:hover { background: var(--second); }
 .menu .pairrow { display: flex; gap: 4px; margin-top: 4px; }
+/* (a menu never runs off the bottom of a short screen: it scrolls) */
+.menu { max-height: calc(100vh - max(10px, env(safe-area-inset-top)) - 60px); max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - 60px); overflow-y: auto; }
+.menu > * { flex: none; }
+.menu hr { width: 100%; margin: 6px 0 2px; border: 0; border-top: 1px solid var(--line); }
+.menu button:has(em) { flex-direction: column; align-items: flex-start; gap: 2px; max-width: 270px; text-align: left; white-space: normal; }
+.menu button em { font-style: normal; font-size: 12.5px; line-height: 1.3; color: var(--soft); }
+.menu button[aria-pressed="true"] { background: var(--toggle); box-shadow: inset 3px 0 0 var(--accent); }
 .menu .pairrow button { flex: 1; justify-content: center; background: var(--second); }
 
 /* ---- the model, the flat view beside it, the tools, and the card */
@@ -290,6 +317,29 @@ button.icon { width: 40px; padding: 0; }
 #galleryList svg { width: 100%; height: 96px; }
 #galleryList strong { display: block; font-size: 12.5px; font-weight: 600; line-height: 1.25; }
 #galleryList span { display: none; font-size: 12px; color: var(--soft); }
+/* the tour: a card over the top of the model, one step at a time */
+#tour { position: fixed; z-index: 5; left: 10px; right: 10px; top: calc(max(10px, env(safe-area-inset-top)) + 56px); max-width: 520px; margin: 0 auto; padding: 10px 12px 10px 14px; border: 1px solid var(--accent); border-radius: 15px; background: rgba(28, 30, 39, 0.97); box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45); }
+#tour header { display: flex; align-items: center; gap: 8px; }
+#tour header span { order: 2; font-size: 12px; color: var(--soft); white-space: nowrap; }
+#tour h2 { flex: 1; margin: 0; font-size: 16px; }
+#tour header button { order: 3; width: 34px; min-height: 34px; padding: 0; border: 0; background: none; }
+#tour p { margin: 4px 0 8px; font-size: 14px; line-height: 1.4; }
+#tour .row { margin: 0; justify-content: flex-end; flex-wrap: nowrap; }
+#tour .row button { min-height: 38px; padding: 6px 12px; }
+#tourBack { margin-right: auto; }
+body.touring #says { display: none; }
+body.clean #tour { display: none; }
+/* where the tour or the guide is pointing */
+.here { outline: 3px solid var(--accent) !important; outline-offset: 3px; border-radius: 12px; animation: here 1.2s ease-in-out infinite; }
+@keyframes here { 50% { outline-offset: 6px; outline-color: #fff; } }
+@media (prefers-reduced-motion: reduce) { .here { animation: none; } }
+#guide details.fold { margin: 2px 0; border-top: 1px solid var(--line); }
+#guide details.fold summary { padding: 12px 2px; font-size: 16px; }
+#guide details.fold > p { margin: 0 2px 8px; }
+#guide .toolrow { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: 0; margin: 4px 0; padding: 9px 12px; border-radius: 12px; text-align: left; }
+#guide .toolrow em { font-style: normal; font-size: 13px; line-height: 1.35; color: var(--soft); }
+#guide .walk { width: 100%; margin: 6px 0 12px; border-color: var(--accent); color: var(--toggle-ink); background: var(--toggle); }
+#startTour { margin: 8px 0 12px; min-height: 52px; border-color: var(--accent); }
 button.big { display: flex; justify-content: flex-start; gap: 12px; width: 100%; min-height: 60px; margin: 8px 0; padding: 10px 14px; border-radius: 14px; text-align: left; }
 button.big span { display: flex; flex-direction: column; }
 button.big em { font-style: normal; font-size: 12.5px; color: var(--soft); }
@@ -329,13 +379,14 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
   #topbar { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; height: 56px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #17181f; }
   #topbar .right { justify-self: end; }
   .tb { min-height: 38px; border-radius: 11px; background: var(--second); }
-  .tb.icon { width: 38px; }
+  .tb.icon, #guideBtn { width: 38px; }
   #modes { position: static; height: auto; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 13px; background: var(--bg); }
   #modes button { flex: none; flex-direction: row; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: 10px; font-size: 14px; }
   #modes button[aria-current="true"] { background: var(--pressed); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
   #modes button[aria-current="true"]::before { display: none; }
   #modes .i { width: 19px; height: 19px; }
   .menu { top: 60px; }
+  #tour { top: 68px; }
   main { grid-template-columns: auto minmax(0, 1fr) 320px; grid-template-rows: minmax(0, 1fr) auto; }
   #strip { grid-column: 1; grid-row: 1 / 3; padding: 10px 0 10px 10px; }
   #stage { grid-column: 2; grid-row: 1; }
@@ -380,6 +431,8 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
 /* with room to spare, the top bar also holds the name, Open and Save, and the views as buttons of their own */
 @media (min-width: 1280px) and (min-height: 560px) {
   .roomy { display: inline-flex !important; }
+  /* (the set views and Fit have a place in the bar only on a very wide screen. They are always under View.) */
+  @media (min-width: 1680px) { .vast { display: inline-flex !important; } }
   .rule.roomy { display: block !important; }
   #topbar h1 { position: static; flex: none; width: auto; height: auto; clip-path: none; margin-right: 6px; }
   /* (the views have buttons of their own here: the View menu, which also zooms and moves, makes do with its picture) */
@@ -411,6 +464,10 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
 <noscript><p style="font: 16px system-ui, sans-serif; padding: 24px; color: #eceae5; background: #131419;">Spine Builder draws in your browser and needs JavaScript switched on to do it. Nothing is sent anywhere.</p></noscript>
 <!-- the pictures on the buttons, drawn once here and used by name -->
 <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.4-2.8 4.2"/><path d="M12 17.6v.2"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 5v5h5"/><path d="M4.6 10A8 8 0 1 1 4 13"/></symbol>
+  <symbol id="i-brush" viewBox="0 0 24 24"><path d="M14 5.5 18.5 10 11 17.5 6.5 13 14 5.5Z"/><path d="m16 3.5 4.5 4.5"/><path d="M6.5 13c-2 2-1 4.5-3.5 6.5 3 .5 6-.5 8-2"/></symbol>
+  <symbol id="i-stand" viewBox="0 0 24 24"><path d="M12 4v13"/><path d="M5 20c0-1.7 3.1-3 7-3s7 1.3 7 3"/><path d="M9 7h6M9 11h6"/></symbol>
   <symbol id="i-new" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 6 3 11l5 5"/><path d="M3 11h11a6 6 0 0 1 6 6v1"/></symbol>
   <symbol id="i-redo" viewBox="0 0 24 24"><path d="m16 6 5 5-5 5"/><path d="M21 11H10a6 6 0 0 0-6 6v1"/></symbol>
@@ -461,8 +518,11 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
     <button data-tab="look"><svg class="i"><use href="#i-look"/></svg><span>Look</span></button>
   </nav>
   <div class="right">
-    <div class="seg views roomy" role="group" aria-label="Look from"><button data-look="back">Back</button><button data-look="left">Side</button><button data-look="front">Front</button></div>
-    <button class="tb roomy" data-fit>Fit</button>
+    <div class="seg views vast" role="group" aria-label="Look from"><button data-look="back">Back</button><button data-look="left">Side</button><button data-look="front">Front</button></div>
+    <button class="tb vast" data-fit>Fit</button>
+    <button class="tb roomy toggle" data-stand aria-pressed="false"><svg class="i"><use href="#i-stand"/></svg>Stand</button>
+    <button id="resetBtn" class="tb roomy" aria-haspopup="true" aria-expanded="false" aria-controls="resetMenu"><svg class="i"><use href="#i-reset"/></svg>Reset</button>
+    <button id="guideBtn" class="tb" aria-label="Guide"><svg class="i"><use href="#i-help"/></svg><span>Guide</span></button>
     <button id="viewBtn" class="tb" aria-label="View" aria-haspopup="true" aria-expanded="false" aria-controls="viewMenu"><svg class="i"><use href="#i-view"/></svg><span>View</span></button>
     <button id="shareBtn" class="tb main"><svg class="i"><use href="#i-share"/></svg><span>Share</span></button>
   </div>
@@ -472,6 +532,15 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
   <button data-fit>Fit the whole spine</button>
   <div class="pairrow"><button data-zoom="in">Zoom in</button><button data-zoom="out">Zoom out</button></div>
   <div class="pairrow"><button data-move="up">Move up</button><button data-move="down">Move down</button></div>
+  <hr>
+  <button data-stand aria-pressed="false"><svg class="i"><use href="#i-stand"/></svg>Stand</button>
+  <button data-reset="view"><svg class="i"><use href="#i-reset"/></svg>Reset the view</button>
+  <button data-reset="model"><svg class="i"><use href="#i-reset"/></svg>Reset the model</button>
+  <button data-guide><svg class="i"><use href="#i-help"/></svg>Guide and tour</button>
+</div>
+<div id="resetMenu" class="menu" role="group" aria-label="Reset" hidden>
+  <button data-reset="view">Reset the view<em>Colors, shading and background as they were. The whole spine in view.</em></button>
+  <button data-reset="model">Reset the model<em>A straight normal spine. Undo brings your sketch back.</em></button>
 </div>
 
 <main>
@@ -593,25 +662,22 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
         <header><svg class="i"><use href="#i-screw"/></svg><h2 id="pieceName"></h2><button id="pieceRemove" class="quiet warn">Remove</button><button id="pieceDone" class="main">Done</button></header>
         <p class="small fine" id="pieceHow">Drag it over the bone to move it.</p>
         <div class="seg" id="pieceFaceRow" role="group" aria-label="Which way the hook points"><button data-face="down">Points down</button><button data-face="up">Points up</button></div>
-        <div class="swatches" id="pieceColors" aria-label="Colour of this part"></div>
         <button class="quiet more" data-more aria-expanded="false">More</button>
         <div class="extra">
-          <div class="swatches" id="pieceKindColors" aria-label="Colour of all parts of this kind"></div>
           <label class="dial" id="pieceThickRow">Thickness<span><input type="range" id="pieceThick" min="3.5" max="8" step="0.5"><input type="number" id="pieceThickN" min="3.5" max="8" step="0.5"><i>mm</i></span></label>
           <label class="dial" id="pieceLongRow">Length<span><input type="range" id="pieceLong" min="10" max="65"><input type="number" id="pieceLongN" min="10" max="65"><i>mm</i></span></label>
           <label class="check" id="pieceLockedRow" hidden><input type="checkbox" id="pieceLocked">Frozen: nothing moves or removes it until this is unticked</label>
+          <div class="row"><button data-tocolor><svg class="i"><use href="#i-brush"/></svg>Color it under Look</button></div>
         </div>
       </section>
 
       <section data-card="rod" hidden>
         <header><svg class="i"><use href="#i-rod"/></svg><h2 id="rodName"></h2><button class="main" data-done>Done</button></header>
         <p class="small fine">Drag the rod between two of its parts to bend it there.</p>
-        <div class="swatches" id="rodColors" aria-label="Colour of this rod"></div>
         <button class="quiet more" data-more aria-expanded="false">More</button>
         <div class="extra">
-          <div class="swatches" id="rodKindColors" aria-label="Colour of all rods"></div>
           <label class="dial">Thickness<span><input type="range" id="rodThick" min="3.5" max="7" step="0.5"><input type="number" id="rodThickN" min="3.5" max="7" step="0.5"><i>mm</i></span></label>
-          <div class="row"><button id="rodUnbend">Take the bends out</button></div>
+          <div class="row"><button id="rodUnbend">Take the bends out</button><button data-tocolor><svg class="i"><use href="#i-brush"/></svg>Color it under Look</button></div>
         </div>
       </section>
 
@@ -655,14 +721,17 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
       <section data-card="look" hidden>
         <h3>Shading</h3>
         <div class="thumbs" id="shades" role="group" aria-label="Shading"><button data-shade="soft"><img alt=""><span>Soft</span></button><button data-shade="clay"><img alt=""><span>Clay</span></button><button data-shade="drawing"><img alt=""><span>Drawing</span></button><button data-shade="xray"><img alt=""><span>X-ray</span></button><button data-shade="plain"><img alt=""><span>Plain</span></button></div>
-        <h3>Parts</h3>
-        <div class="seg" id="paletteRow" role="group" aria-label="Finish of the parts"><button data-palette="classic">Classic</button><button data-palette="metal">Metal</button><button data-palette="bright">Bright</button><button data-palette="bold">Bold</button><button id="byLevelBtn" aria-pressed="false">By level</button></div>
+        <h3>Colors</h3>
+        <div class="seg" id="paletteRow" role="group" aria-label="A set of colors for the hardware"><button data-palette="classic">Classic</button><button data-palette="metal">Metal</button><button data-palette="bright">Bright</button><button data-palette="bold">Bold</button><button id="byLevelBtn" aria-pressed="false">By level</button></div>
+        <div class="chips" id="colorWhat" role="group" aria-label="What the color goes on"><button data-what="rods">Rods</button><button data-what="screws">Screws</button><button data-what="hooks">Hooks</button><button data-what="crosslinks">Links</button><button data-what="bone">Bone</button><button data-what="disc">Discs</button><button data-what="one"><svg class="i"><use href="#i-brush"/></svg>One part</button></div>
+        <div class="swatches" id="lookColors"></div>
+        <p class="small fine" id="colorSay"></p>
+        <div class="row" id="ownRow" hidden><span class="small" id="ownSay"></span><button id="ownClear" class="quiet">Clear them</button></div>
         <h3>Background</h3>
         <div class="row backs" id="backs" role="group" aria-label="Background"><button data-back="dark" aria-label="Dark"></button><button data-back="grey" aria-label="Grey"></button><button data-back="light" aria-label="Light"></button><button data-back="white" aria-label="White"></button><button data-back="black" aria-label="Black"></button><span class="gap"></span><label class="check"><input type="checkbox" id="labelsOn">Bone names</label></div>
         <label class="dial">Bone, see-through to solid<span><input id="boneOpacity" type="range" min="10" max="100" value="100"></span></label>
         <details class="fold" id="lookMore">
           <summary>More</summary>
-          <div class="pair colors"><label>Bone <input type="color" id="colBone"></label><label>Discs <input type="color" id="colDisc"></label></div>
           <label class="check"><input type="checkbox" id="simpleBones">Simple bone shapes (drawn from measurements)</label>
           <h3>What is shown</h3>
           <div class="checks" id="showChecks">
@@ -674,7 +743,7 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
             <label><input type="checkbox" data-group="crosslinks" checked>Cross-links</label>
             <label><input type="checkbox" data-group="marks" checked>Pain and notes</label>
           </div>
-          <div class="row"><button id="lookReset">Back to the usual look</button></div>
+          <div class="row"><button id="lookReset" data-reset="view">Reset the view</button></div>
         </details>
         <div class="row"><button id="cleanBtn"><svg class="i"><use href="#i-eye"/></svg>Clean view, for a picture</button></div>
       </section>
@@ -696,10 +765,26 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
   <div class="grab" aria-hidden="true"></div>
   <header><h2 id="startTitle">Start a sketch</h2><button id="startClose" class="icon" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></header>
   <p class="small">Pick the shape nearest to yours. Everything can be changed after. It replaces what is on screen. These are made-up shapes of common patterns, not a diagnosis.</p>
+  <button id="startTour" class="big"><svg class="i"><use href="#i-help"/></svg><span><strong>New here? Take the tour</strong><em>It builds a small example with you in a few steps</em></span></button>
   <div id="galleryList"></div>
   <div class="row two"><button id="startOpen"><svg class="i"><use href="#i-folder"/></svg>Open a sketch</button><button id="aboutBtn">About and privacy</button></div>
   <p class="small foot">Nothing you make leaves this device.</p>
   <p class="small sitelinks" hidden><a data-page="privacy.html">Privacy</a><a data-page="terms.html">Terms</a><a data-page="accessibility.html">Accessibility</a></p>
+</dialog>
+
+<!-- the tour: one step at a time, in a card under the top bar -->
+<section id="tour" aria-label="Tour" hidden>
+  <header><span id="tourCount"></span><h2 id="tourTitle"></h2><button id="tourEnd" class="icon" aria-label="End the tour"><svg class="i"><use href="#i-close"/></svg></button></header>
+  <p id="tourText" role="status"></p>
+  <div class="row"><button id="tourBack" class="quiet">Back</button><button id="tourDo">Do it for me</button><button id="tourNext" class="main">Next</button></div>
+</section>
+
+<dialog id="guide" aria-labelledby="guideTitle">
+  <div class="grab" aria-hidden="true"></div>
+  <header><h2 id="guideTitle">Guide</h2><button id="guideClose" class="icon" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></header>
+  <p class="small">The tour builds a simple example with you, one step at a time. Or open a part below to read what its tools do and try only that part.</p>
+  <button id="tourAll" class="big main"><svg class="i"><use href="#i-help"/></svg><span><strong>Take the tour</strong><em>The whole tool in about two minutes</em></span></button>
+  <div id="guideList"></div>
 </dialog>
 
 <dialog id="share" aria-labelledby="shareTitle">
@@ -734,7 +819,7 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
   <div class="row"><button id="welcomeGo" class="main" autofocus>Start building</button></div>
 </dialog>
 <script>
-window.SPINE_BUILD = {"version":"0.9.2","source":"https://github.com/VictorMcConnell/spine-design","address":"https://spine-design.com"};
+window.SPINE_BUILD = {"version":"0.10.0","source":"https://github.com/VictorMcConnell/spine-design","address":"https://spine-design.com"};
 window.SPINE_EXAMPLES = {"average.spine.json":{"schema":1,"name":"Average spine","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A typical adult spine with no sideways curve, stacked from general measurements. Start here and shape it into your own.","levels":[{"id":"C1","centre":[0,-71,605.5],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,592.8],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,575.3],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,558.6],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,541.6],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,524.5],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,507.5],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,489.8],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[0,-39.9,469.4],"tilt":[0,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[0,-30.9,447.8],"tilt":[0,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[0,-23,424.9],"tilt":[0,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[0,-16.5,400.7],"tilt":[0,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[0,-11.3,375.4],"tilt":[0,-9.8],"turn":0,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[0,-7.6,349],"tilt":[0,-6.2],"turn":0,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[0,-5.5,321.7],"tilt":[0,-2.5],"turn":0,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[0,-5.1,293.4],"tilt":[0,1.1],"turn":0,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[0,-6.6,264.4],"tilt":[0,4.7],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[0,-10,234.8],"tilt":[0,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[0,-15.5,204.6],"tilt":[0,12],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[0,-21.4,174.3],"tilt":[0,10],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[0,-26.6,140.2],"tilt":[0,7.5],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[0,-29.8,104.7],"tilt":[0,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-chest-45.spine.json":{"schema":1,"name":"One curve in the chest","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"One main curve of 45° to the right from T5 to T12, with the bodies turned. The gentler bends above and below it bring the head back over the pelvis. The most common pattern in teenagers with scoliosis.","levels":[{"id":"C1","centre":[0,-70.5,594.9],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-71.8,582.2],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-72.8,564.7],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-71.9,548],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.2,531],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-64.6,513.9],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58,496.9],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.3,479.2],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-1.1,-39.4,458.8],"tilt":[6.1,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-4.6,-30.5,437.5],"tilt":[12.2,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-10.7,-22.9,415.4],"tilt":[18.29,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-19.6,-16.8,392.8],"tilt":[24.39,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-28.7,-12,369.2],"tilt":[17.96,-9.8],"turn":-2.97,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-35.4,-8.4,343.7],"tilt":[11.53,-6.2],"turn":-9.65,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-39.3,-6.3,316.7],"tilt":[5.11,-2.5],"turn":-15,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-40.2,-5.9,288.5],"tilt":[-1.32,1.1],"turn":-15,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-37.9,-7.4,259.6],"tilt":[-7.75,4.7],"turn":-9.65,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-32.3,-10.7,230.6],"tilt":[-14.18,8.4],"turn":-2.97,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-23.3,-15.9,201.8],"tilt":[-20.61,12],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[-13.9,-21.5,173],"tilt":[-15.46,10],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[-6.3,-26.6,139.8],"tilt":[-10.3,7.5],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[-1.6,-29.8,104.6],"tilt":[-5.15,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-chest-70.spine.json":{"schema":1,"name":"A strong curve in the chest","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"The same pattern at 70°, with more turn in the bodies.","levels":[{"id":"C1","centre":[0,-69.6,580.3],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-70.9,567.6],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-71.9,550.1],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-71,533.4],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-68.3,516.4],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-63.7,499.3],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-57.1,482.3],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-48.4,464.6],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-1.7,-38.6,444.3],"tilt":[9.52,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-7.1,-29.9,423.4],"tilt":[19.03,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-16.4,-22.6,402.4],"tilt":[28.55,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-29.8,-17.1,382.1],"tilt":[38.06,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-43.6,-12.8,360.8],"tilt":[28.06,-9.8],"turn":-4.75,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-53.9,-9.4,336.5],"tilt":[18.06,-6.2],"turn":-15.43,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-60,-7.4,310],"tilt":[8.06,-2.5],"turn":-24,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-61.4,-7,281.8],"tilt":[-1.94,1.1],"turn":-24,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-57.9,-8.5,253.1],"tilt":[-11.94,4.7],"turn":-15.43,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-49.3,-11.7,224.9],"tilt":[-21.94,8.4],"turn":-4.75,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-35.6,-16.6,198],"tilt":[-31.94,12],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[-21.4,-21.8,171.2],"tilt":[-23.95,10],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[-9.8,-26.7,139.2],"tilt":[-15.97,7.5],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[-2.5,-29.8,104.5],"tilt":[-7.98,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-double.spine.json":{"schema":1,"name":"Two curves, an S shape","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A curve of 50° to the right in the chest and one of 40° to the left in the lower back.","levels":[{"id":"C1","centre":[0,-71,592.2],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,579.5],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,562],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,545.3],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,528.3],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,511.2],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,494.2],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,476.5],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-1,-39.9,456.1],"tilt":[5.28,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-4,-31,434.7],"tilt":[10.58,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-9.3,-23.3,412.4],"tilt":[15.86,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-17,-17.1,389.4],"tilt":[21.15,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-24.7,-12.2,365.3],"tilt":[14.63,-9.8],"turn":-4,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-29.9,-8.6,339.4],"tilt":[8.13,-6.2],"turn":-12,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-31.5,-6.5,312.2],"tilt":[-1.14,-2.5],"turn":-16,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-28.6,-6.1,284.1],"tilt":[-10.43,1.1],"turn":-12,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-21.1,-7.5,256.2],"tilt":[-19.68,4.7],"turn":-4,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-8.9,-10.6,229.3],"tilt":[-28.96,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[3.6,-15.6,201.8],"tilt":[-20.06,12],"turn":4.58,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[11.7,-21.3,172.7],"tilt":[-11.16,10],"turn":12,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[15.6,-26.4,138.9],"tilt":[-2.27,7.5],"turn":12,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[14.2,-29.6,103.5],"tilt":[6.62,3],"turn":4.58,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[8.6,-28.6,67.4],"tilt":[11.04,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[2.5,-19.3,31.6],"tilt":[8.29,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-long-c.spine.json":{"schema":1,"name":"One long curve, a C shape","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"One long curve of 55° to the left that runs from the upper chest to the lower back, with a gentler bend under it that brings the spine back onto the pelvis.","levels":[{"id":"C1","centre":[0.1,-68.4,585.2],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0.1,-69.7,572.5],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0.1,-70.7,555],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0.1,-69.8,538.3],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0.1,-67.1,521.3],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0.1,-62.5,504.2],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0.1,-55.9,487.2],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[1.3,-47.2,469.6],"tilt":[-7.53,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[5.3,-37.5,449.6],"tilt":[-15.05,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[12.3,-28.9,429.1],"tilt":[-22.58,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[22.6,-21.7,408.4],"tilt":[-30.1,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[33.9,-15.9,386.8],"tilt":[-25.1,-13.5],"turn":1.05,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[43.6,-11.1,363.4],"tilt":[-20.1,-9.8],"turn":3.88,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[51.6,-7.6,338.2],"tilt":[-15.1,-6.2],"turn":7.58,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[57.5,-5.6,311.6],"tilt":[-10.1,-2.5],"turn":10.98,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[61.2,-5.2,283.6],"tilt":[-5.1,1.1],"turn":13,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[62.5,-6.7,254.7],"tilt":[-0.1,4.7],"turn":13,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[61.2,-10.1,225.2],"tilt":[4.9,8.4],"turn":10.98,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[57.3,-15.5,195.3],"tilt":[9.9,12],"turn":7.58,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[50.8,-21.3,165.7],"tilt":[14.9,10],"turn":3.88,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[40.6,-26.3,133.2],"tilt":[19.9,7.5],"turn":1.05,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[27.1,-29.3,100.4],"tilt":[24.9,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[13.6,-28.3,66.4],"tilt":[18.67,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[3.8,-19.2,31.4],"tilt":[12.45,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-low-and-chest.spine.json":{"schema":1,"name":"A large curve low down, a smaller one above","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A curve of 55° to the left where the chest meets the lower back and a smaller one of 38° to the right above it.","levels":[{"id":"C1","centre":[-0.3,-71,588.9],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[-0.3,-72.3,576.2],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[-0.3,-73.3,558.7],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[-0.3,-72.4,542],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[-0.3,-69.7,525],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[-0.3,-65.1,507.9],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[-0.3,-58.5,490.9],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[-0.3,-49.8,473.2],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-0.6,-39.9,452.8],"tilt":[1.89,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-1.7,-30.9,431.2],"tilt":[3.78,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-3.6,-23,408.4],"tilt":[5.67,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-6.4,-16.5,384.4],"tilt":[7.58,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-9.1,-11.3,359.2],"tilt":[4.88,-9.8],"turn":-4.2,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-9.3,-7.6,332.9],"tilt":[-4.01,-6.2],"turn":-11,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-5.3,-5.5,306],"tilt":[-12.91,-2.5],"turn":-11,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[3.2,-5.1,279.1],"tilt":[-21.8,1.1],"turn":-4.2,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[16,-6.4,253.2],"tilt":[-30.7,4.7],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[28.9,-9.5,226.6],"tilt":[-21.02,8.4],"turn":4.25,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[37.3,-14.8,197.7],"tilt":[-11.37,12],"turn":12.75,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[40.8,-20.6,167.7],"tilt":[-1.72,10],"turn":17,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[38.9,-25.8,133.8],"tilt":[7.95,7.5],"turn":12.75,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[31.5,-28.9,99.2],"tilt":[16.14,3],"turn":4.25,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[18.8,-28,64.9],"tilt":[24.3,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[5.6,-19.1,31],"tilt":[18.24,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-lower-back-35.spine.json":{"schema":1,"name":"One curve in the lower back","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"One main curve of 35° to the left from T11 to L4, with gentler bends above and below it.","levels":[{"id":"C1","centre":[0,-70.7,599.3],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72,586.6],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73,569.1],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.1,552.4],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.4,535.4],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-64.8,518.3],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.2,501.3],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.5,483.6],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[0,-39.6,463.2],"tilt":[0,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[0,-30.6,441.6],"tilt":[0,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[0,-22.7,418.7],"tilt":[0,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[0,-16.2,394.5],"tilt":[0,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[0,-11,369.2],"tilt":[0,-9.8],"turn":0,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[0,-7.3,342.8],"tilt":[0,-6.2],"turn":0,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[1,-5.2,315.5],"tilt":[-4.28,-2.5],"turn":0,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[4.2,-4.8,287.4],"tilt":[-8.57,1.1],"turn":0,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[9.6,-6.3,258.9],"tilt":[-12.85,4.7],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[17.3,-9.6,230.3],"tilt":[-17.13,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[24.4,-15,201],"tilt":[-10.13,12],"turn":4.58,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[27.9,-20.8,170.9],"tilt":[-3.13,10],"turn":12,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[27.6,-26,136.9],"tilt":[3.87,7.5],"turn":12,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[23,-29.2,101.8],"tilt":[10.87,3],"turn":4.58,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[13.9,-28.3,66.4],"tilt":[17.87,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[4.1,-19.2,31.4],"tilt":[13.4,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-triple.spine.json":{"schema":1,"name":"Three curves","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A curve high in the chest to the left, a larger one in the chest to the right and a third in the lower back to the left.","levels":[{"id":"C1","centre":[-0.1,-71,590],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[-0.1,-72.3,577.3],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[-0.1,-73.3,559.8],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[-0.1,-72.4,543.1],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,526.1],"tilt":[-0.82,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0.4,-65.1,509],"tilt":[-1.64,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[1,-58.5,492],"tilt":[-2.46,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[1.9,-49.8,474.3],"tilt":[-3.29,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[1.8,-39.9,453.9],"tilt":[3.69,-24.4],"turn":3,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-0.9,-31,432.5],"tilt":[10.67,-20.7],"turn":6,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-6.6,-23.3,410.3],"tilt":[17.65,-17.1],"turn":3,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-15.4,-17.2,387.7],"tilt":[24.65,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-24.4,-12.4,364],"tilt":[17.2,-9.8],"turn":-4.25,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-30.5,-8.8,338.4],"tilt":[9.75,-6.2],"turn":-12.75,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-32.6,-6.7,311.3],"tilt":[-0.55,-2.5],"turn":-17,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-29.8,-6.3,283.3],"tilt":[-10.84,1.1],"turn":-12.75,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-21.9,-7.7,255.5],"tilt":[-20.6,4.7],"turn":-4.25,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-9.2,-10.7,228.8],"tilt":[-30.37,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[3.9,-15.7,201.6],"tilt":[-21.02,12],"turn":4.58,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[12.4,-21.3,172.6],"tilt":[-11.68,10],"turn":12,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[16.5,-26.4,138.8],"tilt":[-2.33,7.5],"turn":12,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[15,-29.6,103.4],"tilt":[7.02,3],"turn":4.58,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[9.1,-28.6,67.3],"tilt":[11.62,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[2.7,-19.3,31.6],"tilt":[8.72,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"curve-two-chest.spine.json":{"schema":1,"name":"Two curves in the chest","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A short, stiff curve of about 40° to the left high in the chest and a larger one of 55° to the right below it. The top of the chest leans, which is what lifts one shoulder.","levels":[{"id":"C1","centre":[0,-69.8,590.2],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-71.1,577.5],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-72.1,560],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-71.2,543.3],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0.3,-68.5,526.3],"tilt":[-1.94,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[1.2,-63.9,509.2],"tilt":[-3.85,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[2.6,-57.3,492.3],"tilt":[-5.79,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[4.7,-48.7,474.7],"tilt":[-7.73,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[5.6,-38.8,454.4],"tilt":[2.38,-24.4],"turn":4.5,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[2.8,-29.9,433],"tilt":[12.46,-20.7],"turn":9,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-4.2,-22.3,411.2],"tilt":[22.55,-17.1],"turn":4.5,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-15.5,-16.5,389.7],"tilt":[32.66,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-27.5,-11.9,367.4],"tilt":[24.22,-9.8],"turn":-3.37,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-36.5,-8.4,342.6],"tilt":[15.78,-6.2],"turn":-10.93,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-41.9,-6.4,315.9],"tilt":[7.34,-2.5],"turn":-17,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-43.4,-6,287.7],"tilt":[-1.09,1.1],"turn":-17,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-41,-7.5,258.9],"tilt":[-8.17,4.7],"turn":-10.93,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-35,-10.8,230],"tilt":[-15.26,8.4],"turn":-3.37,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-25.3,-16,201.4],"tilt":[-22.34,12],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[-15.1,-21.6,172.8],"tilt":[-16.76,10],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[-6.9,-26.6,139.7],"tilt":[-11.16,7.5],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[-1.8,-29.8,104.6],"tilt":[-5.59,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"flat-back.spine.json":{"schema":1,"name":"Flat lower back","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"The lower back has lost most of its hollow, so the trunk leans forward. Seen from the side.","levels":[{"id":"C1","centre":[0,-71,609.8],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,597.1],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,579.6],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,562.9],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,545.9],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,528.8],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,511.8],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,494.1],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[0,-39.9,473.7],"tilt":[0,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[0,-30.9,452.1],"tilt":[0,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[0,-23,429.2],"tilt":[0,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[0,-16.5,405],"tilt":[0,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[0,-11.3,379.7],"tilt":[0,-9.8],"turn":0,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[0,-7.6,353.3],"tilt":[0,-6.2],"turn":0,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[0,-5.5,326],"tilt":[0,-2.5],"turn":0,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[0,-5.1,297.7],"tilt":[0,1.1],"turn":0,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[0,-5.9,268.7],"tilt":[0,2.13],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[0,-7.3,238.9],"tilt":[0,3.26],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[0,-9.4,208.3],"tilt":[0,4.29],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[0,-10.5,177.5],"tilt":[0,-0.28],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[0,-11.4,143],"tilt":[0,3.47],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[0,-14.1,107.4],"tilt":[0,5.22],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-16.6,70.8],"tilt":[0,2.47],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-14.7,33.1],"tilt":[0,-8.28],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"fusion-one-rod.spine.json":{"schema":1,"name":"One rod with a hook at each end","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"The way many fusions were done from the 1960s into the 1990s: one straight rod on the inner side of the curve, held by a hook at each end. Fused from T4 to L2. Made up, not a real person.","levels":[{"id":"C1","centre":[0.1,-70.7,604.1],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0.1,-72,591.4],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0.1,-73,573.9],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0.1,-72.1,557.2],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0.1,-69.4,540.2],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0.1,-64.8,523.1],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0.1,-58.2,506.1],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0.1,-49.5,488.4],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-0.6,-39.6,468],"tilt":[3.8,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-2.8,-30.6,446.5],"tilt":[7.6,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-6.6,-22.8,423.9],"tilt":[11.4,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-12.2,-16.5,400.3],"tilt":[15.2,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-18,-11.4,375.6],"tilt":[11.2,-9.8],"turn":-1.98,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-22.2,-7.8,349.5],"tilt":[7.2,-6.2],"turn":-6.43,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-24.7,-5.7,322.3],"tilt":[3.2,-2.5],"turn":-10,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-25.3,-5.3,294],"tilt":[-0.8,1.1],"turn":-10,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-23.9,-6.5,265],"tilt":[-4.8,3.58],"turn":-6.43,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-20.4,-9,235.5],"tilt":[-8.8,6.16],"turn":-1.98,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-14.7,-12.9,205.6],"tilt":[-12.8,8.63],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[-8.8,-16.6,175.6],"tilt":[-9.6,5.51],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[-4,-19.9,141.6],"tilt":[-6.4,5.76],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[-1,-22.9,106.2],"tilt":[-3.2,4.01],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-23.4,69.6],"tilt":[0,-2.24],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-17.3,32.5],"tilt":[0,-16.49],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[["T4","L2"]],"hardware":{"rods":[{"id":"left","side":"left","diameter":6.5,"points":[[8.6,9.3,448],[8.6,9.4,444.3],[8.6,9.7,439],[8.6,9.8,437],[8.6,9.9,434.5],[8.6,10.1,431.6],[8.6,10.2,428.2],[8.6,10.4,424.4],[8.6,10.6,420.2],[8.6,10.8,415.6],[8.6,11,410.6],[8.6,11.3,405.3],[8.6,11.6,399.7],[8.6,11.8,393.8],[8.6,12.1,387.6],[8.6,12.5,381.2],[8.6,12.8,374.5],[8.6,13.1,367.5],[8.7,13.4,360.4],[8.7,13.8,353.1],[8.7,14.1,345.7],[8.7,14.5,338.1],[8.7,14.9,330.4],[8.7,15.2,322.6],[8.7,15.6,314.7],[8.7,16,306.7],[8.7,16.4,298.7],[8.7,16.8,290.7],[8.7,17.1,282.7],[8.7,17.5,274.7],[8.7,17.9,266.7],[8.7,18.3,258.8],[8.7,18.6,251],[8.7,19,243.3],[8.7,19.4,235.7],[8.7,19.7,228.3],[8.7,20.1,221],[8.8,20.4,213.9],[8.8,20.7,206.9],[8.8,21,200.2],[8.8,21.4,193.8],[8.8,21.7,187.6],[8.8,21.9,181.7],[8.8,22.2,176.1],[8.8,22.5,170.8],[8.8,22.7,165.8],[8.8,22.9,161.2],[8.8,23.1,157],[8.8,23.3,153.2],[8.8,23.4,149.8],[8.8,23.6,146.9],[8.8,23.7,144.4],[8.8,23.8,142.4],[8.8,24.1,137.1],[8.8,24.2,133.4]],"auto":true,"source":"typical"}],"screws":[],"hooks":[{"level":"T4","side":"left","rod":"left","at":[8.6,9.7,439],"mid":[9,-0.7,439.4],"tip":[10.3,-6.9,445.3],"kind":"lamina","faces":"up","source":"typical"},{"level":"L2","side":"left","rod":"left","at":[8.8,23.8,142.4],"mid":[9.2,17.2,139.6],"tip":[10,15.6,132.2],"kind":"lamina","faces":"down","source":"typical"}],"crosslinks":[]},"marks":[],"pictures":[]},"fusion-rods-t4-l4.spine.json":{"schema":1,"name":"Fusion with hooks on top and screws below","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"What is left of an S shape after surgery: fused from T4 to L4, with hooks on the top two levels, screws below, two rods and two cross-links. Made up, not a real person.","levels":[{"id":"C1","centre":[0,-71,603.3],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,590.6],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,573.1],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,556.4],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,539.4],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,522.3],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,505.3],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,487.6],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-0.5,-39.9,467.2],"tilt":[2.56,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-2,-30.9,445.6],"tilt":[5.1,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-4.6,-23,422.8],"tilt":[7.66,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-8.4,-16.6,398.9],"tilt":[10.21,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-12.2,-11.5,373.9],"tilt":[7.06,-9.8],"turn":-2,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-14.7,-7.8,347.6],"tilt":[3.92,-6.2],"turn":-6,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-15.6,-5.7,320.3],"tilt":[-0.02,-2.5],"turn":-8,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-14.6,-5.3,292],"tilt":[-3.95,1.1],"turn":-6,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-11.6,-6.8,263.2],"tilt":[-7.86,4.7],"turn":-2,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-6.5,-10.1,234],"tilt":[-11.81,8.4],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-1.2,-15.5,204.3],"tilt":[-8.37,12],"turn":1.91,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[2.3,-21.4,174.2],"tilt":[-4.94,10],"turn":5,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[4.2,-26.6,140.2],"tilt":[-1.51,7.5],"turn":5,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[4.1,-29.8,104.7],"tilt":[1.92,3],"turn":1.91,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[2.5,-28.8,68.1],"tilt":[3.19,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0.7,-19.4,31.8],"tilt":[2.39,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[["T4","L4"]],"hardware":{"rods":[{"id":"right","side":"right","diameter":5.5,"points":[[-14.7,5.7,450.6],[-15.2,7.2,446.7],[-15.8,8.8,442.2],[-16.3,10.3,438.2],[-16.9,12.1,433.6],[-17.5,14,428.5],[-18.2,15.9,423.3],[-18.9,17.7,418.1],[-19.6,19.3,413.5],[-20.4,21,408.8],[-21.2,22.7,404],[-22,24.2,399.2],[-22.7,25.6,394.4],[-23.2,26.8,389.6],[-23.6,27.7,384.1],[-23.8,28.3,378.7],[-23.9,28.7,373.2],[-24,29.2,367.6],[-24.1,29.8,362],[-24.2,30.6,356.8],[-24.4,31.6,351.6],[-24.5,32.7,346.3],[-24.6,33.7,341],[-24.7,34.7,335.6],[-24.9,35.4,330.3],[-25.1,35.9,324.9],[-25.4,36.4,319.6],[-25.6,36.7,314.2],[-25.9,36.9,308.8],[-26,36.9,303.3],[-26.1,36.9,297.8],[-26,36.7,292],[-25.9,36.2,286.1],[-25.6,35.6,280.2],[-25.3,35,274.2],[-25.1,34.5,268.3],[-24.8,34.1,262.5],[-24.6,33.9,257],[-24.3,33.8,251.6],[-24.1,33.8,246.2],[-23.9,33.8,240.8],[-23.6,33.8,235.4],[-23.4,33.7,229.9],[-23.1,33.6,224.1],[-22.8,33.6,218.1],[-22.5,33.5,212.2],[-22.3,33.3,206.3],[-22,32.9,200.5],[-21.8,32.1,194.9],[-21.6,30.7,189.1],[-21.4,28.8,183.6],[-21.3,26.7,178.2],[-21.2,24.8,172.8],[-21.3,23.4,167.2],[-21.5,22.8,162.2],[-21.8,22.5,157.2],[-22.2,22.5,152.1],[-22.6,22.5,147],[-22.9,22.4,141.9],[-23.2,22,136.8],[-23.4,21.2,131.8],[-23.5,20.2,126.9],[-23.6,19,121.9],[-23.7,17.9,117],[-23.8,16.9,112],[-24.1,16.1,107],[-24.5,15.6,101.6],[-25,15.3,96],[-25.5,15.1,90.3],[-26.1,15,84.8],[-26.6,14.9,79.9],[-27,14.8,75.8],[-27.4,14.6,71],[-27.8,14.4,66.8]],"auto":true,"source":"typical"},{"id":"left","side":"left","diameter":5.5,"points":[[11.1,6.3,447.3],[10.6,7.7,443.4],[10,9.3,438.9],[9.4,10.8,434.7],[8.8,12.6,429.8],[8,14.5,424.5],[7.3,16.4,419],[6.7,18.2,413.6],[6.1,20,408.2],[5.5,21.8,402.7],[5,23.5,397.2],[4.5,25,391.6],[4.2,26.1,386.1],[4,26.6,380.9],[4,26.7,375.6],[4,26.7,370.4],[4,26.6,365.2],[4.1,26.9,359.8],[4.2,27.4,354.9],[4.3,28.2,350],[4.4,29,345.1],[4.5,29.8,340.1],[4.6,30.6,335.1],[4.7,31.3,330.1],[4.7,31.8,325.1],[4.7,32.3,320.2],[4.6,32.8,315.2],[4.6,33.2,310.2],[4.5,33.5,305.1],[4.4,33.7,300],[4.2,33.8,294.5],[3.9,33.7,288.9],[3.6,33.6,283.2],[3.4,33.4,277.6],[3.3,33.3,272],[3.6,33.3,266.5],[4.2,33.4,261.5],[5,33.5,256.5],[6.1,33.7,251.7],[7.2,33.9,246.8],[8.3,34.1,241.8],[9.4,34.2,236.7],[10.4,34.3,231.6],[11.6,34.5,226.4],[12.7,34.6,221.1],[13.9,34.7,215.7],[15,34.7,210.4],[15.9,34.4,205.2],[16.6,34,200.1],[17.1,33.2,194.9],[17.3,32,189.9],[17.4,30.6,184.9],[17.4,29.2,180],[17.6,28,175.1],[17.9,27.1,170],[18.5,26.7,164.7],[19.2,26.6,159.2],[20,26.7,153.8],[20.8,26.7,148.3],[21.8,26.6,142.9],[22.7,26.1,137.5],[23.8,25.1,132.1],[24.9,23.7,126.7],[26.2,22.1,121.4],[27.4,20.4,116],[28.5,19,110.6],[29.4,17.8,105.2],[30.1,17,99.6],[30.7,16.4,93.6],[31.2,16,87.6],[31.7,15.6,81.9],[32.1,15.3,76.8],[32.4,15,72.5],[32.8,14.6,67.7],[33.2,14.2,63.6]],"auto":true,"source":"typical"}],"screws":[{"level":"T6","side":"right","rod":"right","head":[-23.2,26.8,389.6],"entry":[-22.4,18,388],"tip":[-19.6,-11.4,382.6],"diameter":4,"source":"typical"},{"level":"T6","side":"left","rod":"left","head":[4.2,26.1,386.1],"entry":[2.6,17.4,384.8],"tip":[-2.9,-11.8,380.5],"diameter":4,"source":"typical"},{"level":"T7","side":"right","rod":"right","head":[-24.1,29.8,362],"entry":[-23.8,20.9,361],"tip":[-22.6,-18.7,356.6],"diameter":4.5,"source":"typical"},{"level":"T7","side":"left","rod":"left","head":[4.1,26.9,359.8],"entry":[1.9,18.2,359],"tip":[-7.8,-20.2,355.5],"diameter":4.5,"source":"typical"},{"level":"T8","side":"right","rod":"right","head":[-24.9,35.4,330.3],"entry":[-24.9,26.4,329.9],"tip":[-24.9,-13.5,328.2],"diameter":4.5,"source":"typical"},{"level":"T8","side":"left","rod":"left","head":[4.7,31.3,330.1],"entry":[2.3,22.6,329.7],"tip":[-8.8,-15.8,328.1],"diameter":4.5,"source":"typical"},{"level":"T9","side":"right","rod":"right","head":[-26.1,36.9,297.8],"entry":[-25.8,27.9,298],"tip":[-24.4,-12,298.9],"diameter":5,"source":"typical"},{"level":"T9","side":"left","rod":"left","head":[4.4,33.7,300],"entry":[2.2,25,300],"tip":[-7.5,-13.8,300.1],"diameter":5,"source":"typical"},{"level":"T10","side":"right","rod":"right","head":[-24.8,34.1,262.5],"entry":[-23.9,25.2,263.3],"tip":[-20,-14.4,267.1],"diameter":5.5,"source":"typical"},{"level":"T10","side":"left","rod":"left","head":[3.6,33.3,266.5],"entry":[2,24.5,267],"tip":[-5.1,-14.8,269.2],"diameter":5.5,"source":"typical"},{"level":"T11","side":"right","rod":"right","head":[-23.4,33.7,229.9],"entry":[-22.3,24.9,231.4],"tip":[-17.5,-14.2,238.2],"diameter":5.5,"source":"typical"},{"level":"T11","side":"left","rod":"left","head":[9.4,34.2,236.7],"entry":[8,25.4,237.7],"tip":[2,-13.9,242.2],"diameter":5.5,"source":"typical"},{"level":"T12","side":"right","rod":"right","head":[-21.8,32.1,194.9],"entry":[-20.3,23.5,196.9],"tip":[-14.1,-15,206],"diameter":5.5,"source":"typical"},{"level":"T12","side":"left","rod":"left","head":[16.6,34,200.1],"entry":[15.5,25.2,201.8],"tip":[10.7,-13.8,209.4],"diameter":5.5,"source":"typical"},{"level":"L1","side":"right","rod":"right","head":[-21.3,23.4,167.2],"entry":[-18.8,15,168.9],"tip":[-6,-27.3,177.5],"diameter":6.5,"source":"typical"},{"level":"L1","side":"left","rod":"left","head":[17.9,27.1,170],"entry":[16.8,18.3,171.4],"tip":[11,-25.7,178.7],"diameter":6.5,"source":"typical"},{"level":"L2","side":"right","rod":"right","head":[-23.2,22,136.8],"entry":[-20.1,13.6,138],"tip":[-4.8,-28.3,143.9],"diameter":7,"source":"typical"},{"level":"L2","side":"left","rod":"left","head":[22.7,26.1,137.5],"entry":[21.1,17.3,138.6],"tip":[13.2,-26.7,144.2],"diameter":7,"source":"typical"},{"level":"L3","side":"right","rod":"right","head":[-24.1,16.1,107],"entry":[-21,7.6,107.4],"tip":[-5.7,-34.6,109.1],"diameter":7.5,"source":"typical"},{"level":"L3","side":"left","rod":"left","head":[29.4,17.8,105.2],"entry":[26.9,9.2,105.7],"tip":[14.5,-34,108.4],"diameter":7.5,"source":"typical"},{"level":"L4","side":"right","rod":"right","head":[-27,14.8,75.8],"entry":[-23.8,6.5,74.8],"tip":[-7.8,-35.3,69.5],"diameter":7.5,"source":"typical"},{"level":"L4","side":"left","rod":"left","head":[32.4,15,72.5],"entry":[29.1,6.6,71.8],"tip":[12.9,-35.2,68.4],"diameter":7.5,"source":"typical"}],"hooks":[{"level":"T4","side":"right","rod":"right","at":[-15.8,8.8,442.2],"mid":[-16.3,4.9,437.4],"tip":[-17.3,5.6,429.8],"kind":"lamina","faces":"down","source":"typical"},{"level":"T4","side":"left","rod":"left","at":[10,9.3,438.9],"mid":[9.5,5.5,434.1],"tip":[8.5,6.2,426.5],"kind":"lamina","faces":"down","source":"typical"},{"level":"T5","side":"right","rod":"right","at":[-18.9,17.7,418.1],"mid":[-18.5,7.1,419.1],"tip":[-17.3,1.5,425.4],"kind":"lamina","faces":"up","source":"typical"},{"level":"T5","side":"left","rod":"left","at":[6.7,18.2,413.6],"mid":[7.1,7.9,414.7],"tip":[8.3,2,420.9],"kind":"lamina","faces":"up","source":"typical"}],"crosslinks":[{"level":"T8","from":[-25.6,36.7,314.6],"to":[4.6,32.9,314.6],"source":"typical","below":"T8","auto":true},{"level":"T12","from":[-21.4,28.6,183.1],"to":[17.4,30.1,183.1],"source":"typical","below":"T12","auto":true}]},"marks":[],"pictures":[]},"fusion-screws-t4-l1.spine.json":{"schema":1,"name":"Fusion with screws at every level","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"A curve in the chest after surgery: fused from T4 to L1 with a screw on each side of every vertebra, two rods and a cross-link. Made up, not a real person.","levels":[{"id":"C1","centre":[-0.1,-70.9,604.3],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[-0.1,-72.2,591.6],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[-0.1,-73.2,574.1],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[-0.1,-72.3,557.4],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[-0.1,-69.6,540.4],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[-0.1,-65,523.3],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[-0.1,-58.4,506.3],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[-0.1,-49.7,488.6],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[-0.5,-39.8,468.2],"tilt":[2.17,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[-1.7,-30.8,446.6],"tilt":[4.34,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[-3.9,-22.9,423.8],"tilt":[6.51,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[-7.1,-16.5,399.8],"tilt":[8.68,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[-10.4,-11.3,374.7],"tilt":[6.4,-9.8],"turn":-1.19,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[-12.8,-7.6,348.4],"tilt":[4.11,-6.2],"turn":-3.86,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[-14.2,-5.5,321.1],"tilt":[1.83,-2.5],"turn":-6,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[-14.5,-5.1,292.8],"tilt":[-0.46,1.1],"turn":-6,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[-13.7,-6.6,263.8],"tilt":[-2.74,4.7],"turn":-3.86,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[-11.7,-10,234.3],"tilt":[-5.03,8.4],"turn":-1.19,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[-8.4,-15.5,204.3],"tilt":[-7.32,12],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[-5,-21.4,174.2],"tilt":[-5.49,10],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[-2.3,-26.6,140.2],"tilt":[-3.66,7.5],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[-0.6,-29.8,104.7],"tilt":[-1.83,3],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[["T4","L1"]],"hardware":{"rods":[{"id":"right","side":"right","diameter":5.5,"points":[[-14.6,6.1,451.5],[-15.3,7.5,447.6],[-16,9.2,443.2],[-16.7,10.7,439.2],[-17.5,12.5,434.6],[-18.4,14.4,429.5],[-19.3,16.4,424.3],[-20,18.2,419.1],[-20.5,19.8,414.5],[-20.9,21.4,409.7],[-21.2,22.9,404.9],[-21.5,24.4,400.1],[-21.8,25.7,395.2],[-22.1,26.8,390.4],[-22.4,27.7,384.9],[-22.8,28.2,379.5],[-23.1,28.6,374],[-23.3,29,368.5],[-23.6,29.6,362.9],[-23.8,30.4,357.8],[-24,31.4,352.6],[-24.1,32.5,347.3],[-24.3,33.6,342],[-24.4,34.5,336.7],[-24.6,35.3,331.4],[-24.8,35.9,326.1],[-25,36.3,320.8],[-25.2,36.7,315.5],[-25.4,36.9,310.1],[-25.5,37.1,304.7],[-25.6,37.1,299.3],[-25.6,36.9,293.5],[-25.5,36.6,287.7],[-25.4,36.1,281.8],[-25.3,35.6,275.9],[-25.3,35.1,270.1],[-25.4,34.8,264.3],[-25.7,34.6,258.9],[-26.1,34.5,253.5],[-26.6,34.5,248.3],[-27,34.5,242.9],[-27.4,34.4,237.6],[-27.7,34.3,232.1],[-27.8,34.2,226.9],[-27.9,34.2,221.6],[-27.9,34.1,216.2],[-27.9,34,210.8],[-27.8,33.8,205.5],[-27.6,33.4,200.3],[-27.4,32.8,195.3],[-27,31.6,189.1],[-26.4,30,182.9],[-25.7,28.3,176.9],[-25.1,26.6,171.5],[-24.6,25.3,167],[-24.1,24.1,162.4],[-23.7,23,158.3]],"auto":true,"source":"typical"},{"id":"left","side":"left","diameter":5.5,"points":[[11.6,6.6,448.7],[11.4,8,444.7],[11.1,9.6,440.2],[10.9,11.1,436],[10.7,13,431],[10.4,14.9,425.6],[10.1,16.9,420.1],[9.6,18.7,414.7],[8.9,20.5,409.3],[7.9,22.3,403.8],[7,23.9,398.3],[6.1,25.4,392.7],[5.4,26.5,387.2],[5,27.1,381.9],[4.8,27.3,376.7],[4.7,27.4,371.4],[4.7,27.5,366.1],[4.7,27.8,360.7],[4.7,28.4,355.8],[4.8,29.1,350.7],[4.9,30,345.6],[5,30.8,340.5],[5,31.6,335.4],[5.1,32.2,330.3],[5.1,32.7,325.2],[5.2,33.1,320.1],[5.2,33.4,315.1],[5.2,33.6,310],[5.1,33.8,304.8],[5,33.9,299.6],[4.7,33.9,294],[4.4,33.7,288.4],[3.9,33.5,282.7],[3.5,33.2,277],[3.3,33,271.4],[3.2,32.9,265.8],[3.4,33,260.6],[3.6,33.1,255.5],[4,33.3,250.5],[4.5,33.5,245.4],[5.1,33.7,240.3],[5.7,33.8,235.1],[6.4,33.9,229.4],[7.3,34.1,223.5],[8.3,34.2,217.5],[9.2,34.2,211.6],[10.2,34,205.8],[11,33.4,200.1],[11.7,32.5,194.8],[12.4,31.2,189.5],[13.1,29.7,184.2],[13.7,28.2,179.2],[14.3,26.8,174.6],[14.8,25.7,170.8],[15.4,24.5,166.2],[15.9,23.4,162.2]],"auto":true,"source":"typical"}],"screws":[{"level":"T4","side":"right","rod":"right","head":[-16,9.2,443.2],"entry":[-14.9,0.7,440.4],"tip":[-11.3,-27.7,431.3],"diameter":4,"source":"typical"},{"level":"T4","side":"left","rod":"left","head":[11.1,9.6,440.2],"entry":[9.7,1.1,437.7],"tip":[5.1,-27.4,429.5],"diameter":4,"source":"typical"},{"level":"T5","side":"right","rod":"right","head":[-20,18.2,419.1],"entry":[-18.9,9.6,416.9],"tip":[-15.3,-19.3,409.4],"diameter":4,"source":"typical"},{"level":"T5","side":"left","rod":"left","head":[9.6,18.7,414.7],"entry":[8.2,10,412.9],"tip":[3.6,-18.9,406.6],"diameter":4,"source":"typical"},{"level":"T6","side":"right","rod":"right","head":[-22.1,26.8,390.4],"entry":[-21.2,18,388.7],"tip":[-17.9,-11.3,383.3],"diameter":4,"source":"typical"},{"level":"T6","side":"left","rod":"left","head":[5.4,26.5,387.2],"entry":[3.9,17.7,385.9],"tip":[-1.2,-11.5,381.4],"diameter":4,"source":"typical"},{"level":"T7","side":"right","rod":"right","head":[-23.6,29.6,362.9],"entry":[-23,20.7,361.9],"tip":[-20.3,-18.8,357.4],"diameter":4.5,"source":"typical"},{"level":"T7","side":"left","rod":"left","head":[4.7,27.8,360.7],"entry":[2.9,19,359.8],"tip":[-5.5,-19.8,356.2],"diameter":4.5,"source":"typical"},{"level":"T8","side":"right","rod":"right","head":[-24.6,35.3,331.4],"entry":[-24.3,26.3,331],"tip":[-22.9,-13.7,329.2],"diameter":4.5,"source":"typical"},{"level":"T8","side":"left","rod":"left","head":[5.1,32.2,330.3],"entry":[2.9,23.4,330],"tip":[-6.8,-15.4,328.6],"diameter":4.5,"source":"typical"},{"level":"T9","side":"right","rod":"right","head":[-25.6,37.1,299.3],"entry":[-25.3,28.1,299.5],"tip":[-23.9,-11.8,300.3],"diameter":5,"source":"typical"},{"level":"T9","side":"left","rod":"left","head":[5,33.9,299.6],"entry":[2.8,25.2,299.8],"tip":[-6.9,-13.6,300.4],"diameter":5,"source":"typical"},{"level":"T10","side":"right","rod":"right","head":[-25.4,34.8,264.3],"entry":[-24.8,25.8,265],"tip":[-22,-13.9,268.4],"diameter":5.5,"source":"typical"},{"level":"T10","side":"left","rod":"left","head":[3.2,32.9,265.8],"entry":[1.3,24.1,266.4],"tip":[-7,-14.9,269.2],"diameter":5.5,"source":"typical"},{"level":"T11","side":"right","rod":"right","head":[-27.7,34.3,232.1],"entry":[-26.7,25.5,233.5],"tip":[-22.2,-13.8,239.7],"diameter":5.5,"source":"typical"},{"level":"T11","side":"left","rod":"left","head":[5.7,33.8,235.1],"entry":[4.2,25,236.3],"tip":[-2.4,-14.1,241.5],"diameter":5.5,"source":"typical"},{"level":"T12","side":"right","rod":"right","head":[-27.4,32.8,195.3],"entry":[-26.3,24.1,197.3],"tip":[-21.3,-14.5,206.2],"diameter":5.5,"source":"typical"},{"level":"T12","side":"left","rod":"left","head":[11,33.4,200.1],"entry":[9.6,24.6,201.8],"tip":[3.6,-14.2,209.3],"diameter":5.5,"source":"typical"},{"level":"L1","side":"right","rod":"right","head":[-24.6,25.3,167],"entry":[-22.8,16.7,168.7],"tip":[-13.8,-26.6,177.2],"diameter":6.5,"source":"typical"},{"level":"L1","side":"left","rod":"left","head":[14.8,25.7,170.8],"entry":[12.9,17,172.1],"tip":[3.2,-26.5,178.8],"diameter":6.5,"source":"typical"}],"hooks":[],"crosslinks":[{"level":"T8","from":[-25.2,36.7,315.2],"to":[5.2,33.4,315.2],"source":"typical","below":"T8","auto":true}]},"marks":[],"pictures":[]},"fusion-t4-l2.spine.json":{"schema":1,"name":"Example: scoliosis fusion, T4 to L2, rods to L4","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"Made from the CT, MRI and X-rays of the person who started this project, shared by him as an example. Positions are his real ones. The bone shapes are general ones that the app sizes and places, not his own.","levels":[{"id":"C7","centre":[61,10.4,416.3],"tilt":[34.7,-30],"turn":-2.1,"size":[33.8,17.7,17.5],"source":"measured"},{"id":"T1","centre":[46.8,19.6,403.4],"tilt":[55.7,-38.7],"turn":6.7,"size":[38.3,21.8,17.3],"source":"measured"},{"id":"T2","centre":[29.7,27.1,392.3],"tilt":[57.4,-39.7],"turn":-9.2,"size":[31.1,17.1,19.2],"source":"measured"},{"id":"T3","centre":[14.4,37.7,380.9],"tilt":[46,-33.8],"turn":-28.2,"size":[27.1,17.7,18.3],"source":"measured"},{"id":"T4","centre":[2.2,47.2,367.5],"tilt":[28.6,-23.7],"turn":-25.4,"size":[29.2,23,16.8],"source":"measured"},{"id":"T5","centre":[-4.8,52.8,349.7],"tilt":[10.7,-13],"turn":-28.8,"size":[29.1,24.1,17.6],"source":"measured"},{"id":"T6","centre":[-6.2,54.9,329.4],"tilt":[-1.5,-1],"turn":-31,"size":[29.4,25.3,18.1],"source":"measured"},{"id":"T7","centre":[-3,53.4,308.1],"tilt":[-7.9,8.9],"turn":-29.7,"size":[30.3,27,19.6],"source":"measured"},{"id":"T8","centre":[1.9,48.3,286],"tilt":[-10.8,11],"turn":-23.7,"size":[31.2,28.6,21.8],"source":"measured"},{"id":"T9","centre":[7,42.1,261.8],"tilt":[-14.6,11.9],"turn":-14.3,"size":[29.9,26.6,22.9],"source":"measured"},{"id":"T10","centre":[15.6,36.7,237.6],"tilt":[-17.5,17.9],"turn":-3.7,"size":[36.5,31.6,24.7],"source":"measured"},{"id":"T11","centre":[23.6,27.4,212.3],"tilt":[-13.1,20.5],"turn":2.6,"size":[40.2,33.5,23.8],"source":"measured"},{"id":"T12","centre":[31.5,14,189.9],"tilt":[-8.3,22.6],"turn":5.1,"size":[35.8,26,25],"source":"measured"},{"id":"L1","centre":[35.6,3.4,160.9],"tilt":[-10,21.4],"turn":10.7,"size":[40.8,27.6,31.7],"source":"measured"},{"id":"L2","centre":[36.8,-7.5,127.9],"tilt":[1.4,16.9],"turn":15,"size":[44,29.5,31.8],"source":"measured"},{"id":"L3","centre":[32.2,-15.3,94.8],"tilt":[15.7,7.9],"turn":11.7,"size":[45.1,30.9,30],"source":"measured"},{"id":"L4","centre":[20.3,-18.6,56.7],"tilt":[21,-0.2],"turn":2.1,"size":[45.8,30.9,28.7],"source":"measured"},{"id":"L5","centre":[5.8,-9.6,20.6],"tilt":[15.8,-25],"turn":-3.8,"size":[48.4,31.7,30.4],"source":"measured"},{"id":"S1","centre":[0,0,0],"tilt":[2.3,-48.3],"turn":-7.5,"size":[49.9,31.7,27],"source":"measured"}],"fused":[["T4","L2"]],"hardware":{"rods":[{"id":"right","side":"right","diameter":6,"points":[[10.9,83.2,408.5],[10.3,85,398.5],[9.8,86.9,388.5],[9.2,88.8,378.5],[8.6,90.6,368.4],[8.1,92.2,358.4],[7.7,93.5,348.4],[7.3,94.6,338.2],[6.9,95.2,328.1],[6.6,95.5,318],[6.3,95.3,307.9],[6.1,94.6,297.8],[6,93.5,287.7],[5.9,92,277.5],[5.8,89.9,267.2],[5.8,87.4,257],[5.8,84.5,246.8],[5.8,81.2,236.5],[5.9,77.6,226.3],[5.9,73.6,216],[6,69.4,205.8],[6,64.9,195.3],[6,60.3,185.1],[6,55.7,174.8],[5.9,51.1,164.5],[5.8,46.5,154.3],[5.6,42.2,144],[5.4,38.1,133.8],[5.1,34.4,123.5],[4.7,31.2,113.3],[4.2,28.5,103.1],[3.7,26.6,93],[3.1,25.4,82.9],[2.4,25.2,72.9],[1.6,26,62.8],[0.8,27.9,52.7]],"source":"measured"},{"id":"left","side":"left","diameter":6,"points":[[30.7,63.6,387.3],[31.3,67.2,378],[31.7,70.5,368.6],[32.1,73.5,359.3],[32.3,76,350],[32.5,78.2,340.7],[32.7,80,331.3],[32.9,81.4,322],[33.1,82.5,312.6],[33.3,83.2,303.2],[33.5,83.6,293.8],[33.8,83.6,284.4],[34.1,83.3,275],[34.5,82.6,265.6],[34.9,81.6,256.1],[35.3,80.3,246.6],[35.8,78.7,237.2],[36.3,76.9,227.7],[36.9,74.7,218.2],[37.4,72.4,208.6],[37.9,69.8,199.1],[38.5,67.1,189.6],[39,64.2,180.1],[39.6,61.2,170.5],[40.1,58.2,161],[40.6,55.1,151.5],[41.1,52.1,142],[41.5,49.1,132.4],[42,46.3,122.9],[42.5,43.8,113.4],[42.9,41.5,103.9],[43.4,39.6,94.4],[43.9,38.1,84.9],[44.5,37.2,75.5],[45.2,36.9,66],[46,37.4,56.5]],"source":"measured"}],"screws":[{"level":"T5","side":"right","rod":"right","head":[8.3,91.6,362.5],"entry":[4.6,86.2,361.8],"tip":[-10.1,60.3,352.3],"diameter":5,"source":"measured"},{"level":"T6","side":"right","rod":"right","head":[7.4,94.3,341.5],"entry":[2.9,89.5,341.2],"tip":[-9.8,63,331.4],"diameter":5,"source":"measured"},{"level":"T7","side":"right","rod":"right","head":[6.5,95.5,315.1],"entry":[4.4,89.2,315.2],"tip":[-7.4,61.7,310.3],"diameter":5,"source":"measured"},{"level":"T8","side":"right","rod":"right","head":[6,93.6,287.9],"entry":[3.4,87.6,288.7],"tip":[-7.1,54.1,287.4],"diameter":5,"source":"measured"},{"level":"T9","side":"right","rod":"right","head":[5.8,88.8,262.3],"entry":[6.2,82.4,263.8],"tip":[-1.9,47.6,262],"diameter":5.5,"source":"measured"},{"level":"T10","side":"right","rod":"right","head":[5.8,79.9,232.7],"entry":[6.1,73.7,234.9],"tip":[5.3,38.1,237.2],"diameter":5.5,"source":"measured"},{"level":"T11","side":"right","rod":"right","head":[6,68.8,204.4],"entry":[7,62.8,206.9],"tip":[11.4,28.3,212],"diameter":5.5,"source":"measured"},{"level":"T12","side":"right","rod":"right","head":[6,57.4,178.6],"entry":[5.6,51.4,181.4],"tip":[17.7,14.2,188.3],"diameter":5.5,"source":"measured"},{"level":"L1","side":"right","rod":"right","head":[5.7,45.2,151.2],"entry":[6.7,39.2,153.7],"tip":[22.4,2.7,162.7],"diameter":6.5,"source":"measured"},{"level":"L2","side":"right","rod":"right","head":[5.1,35.2,125.9],"entry":[7.6,29.4,127.9],"tip":[26.2,-5.2,131.4],"diameter":6.5,"source":"measured"},{"level":"L3","side":"right","rod":"right","head":[3.8,27,95.5],"entry":[5.9,20.8,96.5],"tip":[22.5,-17.2,100.4],"diameter":6.5,"source":"measured"},{"level":"L4","side":"right","rod":"right","head":[2.1,25.4,68.5],"entry":[1.4,18.8,68.1],"tip":[14.3,-21,62.2],"diameter":6.5,"source":"measured"},{"level":"T9","side":"left","rod":"left","head":[34.5,82.6,265.8],"entry":[31.9,76.6,266.2],"tip":[19.7,43.6,267.3],"diameter":5,"source":"measured"},{"level":"T10","side":"left","rod":"left","head":[35.9,78.6,236.5],"entry":[34.6,72.2,237.6],"tip":[26.7,38.1,241.4],"diameter":5.5,"source":"measured"},{"level":"T11","side":"left","rod":"left","head":[37.6,71.6,205.7],"entry":[37.1,65.2,207.4],"tip":[35.6,30.4,213.1],"diameter":5.5,"source":"measured"},{"level":"T12","side":"left","rod":"left","head":[39.2,63.2,176.8],"entry":[40.4,57,178.8],"tip":[32,14.6,187],"diameter":5.5,"source":"measured"},{"level":"L1","side":"left","rod":"left","head":[40.5,55.3,152.3],"entry":[41.5,49.2,154.4],"tip":[46.9,4.4,160.1],"diameter":5.5,"source":"measured"},{"level":"L2","side":"left","rod":"left","head":[41.9,46.8,124.4],"entry":[43,40.5,126.3],"tip":[46.7,-4.6,128.5],"diameter":6.5,"source":"measured"},{"level":"L3","side":"left","rod":"left","head":[43.2,40.2,97.7],"entry":[43.9,33.8,99],"tip":[50.6,-11.7,102.1],"diameter":6.5,"source":"measured"},{"level":"L4","side":"left","rod":"left","head":[45.3,36.9,65],"entry":[43.4,30.6,64.8],"tip":[34.9,-13.6,57.5],"diameter":6.5,"source":"measured"}],"hooks":[{"level":"T4","side":"right","rod":"right","kind":"transverse process","at":[9.8,86.7,389.8],"mid":[1.1,77.7,388],"tip":[0.8,75.4,380.8],"source":"measured"},{"level":"T4","side":"left","rod":"left","kind":"transverse process","at":[31.7,69.9,370.4],"mid":[37.2,58.9,366.3],"tip":[36.1,57.4,359.7],"source":"measured"},{"level":"T5","side":"left","rod":"left","kind":"pedicle","at":[32.3,76.4,348.5],"mid":[26.7,66.9,346.9],"tip":[22.8,64.3,350.8],"source":"measured"},{"level":"T6","side":"left","rod":"left","kind":"pedicle","at":[32.8,81,324.8],"mid":[26.3,72,324.1],"tip":[22.6,70.4,330.4],"source":"measured"},{"level":"T8","side":"left","rod":"left","kind":"transverse process","at":[33.5,83.6,295],"mid":[33.9,70.5,294.1],"tip":[37.5,68.2,287.6],"source":"measured"}],"crosslinks":[{"level":"T8","from":[0.3,93.7,277.4],"to":[39.6,81.7,278.3],"source":"measured"},{"level":"L2/L3","from":[11.4,33.6,114.1],"to":[35.9,41.3,112.2],"source":"measured"}]},"marks":[{"kind":"pain","text":"Sharp pain","at":[32.7,51.4,372],"radius":17},{"kind":"pain","text":"Ache, L2 to L5","from":[46.7,18.7,127.6],"to":[15.7,16.6,20.1],"radius":30}],"pictures":[]},"hollow-back.spine.json":{"schema":1,"name":"Deep hollow in the lower back","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"The lower back hollows by about 60°, more than usual. Seen from the side.","levels":[{"id":"C1","centre":[0,-71,594.8],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.3,582.1],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.3,564.6],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.4,547.9],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.7,530.9],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.1,513.8],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.5,496.8],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.8,479.1],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[0,-39.9,458.7],"tilt":[0,-24.4],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[0,-30.9,437.1],"tilt":[0,-20.7],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[0,-23,414.2],"tilt":[0,-17.1],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[0,-16.5,390],"tilt":[0,-13.5],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[0,-11.3,364.7],"tilt":[0,-9.8],"turn":0,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[0,-7.6,338.3],"tilt":[0,-6.2],"turn":0,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[0,-5.5,311],"tilt":[0,-2.5],"turn":0,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[0,-5.1,282.7],"tilt":[0,1.1],"turn":0,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[0,-7.3,253.8],"tilt":[0,7.43],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[0,-12.8,224.6],"tilt":[0,13.85],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[0,-21.8,195.3],"tilt":[0,20.18],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[0,-32.6,166.4],"tilt":[0,20.91],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[0,-42.2,133.4],"tilt":[0,11.66],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[0,-45.8,98.1],"tilt":[0,0.41],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-41,62],"tilt":[0,-15.34],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-24,29],"tilt":[0,-39.09],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]},"round-back.spine.json":{"schema":1,"name":"Round upper back","units":"mm","frame":"x = patient left, y = back, z = up, origin at the centre of S1, standing","about":"The chest part rounds backward by about 65°, where 20° to 40° is usual. Seen from the side. This is the shape that goes with Scheuermann's kyphosis.","levels":[{"id":"C1","centre":[0,-71.1,583],"tilt":[0,6],"turn":0,"size":[20,15,9],"source":"typical"},{"id":"C2","centre":[0,-72.4,570.3],"tilt":[0,6],"turn":0,"size":[16.5,15.5,14.5],"source":"typical"},{"id":"C3","centre":[0,-73.4,552.8],"tilt":[0,0],"turn":0,"size":[16,15.5,12.5],"source":"typical"},{"id":"C4","centre":[0,-72.5,536.1],"tilt":[0,-6],"turn":0,"size":[16.5,15.5,13],"source":"typical"},{"id":"C5","centre":[0,-69.8,519.1],"tilt":[0,-12],"turn":0,"size":[17.5,16,13.5],"source":"typical"},{"id":"C6","centre":[0,-65.2,502],"tilt":[0,-18],"turn":0,"size":[19,16.5,14],"source":"typical"},{"id":"C7","centre":[0,-58.6,485],"tilt":[0,-24],"turn":0,"size":[22,17,14.5],"source":"typical"},{"id":"T1","centre":[0,-49.9,467.3],"tilt":[0,-28],"turn":0,"size":[27,18.5,17],"source":"typical"},{"id":"T2","centre":[0,-39,447.4],"tilt":[0,-29.78],"turn":0,"size":[26,19.5,17.8],"source":"typical"},{"id":"T3","centre":[0,-27,427.3],"tilt":[0,-31.47],"turn":0,"size":[25.5,21,18.6],"source":"typical"},{"id":"T4","centre":[0,-14,406.9],"tilt":[0,-33.25],"turn":0,"size":[26,22.5,19.4],"source":"typical"},{"id":"T5","centre":[0,0,386.1],"tilt":[0,-35.03],"turn":0,"size":[27,24,20.2],"source":"typical"},{"id":"T6","centre":[0,13,363.9],"tilt":[0,-25.69],"turn":0,"size":[28,26,21],"source":"typical"},{"id":"T7","centre":[0,22.5,339.1],"tilt":[0,-16.44],"turn":0,"size":[29.5,27.5,21.8],"source":"typical"},{"id":"T8","centre":[0,28.1,312.4],"tilt":[0,-7.1],"turn":0,"size":[31,28.5,22.6],"source":"typical"},{"id":"T9","centre":[0,29.4,284.2],"tilt":[0,2.14],"turn":0,"size":[33,29.5,23.4],"source":"typical"},{"id":"T10","centre":[0,25.9,255.4],"tilt":[0,11.38],"turn":0,"size":[35,30.5,24.2],"source":"typical"},{"id":"T11","centre":[0,17.7,226.9],"tilt":[0,20.73],"turn":0,"size":[38,31.5,25],"source":"typical"},{"id":"T12","centre":[0,4.5,199.3],"tilt":[0,29.97],"turn":0,"size":[41,32.5,25.8],"source":"typical"},{"id":"L1","centre":[0,-9.4,171.8],"tilt":[0,23.48],"turn":0,"size":[43,33,25.5],"source":"typical"},{"id":"L2","centre":[0,-21.1,139.4],"tilt":[0,16.48],"turn":0,"size":[45,34,26.6],"source":"typical"},{"id":"L3","centre":[0,-28.4,104.6],"tilt":[0,7.49],"turn":0,"size":[47,35,27.7],"source":"typical"},{"id":"L4","centre":[0,-28.8,68.1],"tilt":[0,-6],"turn":0,"size":[49,35.5,28.8],"source":"typical"},{"id":"L5","centre":[0,-19.4,31.8],"tilt":[0,-23],"turn":0,"size":[51,35.5,29.9],"source":"typical"},{"id":"S1","centre":[0,0,0],"tilt":[0,-40],"turn":0,"size":[50,33,28.5],"source":"typical"}],"fused":[],"hardware":{"rods":[],"screws":[],"hooks":[],"crosslinks":[]},"marks":[],"pictures":[]}};
 window.SPINE_EXAMPLE_LIST = [
  {
@@ -1476,6 +1561,7 @@ function validateSpine(spine) {
     if (seen.has(l.id)) problems.push(name + ' is in the file twice.');
     seen.add(l.id);
     if (!isPoint(l.centre)) problems.push(name + ' has no usable position.');
+    if (l.color !== undefined && (typeof l.color !== 'string' || !/^([a-z]+|#[0-9a-f]{6})$/i.test(l.color) || (l.color[0] !== '#' && !COLOR_NAMES.includes(l.color)))) problems.push(name + ' has a colour the app does not know.');
     if (!Array.isArray(l.tilt) || l.tilt.length !== 2 || l.tilt.some((v) => typeof v !== 'number' || Math.abs(v) > 85)) problems.push(name + ' has a tilt the app cannot use.');
     if (typeof l.turn !== 'number' || !isFinite(l.turn)) problems.push(name + ' has no turn.');
     if (!isPoint(l.size) || l.size.some((v) => v <= 0)) problems.push(name + ' has no usable size.');
@@ -2302,7 +2388,9 @@ function buildScene(spine, detail, extras = {}) {
   // (the vertebra whose block is under the pointer, or was just tapped, lights up part of the way to the pick colour)
   // (the one under the pointer more softly, so that a locked or a stiff vertebra still shows as what it is)
   const lit = (id, c) => (extras.lit === id ? mix(c, COLORS.picked, 0.55) : extras.pointed === id ? mix(c, COLORS.picked, 0.3) : c);
-  const boneColor = (id, i) => lit(id, (picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : locked.includes(id) ? dim(look.bone || COLORS.bone) : stiff.includes(id) ? cool(look.bone || COLORS.bone) : look.bone || COLORS.bone);
+  // (a vertebra can carry a colour of its own, the way a piece of hardware can)
+  const ownBone = (id) => { const l = levels.find((x) => x.id === id); return (l && l.color && colorOf(l.color)) || look.bone || COLORS.bone; };
+  const boneColor = (id, i) => lit(id, (picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : locked.includes(id) ? dim(ownBone(id)) : stiff.includes(id) ? cool(ownBone(id)) : ownBone(id));
   // a vertebra is drawn once in its own axes and then placed, so bending the spine only moves it
   levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level), name: level.id }));
   for (let i = 0; i < levels.length - 1; i++) {
@@ -2818,8 +2906,245 @@ function standFor(kind, spine, scale = 1, detail = 1.4) {
 return { STAND_NAMES, standFor };
 })();
 
-// ---- core/smooth.js
+// ---- ui/guide.js
 M.m18 = (() => {
+// The guide: what every tool does, part by part, and a tour that builds a small example with the
+// person, one step at a time.
+//
+// A step of the tour opens the place it is about, says in a line or two what to do there and
+// shows where. "Do it for me" does the step, so the tour can be watched or done by hand, and
+// either way the sketch on screen is a real one that can be kept.
+//
+// The guide itself is a sheet with the same parts as the app. A tool in it is a button: it
+// closes the sheet, takes that tool in hand and shows where it is. Each part can also be walked
+// through on its own, with the sketch that is open.
+
+function setupGuide(app, host) {
+  const { $, renderer } = app;
+  const B = () => host.builder();
+  const touch = () => window.matchMedia('(pointer: coarse)').matches;
+  const Press = () => (touch() ? 'Tap' : 'Click');
+  const wait = (ms) => new Promise((done) => setTimeout(done, ms));
+  const quick = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const click = (selector) => { const el = document.querySelector(selector); if (el) el.click(); };
+  const go = (tab, tool) => { B().go(tab); if (tool) B().tool(tool); };
+  // where a point of the model is on the page
+  const onPage = (point) => { const p = renderer.project(point), box = renderer.canvas.getBoundingClientRect(); return [p[0] + box.left, p[1] + box.top]; };
+  const level = (id) => app.spine.levels.find((l) => l.id === id) || app.spine.levels[Math.floor(app.spine.levels.length / 2)];
+  // move a slider to a value the way a hand would, so the model is seen to follow. It takes the same time on a slow
+  // device as on a fast one: a slow one draws fewer steps on the way.
+  async function slide(id, to, ms = 550) {
+    const el = $(id), from = parseFloat(el.value) || 0, t0 = performance.now(), say = (type) => el.dispatchEvent(new Event(type, { bubbles: true }));
+    while (!quick()) {
+      const u = (performance.now() - t0) / ms;
+      if (u >= 1) break;
+      el.value = from + (to - from) * u; say('input'); await wait(16);
+    }
+    el.value = to; say('input'); say('change');
+  }
+
+  // ---------------------------------------------------------------- what the tools do
+  // [name, where it is (a tool as 'place:tool', or a selector), what it does]
+  const PARTS = [
+    { id: 'shape', name: 'Shape', says: 'Give the spine its curve. Every tool here bends the same model, so use the one that feels easiest.', tools: [
+      ['Turn', 'shape:turn', 'Drag to turn the model without changing it.'],
+      ['Draw', 'shape:draw', 'Draw a line up the spine, seen from the back or from the side, and the spine follows it.'],
+      ['Curve', 'shape:curve', 'Pick a part of the spine and set its bend by the degree: sideways, front to back, twist and lean.'],
+      ['Points', 'shape:points', 'A line with a few points lies over the spine. Drag a point and the spine follows.'],
+      ['One bone', 'shape:one', 'Pick one vertebra and move it, turn it or resize it on its own.'],
+      ['Lock', 'shape:lock', 'Pick vertebrae that stay where they are while the rest is shaped.'],
+    ] },
+    { id: 'parts', name: 'Hardware', says: 'Put screws, hooks, rods and cross-links on the spine. The map beside the model has a row for every vertebra.', tools: [
+      ['Turn', 'parts:turn', 'Pick a part to change it: drag a screw to another vertebra, set its length and thickness, or remove it.'],
+      ['Screw', 'parts:screw', 'Put a screw on a dot of the model or of the map. Drag down the map to place several.'],
+      ['Hook', 'parts:hook', 'The same for hooks, pointing up or down.'],
+      ['Link', 'parts:link', 'A cross-link between the two rods, in the gap below a vertebra.'],
+      ['Rod', 'parts:rod', 'Rods run through all the parts of a side. Pick two parts to run a rod between only those. Drag a rod to bend it.'],
+      ['Erase', 'parts:erase', 'Take single parts off.'],
+      ['Fill it in for me', '#fillBtn', 'Three questions (from where, to where, which parts) and a whole set is put on at once.'],
+    ] },
+    { id: 'marks', name: 'Pain', says: 'Mark where it hurts and write short notes on the model.', tools: [
+      ['Pain point', 'marks:pain', 'Mark the spot that hurts. Its card sets how large and how strong it is.'],
+      ['Note', 'marks:note', 'Point at a spot and write a few words about it.'],
+      ['Turn', 'marks:turn', 'Pick a pain point or a note to change it or remove it.'],
+    ] },
+    { id: 'look', name: 'Look', says: 'How the sketch is drawn. Nothing here changes its shape.', tools: [
+      ['Shading', '#shades', 'Soft, clay, a line drawing, an X-ray look or plain color.'],
+      ['Sets of colors', '#paletteRow', 'One press colors all the hardware. By level gives the parts of each vertebra a color of their own.'],
+      ['A color for one kind', '#colorWhat', 'Pick Rods, Screws, Hooks, Links, Bone or Discs, then a color.'],
+      ['One part', '#colorWhat [data-what="one"]', 'Pick a color, then paint single parts or vertebrae with it.'],
+      ['Background', '#backs', 'Dark, grey or light. Below it, bone can be made see-through so the screws show inside.'],
+      ['Clean view', '#cleanBtn', 'Puts the tools away so the model stands alone, for a picture of the screen.'],
+    ] },
+    { id: 'share', name: 'Share and the top bar', says: 'Keep the sketch or pass it on. Nothing leaves your device unless you send it yourself.', tools: [
+      ['Share', '#shareBtn', 'Save a picture, copy a link that holds the whole sketch, save the file or export it for a 3D printer.'],
+      ['Stand', '[data-stand]', 'Puts the model on a stand, the way it is printed. On a small screen it is under View.'],
+      ['Reset', '[data-reset]', 'Reset the view puts colors, shading and background back. Reset the model gives a straight normal spine. On a small screen both are under View.'],
+      ['New', '#newBtn', 'Start from one of the made-up shapes, or open a sketch you saved.'],
+      ['Undo and Redo', '#undoBtn', 'Every change can be taken back.'],
+    ] },
+  ];
+
+  // ---------------------------------------------------------------- showing where something is
+  let lit = null, litTimer = null;
+  function unlight() { clearTimeout(litTimer); if (lit) lit.classList.remove('here'); lit = null; }
+  // the first match that can be seen. Things of the top bar that a small screen keeps under View point at View.
+  function seen(selector) {
+    for (const el of document.querySelectorAll(selector)) if (el.offsetParent !== null && !el.closest('[hidden]') && !el.closest('.menu')) return el;
+    return selector.startsWith('[data-stand]') || selector.startsWith('[data-reset]') || selector === '#guideBtn' ? $('viewBtn') : null;
+  }
+  function light(selector, forMs = 0) {
+    unlight();
+    const el = selector && seen(selector);
+    if (!el) return;
+    lit = el; el.classList.add('here');
+    if (el.scrollIntoView && el.closest('#card, #side')) el.scrollIntoView({ block: 'nearest' });
+    if (forMs) litTimer = setTimeout(unlight, forMs);
+  }
+  // open the place a tool is in, take it in hand and show it
+  function showTool(part, where) {
+    if (/^[a-z]+:[a-z]+$/.test(where)) { const [tab, tool] = where.split(':'); go(tab, tool); return '#tray [data-tools="' + tab + '"] [data-t="' + tool + '"]'; }
+    if (part.id === 'look') go('look'); else if (part.id === 'parts') go('parts', 'turn');
+    return where;
+  }
+
+  // ---------------------------------------------------------------- the tour
+  const STEPS = [
+    { part: 'shape', title: 'Turn it around', target: '#viewBtn', at: () => go('shape', 'turn'),
+      text: () => 'Drag on the model to turn it. ' + (touch() ? 'Pinch to zoom.' : 'Scroll to zoom.') + ' View has the set views and Fit.',
+      doIt: async () => { renderer.look(Math.PI / 2); await wait(quick() ? 100 : 1100); renderer.look(0); await wait(quick() ? 100 : 700); } },
+    { part: 'shape', title: 'Bend the spine', target: '#bow0R', at: () => go('shape', 'curve'),
+      text: () => 'Shape gives the spine its curve. With Curve, pick a part of the spine and drag Sideways. Draw does the same with a line drawn over the model.',
+      doIt: async () => { click('[data-region="chest"]'); await wait(250); await slide('bow0R', 36); await wait(300); click('[data-region="low"]'); await wait(250); await slide('bow0R', -24); await wait(200); click('[data-region="chest"]'); } },
+    { part: 'parts', title: 'Add the hardware', target: '#fillBtn', at: () => go('parts', 'screw'),
+      text: () => 'Hardware goes on from the back. Screw puts one screw where you ' + Press().toLowerCase() + '. Fill it in for me puts on a whole set: screws on both sides, rods through them and a cross-link.',
+      doIt: async () => {
+        click('#fillBtn'); await wait(500);
+        const ids = app.spine.levels.map((l) => l.id), pick = (id, list) => { if (ids.includes(list)) $(id).value = list; };
+        pick('gTop', 'T4'); pick('gBottom', 'L1'); click('[data-gkind="screws"]'); click('[data-glinks="1"]'); await wait(500);
+        click('#gBuild'); await wait(400);
+      } },
+    { part: 'parts', title: 'Change one part', target: '#tray [data-tools="parts"] [data-t="turn"]', at: () => go('parts', 'turn'),
+      text: () => 'With Turn in hand, ' + Press().toLowerCase() + ' any part to change it. A screw can be dragged to another vertebra, made longer or thicker, or removed.',
+      doIt: async () => {
+        const screws = app.spine.hardware.screws;
+        if (!screws.length) { app.say('There is no screw to change yet. Add the hardware first.'); return; }
+        app.pick({ kind: 'screws', index: Math.floor(screws.length / 2) }); await wait(400);
+        const more = document.querySelector('[data-card="piece"] [data-more]');
+        if (more && more.offsetParent !== null && more.getAttribute('aria-expanded') !== 'true') more.click();
+        await wait(250); await slide('pieceLong', 54); await wait(300); await slide('pieceLong', 38);
+      },
+      leave: () => app.pick(null) },
+    { part: 'marks', title: 'Mark where it hurts', target: '#tray [data-tools="marks"] [data-t="pain"]', at: () => go('marks', 'pain'),
+      text: () => 'With Pain point in hand, ' + Press().toLowerCase() + ' the spot that hurts. Note adds a few words to a spot.',
+      doIt: async () => { const p = onPage(level('T7').centre); B().painAt(p[0], p[1]); await wait(300); },
+      leave: () => app.pick(null) },
+    { part: 'look', title: 'Choose the look', target: '#paletteRow', at: () => go('look'),
+      text: () => 'Look sets how the sketch is drawn. Pick a set of colors, or a color for one kind of part. With One part, pick a color and paint a single screw or vertebra.',
+      doIt: async () => {
+        click('[data-palette="bright"]'); await wait(700);
+        B().colorOn('one', 'red'); await wait(500);
+        const p = onPage(level('L3').centre); B().paintAt(p[0], p[1]); await wait(300);
+      } },
+    { part: 'share', title: 'Share it or print it', target: '#shareBtn',
+      text: () => 'Share saves a picture, copies a link that holds the whole sketch, saves the file or exports it for a 3D printer. Stand puts the model on its stand.',
+      doIt: async () => { host.setStand(true); await wait(300); } },
+    { part: 'share', title: 'That is the whole tool', target: '[data-reset]',
+      text: () => 'This sketch is yours to keep changing. Reset the model gives a straight normal spine again, and Undo takes any step back. The Guide explains every tool.' },
+  ];
+
+  let run = null;         // the tour that is on: its steps, which one is up, which ones were done for the person
+  function showStep() {
+    const s = run.steps[run.i];
+    if (s.at) s.at();
+    $('tour').hidden = false; document.body.classList.add('touring');
+    $('tourCount').textContent = 'Step ' + (run.i + 1) + ' of ' + run.steps.length;
+    $('tourTitle').textContent = s.title; $('tourText').textContent = s.text();
+    $('tourBack').hidden = run.i === 0;
+    $('tourDo').hidden = !s.doIt; $('tourDo').disabled = run.did.has(run.i); $('tourDo').textContent = run.did.has(run.i) ? 'Done for you' : 'Do it for me';
+    $('tourNext').textContent = run.i === run.steps.length - 1 ? 'Finish' : s.start ? 'Start' : 'Next';
+    setTimeout(() => { if (run && run.steps[run.i] === s) light(s.target); }, 150);
+  }
+  function end(said = '') {
+    if (!run) return;
+    const s = run.steps[run.i]; if (s && s.leave) s.leave();
+    run = null; unlight();
+    $('tour').hidden = true; document.body.classList.remove('touring');
+    if (said) app.say(said);
+  }
+  async function move(by) {
+    if (!run || run.busy) return;
+    const s = run.steps[run.i];
+    if (s.leave) s.leave();
+    if (by > 0 && s.next) { run.busy = true; await s.next(); if (!run) return; run.busy = false; }
+    if (run.i + by >= run.steps.length) { end('That was the tour. Guide has it again, and every tool one by one.'); return; }
+    run.i = Math.max(0, run.i + by); showStep();
+  }
+  async function doIt() {
+    if (!run || run.busy) return;
+    const i = run.i, s = run.steps[i];
+    run.busy = true; run.did.add(i); $('tourDo').disabled = $('tourNext').disabled = $('tourBack').disabled = true;
+    try { await s.doIt(); } finally {
+      $('tourNext').disabled = $('tourBack').disabled = false;
+      if (run) { run.busy = false; if (run.i === i) { $('tourDo').textContent = 'Done for you'; light(s.target); $('tourNext').focus(); } }
+    }
+  }
+  // The whole tour builds its example on a new normal spine. One part is walked through with the sketch that is open.
+  function tour(partId = '') {
+    for (const id of ['guide', 'start']) if ($(id).open) $(id).close();
+    end();
+    const steps = STEPS.filter((s) => !partId || s.part === partId);
+    const fresh = async () => { await host.fresh(); await wait(140); host.setStand(false); };
+    if (!partId && host.changed()) steps.unshift({ part: '', title: 'A new sketch for the tour', start: true, next: fresh,
+      text: () => 'The tour builds a small example on a new normal spine. Your sketch is kept: Undo brings it back afterwards.' });
+    run = { steps, i: 0, did: new Set(), busy: false };
+    if (!partId && !steps[0].start) { run.busy = true; fresh().then(() => { if (run) { run.busy = false; showStep(); $('tourNext').focus(); } }); return; }
+    showStep(); $('tourNext').focus();
+  }
+  $('tourNext').addEventListener('click', () => move(1));
+  $('tourBack').addEventListener('click', () => move(-1));
+  $('tourDo').addEventListener('click', doIt);
+  $('tourEnd').addEventListener('click', () => end('The tour is closed. Guide has it again.'));
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && run && !document.querySelector('dialog[open]')) end('The tour is closed. Guide has it again.'); });
+
+  // ---------------------------------------------------------------- the sheet
+  const list = $('guideList');
+  PARTS.forEach((part, p) => {
+    const box = document.createElement('details'), head = document.createElement('summary'), says = document.createElement('p'), walk = document.createElement('button');
+    box.className = 'fold'; box.name = 'guide'; head.textContent = part.name; says.className = 'small'; says.textContent = part.says;
+    box.appendChild(head); box.appendChild(says);
+    part.tools.forEach(([name, where, text], t) => {
+      const b = document.createElement('button'), strong = document.createElement('strong'), em = document.createElement('em');
+      b.className = 'toolrow'; b.dataset.show = p + ':' + t; strong.textContent = name; em.textContent = text;
+      b.appendChild(strong); b.appendChild(em); box.appendChild(b);
+    });
+    walk.className = 'walk'; walk.dataset.walk = part.id; walk.textContent = 'Walk me through ' + part.name.toLowerCase().replace(' and the top bar', ' and print');
+    box.appendChild(walk); list.appendChild(box);
+  });
+  list.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-show]'), walk = e.target.closest('[data-walk]');
+    if (walk) { tour(walk.dataset.walk); return; }
+    if (!row) return;
+    const [p, t] = row.dataset.show.split(':').map(Number), part = PARTS[p], tool = part.tools[t];
+    $('guide').close(); end();
+    const target = showTool(part, tool[1]);
+    setTimeout(() => { light(target, 6000); app.say(tool[0] + ': ' + tool[2]); }, 200);
+  });
+  $('tourAll').addEventListener('click', () => tour());
+
+  return {
+    open() { end(); if (!$('guide').open) $('guide').showModal(); },
+    tour, end,
+    // where the tour stands (the checks in a browser use this)
+    state: () => (run ? { step: run.i, of: run.steps.length, title: run.steps[run.i].title } : null),
+  };
+}
+
+return { setupGuide };
+})();
+
+// ---- core/smooth.js
+M.m19 = (() => {
 // Making a shape smoother for a print. Every triangle is cut into four and the corners are
 // eased toward their neighbours (Loop's scheme), so a faceted bone comes out rounded. The
 // shape keeps its size to within a fraction of the length of its edges.
@@ -2872,7 +3197,7 @@ return { smoother };
 })();
 
 // ---- core/measures.js
-M.m20 = (() => {
+M.m21 = (() => {
 // Numbers read off a spine: curves seen from the front, the rounding of the chest part
 // (kyphosis), the hollow of the lower back (lordosis) and the largest turn.
 // They are taken between the axes of the vertebral bodies. A Cobb angle drawn on an X-ray uses
@@ -2925,7 +3250,7 @@ return { measureSpine };
 })();
 
 // ---- core/shape.js
-M.m19 = (() => {
+M.m20 = (() => {
 // The shape of the spine: its curves seen from the front and from the side, and the ways to
 // change them (by numbers, or by pulling a vertebra).
 //
@@ -2938,7 +3263,7 @@ M.m19 = (() => {
 
 const { frameFromTilt, tiltFromFrame, toWorld, vAdd, vSub, vScale, vDot, vUnit, vDist } = M.m3;
 const { sortedLevels, LEVEL_ORDER } = M.m5;
-const { measureSpine } = M.m20;
+const { measureSpine } = M.m21;
 const { ALIGNMENT, ANATOMY } = M.m8;
 
 const DEG = 180 / Math.PI;
@@ -3518,7 +3843,7 @@ return { frameOf, toLocal, rigOf, stiffen, blockOf, restack, carry, typicalLean,
 })();
 
 // ---- core/place.js
-M.m21 = (() => {
+M.m22 = (() => {
 // Putting hardware on a spine: the usual spot for a screw or a hook on each side of each
 // vertebra, rods that run through whatever is placed, and a quick way to fit out a whole
 // stretch in one go. Positions are typical ones worked out from the size of each vertebra.
@@ -3527,7 +3852,7 @@ const { vAdd, vSub, vScale, vUnit, vLen, vDist, vDot, toWorld } = M.m3;
 const { sortedLevels, LEVEL_ORDER } = M.m5;
 const { anatomyFor, levelFrame, screwEntryFor, boneSurface } = M.m6;
 const { typicalScrew, screwLean, HARDWARE } = M.m11;
-const { toLocal } = M.m19;
+const { toLocal } = M.m20;
 
 const RAD = Math.PI / 180;
 const round1 = (v) => Math.round(v * 10) / 10;
@@ -4171,7 +4496,7 @@ return { slot, faceHook, freeScrew, resizeScrew, screwLength, pathThrough, ROD_R
 })();
 
 // ---- ui/easy.js
-M.m23 = (() => {
+M.m24 = (() => {
 // The tools that work by drawing and tapping:
 //   - draw the curve of the spine as a line over the model,
 //   - a flat map of the spine beside the model: tap or paint its spots with the tool in hand,
@@ -4181,9 +4506,9 @@ M.m23 = (() => {
 //   - pick colours for the hardware from swatches.
 // build.js decides which tool is in hand and calls in here.
 
-const { followLine, toLocal } = M.m19;
+const { followLine, toLocal } = M.m20;
 const { levelFrame } = M.m6;
-const { slot, fitOut, fitRods, cellOf, hookFaces, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, linkSpot, linkGap, gapsOf, setRodCut, drawRod, cutAll, rodsThroughAll, cutRodAt, rodSets } = M.m21;
+const { slot, fitOut, fitRods, cellOf, hookFaces, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, linkSpot, linkGap, gapsOf, setRodCut, drawRod, cutAll, rodsThroughAll, cutRodAt, rodSets } = M.m22;
 const { FINISHES, PALETTES, USUAL_FINISH, colorOf } = M.m11;
 
 const KINDS = [['rods', 'Rods'], ['screws', 'Screws'], ['hooks', 'Hooks'], ['crosslinks', 'Cross-links']];
@@ -4191,21 +4516,32 @@ const KINDS = [['rods', 'Rods'], ['screws', 'Screws'], ['hooks', 'Hooks'], ['cro
 // A row of round colour buttons.
 //   chosen: the name of the colour that is on now      pick(name): called with the new one
 //   usual:  true to add a button that goes back to the usual colour (pick is called with '')
-function swatches(box, label, chosen, pick, usual = false) {
+//   usual: true adds "the usual" (it gives ''), or a word of its own for that button
+//   other: true adds a well for any colour at all (it gives '#rrggbb')
+function swatches(box, label, chosen, pick, usual = false, other = false) {
+  const hex = (name) => '#' + FINISHES[name].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+  const named = Object.keys(FINISHES).find((name) => name === chosen || hex(name) === String(chosen).toLowerCase());
   box.textContent = '';
   if (label) { const span = document.createElement('span'); span.textContent = label; box.appendChild(span); }
   for (const name of Object.keys(FINISHES)) {
     const b = document.createElement('button'), c = FINISHES[name].map((v) => Math.round(v * 255));
     b.className = 'swatch'; b.style.background = 'rgb(' + c.join(',') + ')'; b.title = name; b.dataset.color = name;
-    b.setAttribute('aria-label', (label ? label + ': ' : '') + name); b.setAttribute('aria-pressed', chosen === name ? 'true' : 'false');
+    b.setAttribute('aria-label', (label ? label + ': ' : '') + name); b.setAttribute('aria-pressed', named === name ? 'true' : 'false');
     b.addEventListener('click', () => pick(name));
     box.appendChild(b);
   }
   if (usual) {
     const b = document.createElement('button');
-    b.className = 'swatch none'; b.textContent = 'the usual'; b.dataset.color = ''; b.setAttribute('aria-pressed', chosen ? 'false' : 'true');
+    b.className = 'swatch none'; b.textContent = usual === true ? 'the usual' : usual; b.dataset.color = ''; b.setAttribute('aria-pressed', chosen ? 'false' : 'true');
     b.addEventListener('click', () => pick(''));
     box.appendChild(b);
+  }
+  if (other) {
+    const wrap = document.createElement('label'), well = document.createElement('input'), mine = /^#[0-9a-f]{6}$/i.test(chosen || '') && !named;
+    wrap.className = 'swatch any'; wrap.title = 'another color'; if (mine) wrap.classList.add('on');
+    well.type = 'color'; well.value = mine ? chosen : '#888888'; well.setAttribute('aria-label', (label ? label + ': ' : '') + 'another color');
+    well.addEventListener('change', () => pick(well.value));
+    wrap.appendChild(well); box.appendChild(wrap);
   }
 }
 
@@ -4689,8 +5025,8 @@ function setupEasy(app, kit) {
   const colorNow = (kind) => (hw().colors || {})[kind] || USUAL_FINISH[kind];
   function setColors(colors) { app.change(() => { hw().colors = { ...(hw().colors || {}), ...colors }; }, { ride: false }); }
   const kindColor = (kind) => (colorOf(colorNow(kind)) ? colorNow(kind) : '');
-  each('[data-palette]', (b) => b.addEventListener('click', () => setColors(PALETTES[b.dataset.palette])));
-  const showPalettes = () => each('[data-palette]', (b) => b.setAttribute('aria-pressed', KINDS.every(([kind]) => colorNow(kind) === PALETTES[b.dataset.palette][kind]) ? 'true' : 'false'));
+  // (the sets of colours are picked on the Look card: build.js. This says which set is on, if one is.)
+  const paletteNow = () => Object.keys(PALETTES).find((name) => KINDS.every(([kind]) => colorNow(kind) === PALETTES[name][kind])) || '';
 
   function sync() {
     const list = ids();
@@ -4716,20 +5052,19 @@ function setupEasy(app, kit) {
       $('gFusedRow').hidden = $('gLinkRow').hidden = last;
       $('gFused').checked = fusedBelow(app.spine, id); $('gLink').checked = linkBelow(app.spine, id);
     }
-    showPalettes();
     drawMap();
   }
 
   return { sync, tap, draw, putOnModel, hints, rodTap, setTool,
     // for the keyboard: the part on one side of a vertebra, the tool in hand used on that side or on the gap below, a rod started or ended there
-    partAt, rodPick, put: (id, side) => { $('traySay').textContent = usualSay(); return putOnSlot(id, side); }, putGap: (id) => putOnGap(id, {}), markAt: (e) => !!hintAt(e), rodding: () => mapTool === 'rod', opened: () => { guideFor = ''; }, tool: () => mapTool, kindColor, setKindColor: (kind, name) => setColors({ [kind]: name }), picking: () => !!guide.picking, startDrawing: (plane = lastPlane) => setDrawing(plane), stopDrawing: () => { if (drawing !== null) setDrawing(null); }, stopPicking: () => { if (guide.picking) setPicking(0); } };
+    partAt, rodPick, put: (id, side) => { $('traySay').textContent = usualSay(); return putOnSlot(id, side); }, putGap: (id) => putOnGap(id, {}), markAt: (e) => !!hintAt(e), rodding: () => mapTool === 'rod', opened: () => { guideFor = ''; }, tool: () => mapTool, kindColor, setKindColor: (kind, name) => setColors({ [kind]: name }), paletteNow, picking: () => !!guide.picking, startDrawing: (plane = lastPlane) => setDrawing(plane), stopDrawing: () => { if (drawing !== null) setDrawing(null); }, stopPicking: () => { if (guide.picking) setPicking(0); } };
 }
 
 return { swatches, setupEasy };
 })();
 
 // ---- ui/chart.js
-M.m24 = (() => {
+M.m25 = (() => {
 // Three more ways to shape the spine, all flat:
 //   - the blocks: every vertebra as a block in a column, seen from the back or from the side.
 //     Drag a block sideways and its neighbours follow, tap it to lock it in place,
@@ -4739,8 +5074,8 @@ M.m24 = (() => {
 //     or the blocks are slid.
 // All three end in followLine and slideLevel of core/shape.js.
 
-const { followLine, slideLevel, restack } = M.m19;
-const { pathThrough } = M.m21;
+const { followLine, slideLevel, restack } = M.m20;
+const { pathThrough } = M.m22;
 const { LEVEL_ORDER } = M.m5;
 
 // kit: the helpers of build.js that are needed here ($, each, pressed, ids, levelOf, hint, stopOthers, regionIds)
@@ -4937,7 +5272,7 @@ return { setupChart };
 })();
 
 // ---- ui/build.js
-M.m22 = (() => {
+M.m23 = (() => {
 // The builder. There are four things to work on: the shape of the spine, its hardware, pain
 // points and notes, and the look. Each has a few tools, and one tool is in hand at a time:
 //   Shape:    Turn, Draw, Curve (sliders for a part of the spine), Points, One bone, Lock
@@ -4950,14 +5285,15 @@ M.m22 = (() => {
 const { sortedLevels } = M.m5;
 const { vertebraShape, levelFrame } = M.m6;
 const { ANATOMY } = M.m8;
-const { pullLevel, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, blockOf, pivotAt } = M.m19;
-const { slot, resizeScrew, screwLength, fitRods, fusedBelow, setFusedBelow, placePiece, faceHook, bendRod, unbendRod, shiftParts, rodSets } = M.m21;
-const { measureSpine } = M.m20;
+const { pullLevel, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, blockOf, pivotAt } = M.m20;
+const { slot, resizeScrew, screwLength, fitRods, fusedBelow, setFusedBelow, placePiece, faceHook, bendRod, unbendRod, shiftParts, rodSets } = M.m22;
+const { measureSpine } = M.m21;
 const { rayMesh, rayPoint } = M.m10;
 const { gizmoHit, dragAlong, dragAround } = M.m12;
 const { vAdd, vSub, vScale, vLerp, vDist, vDot } = M.m3;
-const { setupEasy, swatches } = M.m23;
-const { setupChart } = M.m24;
+const { setupEasy, swatches } = M.m24;
+const { PALETTES, FINISHES } = M.m11;
+const { setupChart } = M.m25;
 
 const PART_NAMES = { screws: 'Screw', hooks: 'Hook', crosslinks: 'Cross-link', rods: 'Rod' };
 const AXES = { left: [1, 0, 0], back: [0, 1, 0], up: [0, 0, 1] };
@@ -5221,8 +5557,6 @@ function setupBuilder(app) {
   const thick = dial('pieceThick', 'pieceThickN', (v) => { const s = pieceOf(); if (s && app.picked.kind === 'screws') { resizeScrew(s, v, 0); again(false); } });
   const long = dial('pieceLong', 'pieceLongN', (v) => { const s = pieceOf(); if (s && app.picked.kind === 'screws') { resizeScrew(s, 0, v); again(false); } });
   const rodThick = dial('rodThick', 'rodThickN', (v) => { const r = pieceOf(); if (r && app.picked.kind === 'rods') { r.diameter = v; again(false); } });
-  // a colour for the selected parts, or none to give them back the colour of their kind
-  const colored = (name) => { const all = chosen(); if (!all.length) return; for (const c of all) { if (name) c.piece.color = name; else delete c.piece.color; } again(true); };
   each('[data-face]', (b) => b.addEventListener('click', () => {
     const hooks = chosen().filter((c) => c.kind === 'hooks' && !c.piece.locked);
     if (hooks.length) app.change(() => hooks.forEach((c) => faceHook(app.spine, c.piece, b.dataset.face)), { ride: false });
@@ -5234,13 +5568,10 @@ function setupBuilder(app) {
     const all = chosen(), p = pieceOf(), kind = p ? app.picked.kind : '', many = all.length > 1, lone = many ? null : p;
     const word = (k) => PART_NAMES[k].toLowerCase(), plural = { screws: 'screws', hooks: 'hooks', crosslinks: 'cross-links', rods: 'rods' };
     if (!p) return;
-    const kinds = [...new Set(all.map((c) => c.kind))], shared = all.every((c) => (c.piece.color || '') === (all[0].piece.color || '')) ? all[0].piece.color || '' : null;
     if (kind === 'rods' && !many) {
       const bends = (p.via || []).length;
       $('rodName').textContent = 'Rod, ' + p.side + ' side' + (!p.auto ? ', traced' : bends ? ', bent in ' + bends + (bends === 1 ? ' place' : ' places') : '');
       rodThick(p.diameter || 5.5);
-      swatches($('rodColors'), 'This rod', p.color || '', colored, true);
-      swatches($('rodKindColors'), 'All rods', easy.kindColor('rods'), (name) => easy.setKindColor('rods', name));
       $('rodUnbend').disabled = !bends;
       return;
     }
@@ -5252,9 +5583,6 @@ function setupBuilder(app) {
     const hooks = all.filter((c) => c.kind === 'hooks');
     $('pieceFaceRow').hidden = hooks.length !== all.length;
     pressed('[data-face]', 'face', hooks.length && hooks.every((c) => (c.piece.faces || 'down') === (hooks[0].piece.faces || 'down')) ? hooks[0].piece.faces || 'down' : 'none');
-    swatches($('pieceColors'), many ? 'These parts' : 'This ' + word(kind), shared === null ? '?' : shared, colored, true);
-    $('pieceKindColors').hidden = kinds.length !== 1;
-    if (kinds.length === 1) swatches($('pieceKindColors'), 'All ' + plural[kinds[0]], easy.kindColor(kinds[0]), (name) => easy.setKindColor(kinds[0], name));
     // (parts can be frozen in a spine file. The switch shows for those, so they can be let go.)
     $('pieceLockedRow').hidden = !frozen;
     $('pieceLocked').checked = all.every((c) => c.piece.locked); $('pieceLocked').indeterminate = frozen && !$('pieceLocked').checked;
@@ -5468,6 +5796,7 @@ function setupBuilder(app) {
     if (!app.spine) return;
     // (in the clean view, with the tools put away, a tap brings them back)
     if (document.body.classList.contains('clean')) { app.clean(false); return; }
+    if (tab === 'look') { paintTap(e); return; }
     if (tab === 'marks') {
       // a tap on a pain point or a note selects it. Anywhere else, the tool in hand puts a new one there.
       const m = hitThing(e, true);
@@ -5604,12 +5933,21 @@ function setupBuilder(app) {
   const markNear = (l) => app.spine.marks.findIndex((m) => Math.abs(markSpot(m)[2] - l.centre[2]) <= l.size[2] / 2 + 4);
   function kbTell() {
     const l = levelOf(kb.id);
-    if (tab === 'parts') { const p = sidePart(kb.id, kb.side); app.say(kb.id + ', ' + kb.side + ' side: ' + (p ? 'a ' + PART_NAMES[p.kind].toLowerCase() : 'nothing') + '.'); }
+    if (tab === 'parts' || tab === 'look') { const p = sidePart(kb.id, kb.side); app.say(kb.id + ', ' + kb.side + ' side: ' + (p ? 'a ' + PART_NAMES[p.kind].toLowerCase() : 'nothing') + '.'); }
     else if (tab === 'marks') { const i = markNear(l); app.say(kb.id + (i >= 0 ? ': ' + (app.spine.marks[i].text || (app.spine.marks[i].kind === 'note' ? 'a note' : 'a pain point')) : '') + '.'); }
     else app.say(kb.id + (app.held.has(kb.id) ? ', locked.' : '.'));
   }
   function kbTap() {
     const id = kb.id, side = kb.side, l = levelOf(id), p = app.picked || {};
+    if (tab === 'look') {
+      // With the brush, Enter paints the part on this side of the vertebra. Where there is none, or it has that colour already, it paints the vertebra.
+      const part = sidePart(id, side), piece = part && hw()[part.kind][part.index];
+      if (colorWhat !== 'one') { colorWhat = part ? part.kind : 'bone'; sync(); return; }
+      const target = piece && (piece.color || '') !== brush ? piece : l;
+      app.change(() => { if (brush) target.color = brush; else delete target.color; }, { ride: false });
+      app.say((target === l ? id : PART_NAMES[part.kind] + ' at ' + id + ', ' + side) + (brush ? ' has a color of its own now.' : ' has the color of the rest again.'));
+      return;
+    }
     if (tab === 'shape') {
       const t = hand.shape;
       if (t === 'lock') chart.tapLock(id);
@@ -5694,6 +6032,8 @@ function setupBuilder(app) {
               : kind === 'level' ? 'Choose what ' + app.picked.id + ' carries.'
                 : t === 'turn' ? Press() + ' a part or a vertebra to change it. Drag to turn the model.'
                   : t === 'rod' ? $('rodSay').textContent : $('traySay').textContent;
+    } else if (tab === 'look') {
+      text = colorWhat === 'one' ? Press() + ' a part or a vertebra to ' + (brush ? 'give it this color.' : 'give it back the color of the rest.') : 'Pick what the color goes on, then the color. Drag to turn the model.';
     } else if (tab === 'marks') {
       text = markOf() ? 'Drag its arrows to move it, or its label to move the words.' : marking === 'pain' ? Press() + ' the spot that hurts.' : marking === 'note' ? Press() + ' the spot the note is about.' : app.spine.marks.length ? Press() + ' a pain point or a note to change it.' : turnSays;
     }
@@ -5701,6 +6041,66 @@ function setupBuilder(app) {
   }
   // (what the tools say is written into three hidden lines by the code that runs them: show it when it changes)
   if (window.MutationObserver) new MutationObserver(coach).observe($('drawSay').parentElement, { childList: true, characterData: true, subtree: true });
+
+  // ---------------------------------------------------------------- colours: all of them are set on the Look card
+  // A colour goes on one kind of hardware, on the bone, on the discs, or on one part: with "One part", a tap on the
+  // model paints what is under it. The last thing done is what shows: a set of colours, a colour for a kind and
+  // "By level" take away the own colours of the parts they are about, so nothing set earlier stays behind unseen.
+  const SAYS = { rods: 'All rods', screws: 'All screws', hooks: 'All hooks', crosslinks: 'All cross-links', bone: 'All vertebrae', disc: 'All discs', one: 'One part' };
+  const KIND_KEYS = Object.keys(PART_NAMES);
+  let colorWhat = 'screws', brush = 'red';
+  const hexOf = (name) => (FINISHES[name] ? '#' + FINISHES[name].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('') : name);
+  const owned = () => KIND_KEYS.reduce((n, k) => n + hw()[k].filter((p) => p.color).length, 0) + app.spine.levels.filter((l) => l.color).length;
+  const dropOwn = (kinds, bones = false) => { for (const k of kinds) for (const p of hw()[k]) delete p.color; if (bones) for (const l of app.spine.levels) delete l.color; };
+  const hasOwn = (kinds, bones = false) => kinds.some((k) => hw()[k].some((p) => p.color)) || (bones && app.spine.levels.some((l) => l.color));
+  function colorPicked(name) {
+    const what = colorWhat;
+    if (what === 'one') { brush = name; showColors(); coach(); return; }
+    if (what === 'bone' || what === 'disc') {
+      if (what === 'bone' && hasOwn([], true)) app.change(() => dropOwn([], true), { ride: false });
+      app.setLook({ [what]: name ? hexOf(name) : '' });
+      return;
+    }
+    if ((what === 'screws' || what === 'hooks') && app.look().byLevel) app.setLook({ byLevel: false });
+    app.change(() => { dropOwn([what]); const c = { ...(hw().colors || {}) }; if (name) c[what] = name; else delete c[what]; hw().colors = c; }, { ride: false });
+  }
+  each('[data-palette]', (b) => b.addEventListener('click', () => {
+    if (app.look().byLevel) app.setLook({ byLevel: false });
+    app.change(() => { dropOwn(KIND_KEYS); hw().colors = { ...PALETTES[b.dataset.palette] }; }, { ride: false });
+  }));
+  $('byLevelBtn').addEventListener('click', () => {
+    const on = !app.look().byLevel;
+    if (on && hasOwn(['screws', 'hooks'])) app.change(() => dropOwn(['screws', 'hooks']), { ride: false });
+    app.setLook({ byLevel: on });
+  });
+  each('#colorWhat [data-what]', (b) => b.addEventListener('click', () => { colorWhat = b.dataset.what; sync(); }));
+  $('ownClear').addEventListener('click', () => app.change(() => dropOwn(KIND_KEYS, true), { ride: false }));
+  // (from the card of a part: its colour is set on the Look card, with the brush)
+  each('[data-tocolor]', (b) => b.addEventListener('click', () => { colorWhat = 'one'; showTab('look'); }));
+  // A tap on the model with Look open. With "One part" it paints. Otherwise it shows the colour of that kind of thing.
+  function paintTap(e) {
+    const what = hitThing(e, false), hit = what ? null : hitLevel(e);
+    if (!what && !hit) return;
+    if (colorWhat !== 'one') { colorWhat = what ? what.kind : 'bone'; sync(); return; }
+    const target = what ? hw()[what.kind][what.index] : hit.level;
+    app.change(() => { if (brush) target.color = brush; else delete target.color; }, { ride: false });
+    app.say((what ? PART_NAMES[what.kind] + (target.level ? ' at ' + target.level : '') : hit.level.id) + (brush ? ' has a color of its own now.' : ' has the color of the rest again.'));
+  }
+  function showColors() {
+    const look = app.look(), what = colorWhat, n = owned();
+    pressed('[data-palette]', 'palette', look.byLevel ? '' : easy.paletteNow());
+    $('byLevelBtn').setAttribute('aria-pressed', look.byLevel ? 'true' : 'false');
+    pressed('#colorWhat [data-what]', 'what', what);
+    const now = what === 'one' ? brush : what === 'bone' || what === 'disc' ? (look[what] === app.usualLook[what] ? '' : look[what]) : easy.kindColor(what);
+    swatches($('lookColors'), SAYS[what], now, colorPicked, what === 'one' ? 'like the rest' : what === 'bone' || what === 'disc' ? 'the usual' : false, true);
+    $('colorSay').textContent = what === 'one' ? Press() + ' a part or a vertebra on the model to ' + (brush ? 'give it this color.' : 'give it back the color of the rest.')
+      : (what === 'screws' || what === 'hooks') && look.byLevel ? 'By level is on, so each one has the color of its vertebra. A color picked here turns that off.'
+        : SAYS[what] + ' take this color.';
+    $('ownRow').hidden = !n;
+    $('ownSay').textContent = n + (n === 1 ? ' part has' : ' parts have') + ' a color of ' + (n === 1 ? 'its' : 'their') + ' own.';
+    // (on a small screen the card scrolls: with the brush in hand, keep the colours and the line about painted parts in view)
+    if (what === 'one' && !wide() && !$('card').hidden) (n ? $('ownRow') : $('colorSay')).scrollIntoView({ block: 'nearest' });
+  }
 
   // ---------------------------------------------------------------- everything on the page that depends on the state
   function cardNow() {
@@ -5724,6 +6124,7 @@ function setupBuilder(app) {
     each('#opts [data-opts]', (el) => { el.hidden = !el.dataset.opts.split(' ').includes(tab + ':' + t); some = some || !el.hidden; });
     $('opts').hidden = !some;
     pressed('[data-hook]', 'hook', hookFace); $('bothBtn').setAttribute('aria-pressed', both ? 'true' : 'false');
+    if (tab === 'look') showColors();
     // the flat view beside the model: the map with the hardware, and on a wide screen the blocks with the shape
     const can = tab === 'parts' || (tab === 'shape' && wide()), on = can && stripOn[tab];
     $('strip').hidden = !on; $('mapBox').hidden = tab !== 'parts'; $('blocksBox').hidden = tab !== 'shape';
@@ -5764,6 +6165,12 @@ function setupBuilder(app) {
     markAt(clientX, clientY) { return easy.markAt({ clientX, clientY }); },
     // the kind of part under a point of the page ('screws', 'hooks', 'crosslinks', 'rods'), if there is one
     thingAt(clientX, clientY) { const what = hitThing({ clientX, clientY }, false); return what ? what.kind : null; },
+    // what the colour on the Look card goes on ('rods', 'screws', 'hooks', 'crosslinks', 'bone', 'disc', or 'one' for the brush), and the colour of the brush
+    colorOn(what, color) { colorWhat = what; if (what === 'one' && color !== undefined) brush = color; sync(); },
+    colors: () => ({ what: colorWhat, brush, own: owned() }),
+    // what a tap at a point of the page does with the brush of the Look card, and with the tool for pain points or notes (the tour uses these)
+    paintAt(clientX, clientY) { paintTap({ clientX, clientY }); },
+    painAt(clientX, clientY) { addMark({ clientX, clientY }); },
     workOn,
   };
 }
@@ -5786,12 +6193,13 @@ const { packSpine, unpackSpine, linkFor, packedIn } = M.m14;
 const { stlOf, objOf } = M.m15;
 const { zipOf } = M.m16;
 const { standFor } = M.m17;
-const { smoother } = M.m18;
-const { rigOf, carry, stiffen, blockOf } = M.m19;
-const { fitRods } = M.m21;
+const { setupGuide } = M.m18;
+const { smoother } = M.m19;
+const { rigOf, carry, stiffen, blockOf } = M.m20;
+const { fitRods } = M.m22;
 const { setBoneStyle } = M.m6;
 const { SHAPE_CREDIT } = M.m9;
-const { setupBuilder } = M.m22;
+const { setupBuilder } = M.m23;
 
 const $ = (id) => document.getElementById(id);
 // phones get a slightly coarser grid for the bones so they appear sooner
@@ -5828,6 +6236,9 @@ function showGlow(scroll) {
 }
 const app = {
   $, renderer, DETAIL, rig: null, picked: null, also: [], spots: [],
+  // the look as it is now, what it is when nothing is chosen, and a way to change it ('' for a colour gives the usual one)
+  look: () => look, usualLook: USUAL,
+  setLook(patch) { look = { ...look, ...patch }; for (const k of ['bone', 'disc']) if (!look[k]) look[k] = USUAL[k]; applyLook(); if (builder) builder.sync(); },
   frames: [],                          // things to do after every drawn frame (lines over the picture follow the view)
   held: new Set(),                     // the vertebrae locked in place while the curve is drawn or the blocks are slid
   glow: null,                          // the vertebra that was just clicked: its block on the map and the chart lights up for a moment
@@ -6191,6 +6602,7 @@ function showStand() {
   let wide = 0;
   if (stand) { const p = stand.stand[0].positions; let lo = Infinity, hi = -Infinity; for (let i = 0; i < p.length; i += 3) { lo = Math.min(lo, p[i]); hi = Math.max(hi, p[i]); } wide = Math.round((hi - lo) * printScale()); }
   $('standSay').textContent = stand ? stand.says + ' The stand is a part of its own, with a base about ' + wide + ' mm across at this size. It is shown with the spine now.' : '';
+  document.querySelectorAll('[data-stand]').forEach((b) => b.setAttribute('aria-pressed', stand ? 'true' : 'false'));
   app.redraw();
   if (stand) fitView();
 }
@@ -6247,7 +6659,6 @@ function applyLook(save = true) {
   document.querySelectorAll('[data-back]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.back === look.back ? 'true' : 'false'));
   renderer.setShading(look.shade);
   document.querySelectorAll('[data-shade]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.shade === look.shade ? 'true' : 'false'));
-  $('colBone').value = look.bone; $('colDisc').value = look.disc; $('byLevelBtn').setAttribute('aria-pressed', look.byLevel ? 'true' : 'false');
   $('simpleBones').checked = !!look.simple; setBoneStyle(look.simple ? 'drawn' : 'real');
   if (save) keepLook();
   app.redraw();
@@ -6277,6 +6688,35 @@ function makeThumbs() {
     b.querySelector('img').src = small.toDataURL('image/jpeg', 0.82);
   });
   renderer.setShading(look.shade);
+}
+
+// Reset the view: everything about how the sketch is drawn goes back to how it starts. The shading, the background,
+// what is shown, every colour (the ones kept in the sketch too, so Undo brings those back) and the whole spine in view.
+const KINDS = ['rods', 'screws', 'hooks', 'crosslinks'];
+function resetView() {
+  if (!spine) return;
+  const hw = spine.hardware, colored = !!hw.colors || KINDS.some((k) => hw[k].some((p) => p.color)) || spine.levels.some((l) => l.color);
+  look = { ...USUAL }; $('boneOpacity').value = 100; $('labelsOn').checked = false;
+  document.querySelectorAll('#showChecks [data-group]').forEach((c) => { c.checked = true; });
+  setClean(false);
+  if (colored) app.change(() => { delete hw.colors; for (const k of KINDS) for (const p of hw[k]) delete p.color; for (const l of spine.levels) delete l.color; }, { ride: false });
+  applyLook(); if (builder) builder.sync();
+  renderer.look(0); fitView();
+  app.say('The view is back to how it starts.' + (colored ? ' Undo brings the colors back.' : ''));
+}
+// Reset the model: a straight normal spine with nothing on it. The sketch that was open stays in the history.
+function resetModel() {
+  if (!spine) return;
+  const had = changed();
+  openExample(START).then(() => setTimeout(() => app.say(had ? 'A straight normal spine. Undo brings back the sketch you had.' : 'A straight normal spine.'), 60));
+}
+// The stand under the model, on or off. Which stand it is, and its size, are set with the print in the Share sheet.
+let standWas = 'post';
+function setStand(on) {
+  if ($('standKind').value) standWas = $('standKind').value;
+  $('standKind').value = on ? standWas : '';
+  showStand(); if (!on) fitView();
+  app.say(on ? 'The model stands on its stand. Share has the settings for printing it.' : 'The stand is off.');
 }
 
 // The clean view: the tools are put away so that the model stands alone, for a picture of the screen.
@@ -6338,23 +6778,38 @@ if (!renderer) {
   $('redoBtn').addEventListener('click', redo);
   document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => { look.back = b.dataset.back; applyLook(); }));
   document.querySelectorAll('[data-shade]').forEach((b) => b.addEventListener('click', () => { look.shade = b.dataset.shade; applyLook(); }));
-  $('colBone').addEventListener('input', () => { look.bone = $('colBone').value; applyLook(); });
-  $('colDisc').addEventListener('input', () => { look.disc = $('colDisc').value; applyLook(); });
-  $('byLevelBtn').addEventListener('click', () => { look.byLevel = !look.byLevel; applyLook(); });
   $('simpleBones').addEventListener('change', () => { look.simple = $('simpleBones').checked; applyLook(); });
   // the bone shapes come from an open anatomy collection that asks to be named
   $('credit').textContent = 'Bone shapes: ' + SHAPE_CREDIT + '. Resized and placed for this app.';
-  $('lookReset').addEventListener('click', () => { look = { ...USUAL }; $('boneOpacity').value = 100; $('labelsOn').checked = false; document.querySelectorAll('#showChecks [data-group]').forEach((c) => { c.checked = true; }); applyLook(); });
-  // the View menu of a narrow screen: its button opens it, a press on one of its lines or beside it closes it, and so does Esc
-  const viewMenu = (open) => { $('viewMenu').hidden = !open; $('viewBtn').setAttribute('aria-expanded', open ? 'true' : 'false'); };
-  // (opened from the keyboard, the menu takes the focus, and gives it back to its button when it closes)
-  $('viewBtn').addEventListener('click', (e) => { e.stopPropagation(); const open = $('viewMenu').hidden; viewMenu(open); if (open && e.detail === 0) $('viewMenu').querySelector('button').focus(); });
-  $('viewMenu').addEventListener('click', (e) => { if (!e.target.closest('[data-zoom],[data-move]')) { const had = $('viewMenu').contains(document.activeElement); viewMenu(false); if (had) $('viewBtn').focus(); } });
-  $('viewMenu').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); viewMenu(false); $('viewBtn').focus(); } });
+  document.querySelectorAll('[data-reset]').forEach((b) => b.addEventListener('click', () => (b.dataset.reset === 'view' ? resetView() : resetModel())));
+  document.querySelectorAll('[data-stand]').forEach((b) => b.addEventListener('click', () => setStand(!$('standKind').value)));
+  // A small menu under a button of the top bar (View, and Reset on a wide screen): its button opens it, a press on one
+  // of its lines or beside it closes it, and so does Esc. It hangs from the right edge of its button.
+  const menus = [];
+  function menu(btnId, boxId) {
+    const btn = $(btnId), box = $(boxId);
+    const set = (open) => {
+      box.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) box.style.right = Math.max(8, Math.min(window.innerWidth - btn.getBoundingClientRect().right, window.innerWidth - 8 - box.offsetWidth)) + 'px';
+    };
+    // (opened from the keyboard, the menu takes the focus, and gives it back to its button when it closes)
+    btn.addEventListener('click', (e) => { e.stopPropagation(); const open = box.hidden; menus.forEach((m) => m(false)); set(open); if (open && e.detail === 0) box.querySelector('button').focus(); });
+    box.addEventListener('click', (e) => { if (!e.target.closest('[data-zoom],[data-move]')) { const had = box.contains(document.activeElement); set(false); if (had) btn.focus(); } });
+    box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); set(false); btn.focus(); } });
+    document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#' + boxId) && !e.target.closest('#' + btnId)) set(false); });
+    menus.push(set);
+  }
+  menu('viewBtn', 'viewMenu'); menu('resetBtn', 'resetMenu');
+  const viewMenu = (open) => menus.forEach((m) => m(open));
+  // the guide: what the tools do, and the tour
+  const guide = setupGuide(app, { builder: () => builder, fresh: () => openExample(START), changed, setStand });
+  $('guideBtn').addEventListener('click', () => guide.open());
+  document.querySelectorAll('[data-guide]').forEach((b) => b.addEventListener('click', () => guide.open()));
+  $('startTour').addEventListener('click', () => { $('start').close(); guide.tour(); });
+  sheet('guide', 'guideClose');
   // Zooming and moving the picture with one finger or one key: the same as a pinch and a drag with two fingers.
   document.querySelectorAll('[data-zoom]').forEach((b) => b.addEventListener('click', () => { const c = renderer.camera; c.distance = Math.max(80, Math.min(4000, c.distance * (b.dataset.zoom === 'in' ? 0.8 : 1.25))); renderer.requestDraw(); }));
   document.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => { const c = renderer.camera; c.target = [c.target[0], c.target[1], c.target[2] + (b.dataset.move === 'up' ? -1 : 1) * c.distance * 0.1]; renderer.requestDraw(); }));
-  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#viewMenu') && !e.target.closest('#viewBtn')) viewMenu(false); });
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') { viewMenu(false); if (document.body.classList.contains('clean')) setClean(false); } });
   window.addEventListener('keydown', (e) => {
     if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
@@ -6370,7 +6825,7 @@ if (!renderer) {
   welcome(false);
   if (startNext && !$('welcome').open) { startNext = false; openStart(); }
   // handy when trying things in the browser console
-  window.spineBuilder = { renderer, app, builder, current: () => spine, show, openExample };
+  window.spineBuilder = { renderer, app, builder, guide, current: () => spine, show, openExample };
 }
 
 return {  };

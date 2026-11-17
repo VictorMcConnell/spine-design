@@ -67,6 +67,9 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
   `green`, `lime`, `gold`, `orange`, `red`, `pink` or `purple`, or a colour written as `#rrggbb`.
 - `colors` is optional. It gives a colour to each kind of part. A piece's own `color` wins
   over it.
+- A vertebra can carry a `color` too, written the same way. It is the colour of that one
+  vertebra. Without it the vertebra has the bone colour of the person looking, which is not
+  kept in the file.
 - `"norods": true` in the hardware says that the rods have not been put on yet. The builder
   sets it when the first part goes on a bare spine, because the rods wait for the Rod tool. The rods are still worked out and
   kept in the file, so that cross-links have something to sit on, but they are not drawn,

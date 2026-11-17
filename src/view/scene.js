@@ -56,7 +56,9 @@ export function buildScene(spine, detail, extras = {}) {
   // (the vertebra whose block is under the pointer, or was just tapped, lights up part of the way to the pick colour)
   // (the one under the pointer more softly, so that a locked or a stiff vertebra still shows as what it is)
   const lit = (id, c) => (extras.lit === id ? mix(c, COLORS.picked, 0.55) : extras.pointed === id ? mix(c, COLORS.picked, 0.3) : c);
-  const boneColor = (id, i) => lit(id, (picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : locked.includes(id) ? dim(look.bone || COLORS.bone) : stiff.includes(id) ? cool(look.bone || COLORS.bone) : look.bone || COLORS.bone);
+  // (a vertebra can carry a colour of its own, the way a piece of hardware can)
+  const ownBone = (id) => { const l = levels.find((x) => x.id === id); return (l && l.color && colorOf(l.color)) || look.bone || COLORS.bone; };
+  const boneColor = (id, i) => lit(id, (picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : locked.includes(id) ? dim(ownBone(id)) : stiff.includes(id) ? cool(ownBone(id)) : ownBone(id));
   // a vertebra is drawn once in its own axes and then placed, so bending the spine only moves it
   levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level), name: level.id }));
   for (let i = 0; i < levels.length - 1; i++) {

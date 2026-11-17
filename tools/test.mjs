@@ -476,6 +476,14 @@ ok('colours: a wider choice, sets that go together, and any colour by its code',
   assert.deepEqual(shown('screws'), FINISHES.pink);
   s.hardware.colors = { rods: 'no such colour' };
   assert.equal(validateSpine(s).length, 1);
+  // one vertebra can have a colour of its own: it shows on that vertebra only, and a colour the app does not know is reported
+  delete s.hardware.colors;
+  const bone = (id) => buildScene(s, 2, { look: { bone: [0.5, 0.4, 0.3] } }).find((it) => it.group === 'vertebrae' && it.name === id).color;
+  s.levels.find((l) => l.id === 'T6').color = 'red';
+  assert.deepEqual(bone('T6'), FINISHES.red); assert.deepEqual(bone('T7'), [0.5, 0.4, 0.3]);
+  assert.equal(validateSpine(s).length, 0);
+  s.levels.find((l) => l.id === 'T6').color = '#0000ff'; assert.deepEqual(bone('T6'), [0, 0, 1]); assert.equal(validateSpine(s).length, 0);
+  s.levels.find((l) => l.id === 'T6').color = 'no such colour'; assert.equal(validateSpine(s).length, 1);
 });
 ok('a cross-link has clamps and a bar that arches away from the spine', () => {
   const link = { from: [-20, 30, 100], to: [22, 31, 101] }, mesh = crosslinkMesh(link, [0, 0.1, 1], [0, 0.1, 1], [0, 1, 0]);

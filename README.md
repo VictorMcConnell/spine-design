@@ -63,7 +63,8 @@ Milestone 2 of 5, the builder, is done. What works today:
   wide screen. Each has a few tools with a picture and a word, and one tool is in hand at a
   time. One line over the model says what a press does with that tool. Whatever is selected,
   and every tool that works with sliders, shows a card: in place of the tools on a phone, in
-  a column beside the model on a wide screen. Undo, Redo and Share are always in the top bar.
+  a column beside the model on a wide screen. Undo, Redo, Guide, View and Share are always in
+  the top bar.
   The same page serves a phone, a tablet and a desktop, with no setting to choose between
   them.
 
@@ -124,9 +125,8 @@ Milestone 2 of 5, the builder, is done. What works today:
   on top, screws on every other vertebra or hooks) and how many cross-links. One button puts
   it all on.
 - **Select and change.** With Turn in hand, tap any part on the model or on the map to
-  select it. Its card gives that one part its own colour, turns a hook up or down and
-  removes it, and behind "More" changes the colour of all parts of its kind and the size of
-  a screw. A selected screw or hook can be dragged over the bone, and a selected rod can be
+  select it. Its card turns a hook up or down and removes it, and behind "More" changes the
+  size of a screw. A selected screw or hook can be dragged over the bone, and a selected rod can be
   dragged to bend it. Only what is selected can be dragged, so turning the model never moves
   a part. Tap a vertebra for a card that sets what its left and its right side carry. On a
   desktop, Shift and a click select several parts: drag one of several selected screws or
@@ -135,10 +135,16 @@ Milestone 2 of 5, the builder, is done. What works today:
   hooks, in their order along the spine, so it cannot zigzag. A part that is dragged out of
   line stops where the rod could no longer follow, and a bend made by hand stops at what a
   rod could take.
-- **Colours for telling parts apart.** Fourteen colours for rods, screws, hooks and
-  cross-links, as four ready-made sets under Look, and any single part or kind of part can
-  have its own. The colours are kept in the spine file, so they travel with a link. Hardware
-  is always drawn solid, however it was put on.
+- **Colours, all in one place.** Every colour is set under Look. Four ready-made sets colour
+  all the hardware in one press, and "By level" gives the parts of each vertebra a colour of
+  their own. Below them, pick what a colour goes on (rods, screws, hooks, cross-links, bone or
+  discs) and then one of fourteen colours, or any other colour. "One part" is a brush: pick a
+  colour, then tap single parts or vertebrae on the model to paint them. The last thing done
+  is what shows: a set or a colour for a kind replaces the colours painted on those parts, so
+  nothing set earlier stays behind unseen, and one line says how many parts have a colour of
+  their own, with a button that clears them. The colours of the hardware and of single
+  vertebrae are kept in the spine file, so they travel with a link. Hardware is always drawn
+  solid, however it was put on.
 - On the real bones the usual spot for a screw is the way through the pedicle that was found
   on that bone, so screws start out inside bone. A hook sits on the lamina, the plate of bone
   behind the canal, with its foot on the bone, also in the lower back where the screws go in
@@ -148,10 +154,21 @@ Milestone 2 of 5, the builder, is done. What works today:
   with a few words. A label sits above its spot, and can be dragged further away: a line
   then joins the two, so the words never cover the spot.
 - **Look:** five shadings, shown as small pictures of your own model (soft light, clay,
-  drawing with ink lines, X-ray and a plain quick one), the finish of the parts, a colour
-  for each level of hardware, background, bone names, see-through bone, and under "More" the
-  colours of bone and discs and what is shown. **Clean view** puts every tool away so the
-  model stands alone. Kept on the device between visits.
+  drawing with ink lines, X-ray and a plain quick one), the colours, the background, bone
+  names, see-through bone, and under "More" what is shown. **Clean view** puts every tool
+  away so the model stands alone. Kept on the device between visits.
+- **Stand, and two ways to start over,** in the top bar of a wide screen and under View on a
+  small one. **Stand** puts the model on its stand or takes it off. **Reset the view** puts
+  the shading, the background, every colour and what is shown back to how they start, and
+  brings the whole spine into view. **Reset the model** gives a straight normal spine with
+  nothing on it. Undo brings back the colours, or the sketch.
+- **A guide and a tour.** The Guide button opens a sheet with every tool of the app, part by
+  part, in a line or two each. A tool in it is a button: it takes that tool in hand and shows
+  where it is. **Take the tour** builds a small example in eight steps on a new normal spine:
+  turn it, bend it, add hardware, change one part, mark where it hurts, choose the look,
+  share or print it. Each step says what to do and shows where, and "Do it for me" does it,
+  so the tour can be watched or done by hand. Each part can also be walked through on its
+  own, with the sketch that is open. The sheet you start from offers the tour as well.
 - **On this spine**, on a wide screen: a list beside the model of its curves, what is
   fused, the hardware and the pain points. A line of the list opens that thing.
 - Hardware and marks **move with the vertebrae** when the spine is bent afterwards.

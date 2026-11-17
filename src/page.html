@@ -16,6 +16,10 @@
 <noscript><p style="font: 16px system-ui, sans-serif; padding: 24px; color: #eceae5; background: #131419;">Spine Builder draws in your browser and needs JavaScript switched on to do it. Nothing is sent anywhere.</p></noscript>
 <!-- the pictures on the buttons, drawn once here and used by name -->
 <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.4-2.8 4.2"/><path d="M12 17.6v.2"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 5v5h5"/><path d="M4.6 10A8 8 0 1 1 4 13"/></symbol>
+  <symbol id="i-brush" viewBox="0 0 24 24"><path d="M14 5.5 18.5 10 11 17.5 6.5 13 14 5.5Z"/><path d="m16 3.5 4.5 4.5"/><path d="M6.5 13c-2 2-1 4.5-3.5 6.5 3 .5 6-.5 8-2"/></symbol>
+  <symbol id="i-stand" viewBox="0 0 24 24"><path d="M12 4v13"/><path d="M5 20c0-1.7 3.1-3 7-3s7 1.3 7 3"/><path d="M9 7h6M9 11h6"/></symbol>
   <symbol id="i-new" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 6 3 11l5 5"/><path d="M3 11h11a6 6 0 0 1 6 6v1"/></symbol>
   <symbol id="i-redo" viewBox="0 0 24 24"><path d="m16 6 5 5-5 5"/><path d="M21 11H10a6 6 0 0 0-6 6v1"/></symbol>
@@ -66,8 +70,11 @@
     <button data-tab="look"><svg class="i"><use href="#i-look"/></svg><span>Look</span></button>
   </nav>
   <div class="right">
-    <div class="seg views roomy" role="group" aria-label="Look from"><button data-look="back">Back</button><button data-look="left">Side</button><button data-look="front">Front</button></div>
-    <button class="tb roomy" data-fit>Fit</button>
+    <div class="seg views vast" role="group" aria-label="Look from"><button data-look="back">Back</button><button data-look="left">Side</button><button data-look="front">Front</button></div>
+    <button class="tb vast" data-fit>Fit</button>
+    <button class="tb roomy toggle" data-stand aria-pressed="false"><svg class="i"><use href="#i-stand"/></svg>Stand</button>
+    <button id="resetBtn" class="tb roomy" aria-haspopup="true" aria-expanded="false" aria-controls="resetMenu"><svg class="i"><use href="#i-reset"/></svg>Reset</button>
+    <button id="guideBtn" class="tb" aria-label="Guide"><svg class="i"><use href="#i-help"/></svg><span>Guide</span></button>
     <button id="viewBtn" class="tb" aria-label="View" aria-haspopup="true" aria-expanded="false" aria-controls="viewMenu"><svg class="i"><use href="#i-view"/></svg><span>View</span></button>
     <button id="shareBtn" class="tb main"><svg class="i"><use href="#i-share"/></svg><span>Share</span></button>
   </div>
@@ -77,6 +84,15 @@
   <button data-fit>Fit the whole spine</button>
   <div class="pairrow"><button data-zoom="in">Zoom in</button><button data-zoom="out">Zoom out</button></div>
   <div class="pairrow"><button data-move="up">Move up</button><button data-move="down">Move down</button></div>
+  <hr>
+  <button data-stand aria-pressed="false"><svg class="i"><use href="#i-stand"/></svg>Stand</button>
+  <button data-reset="view"><svg class="i"><use href="#i-reset"/></svg>Reset the view</button>
+  <button data-reset="model"><svg class="i"><use href="#i-reset"/></svg>Reset the model</button>
+  <button data-guide><svg class="i"><use href="#i-help"/></svg>Guide and tour</button>
+</div>
+<div id="resetMenu" class="menu" role="group" aria-label="Reset" hidden>
+  <button data-reset="view">Reset the view<em>Colors, shading and background as they were. The whole spine in view.</em></button>
+  <button data-reset="model">Reset the model<em>A straight normal spine. Undo brings your sketch back.</em></button>
 </div>
 
 <main>
@@ -198,25 +214,22 @@
         <header><svg class="i"><use href="#i-screw"/></svg><h2 id="pieceName"></h2><button id="pieceRemove" class="quiet warn">Remove</button><button id="pieceDone" class="main">Done</button></header>
         <p class="small fine" id="pieceHow">Drag it over the bone to move it.</p>
         <div class="seg" id="pieceFaceRow" role="group" aria-label="Which way the hook points"><button data-face="down">Points down</button><button data-face="up">Points up</button></div>
-        <div class="swatches" id="pieceColors" aria-label="Colour of this part"></div>
         <button class="quiet more" data-more aria-expanded="false">More</button>
         <div class="extra">
-          <div class="swatches" id="pieceKindColors" aria-label="Colour of all parts of this kind"></div>
           <label class="dial" id="pieceThickRow">Thickness<span><input type="range" id="pieceThick" min="3.5" max="8" step="0.5"><input type="number" id="pieceThickN" min="3.5" max="8" step="0.5"><i>mm</i></span></label>
           <label class="dial" id="pieceLongRow">Length<span><input type="range" id="pieceLong" min="10" max="65"><input type="number" id="pieceLongN" min="10" max="65"><i>mm</i></span></label>
           <label class="check" id="pieceLockedRow" hidden><input type="checkbox" id="pieceLocked">Frozen: nothing moves or removes it until this is unticked</label>
+          <div class="row"><button data-tocolor><svg class="i"><use href="#i-brush"/></svg>Color it under Look</button></div>
         </div>
       </section>
 
       <section data-card="rod" hidden>
         <header><svg class="i"><use href="#i-rod"/></svg><h2 id="rodName"></h2><button class="main" data-done>Done</button></header>
         <p class="small fine">Drag the rod between two of its parts to bend it there.</p>
-        <div class="swatches" id="rodColors" aria-label="Colour of this rod"></div>
         <button class="quiet more" data-more aria-expanded="false">More</button>
         <div class="extra">
-          <div class="swatches" id="rodKindColors" aria-label="Colour of all rods"></div>
           <label class="dial">Thickness<span><input type="range" id="rodThick" min="3.5" max="7" step="0.5"><input type="number" id="rodThickN" min="3.5" max="7" step="0.5"><i>mm</i></span></label>
-          <div class="row"><button id="rodUnbend">Take the bends out</button></div>
+          <div class="row"><button id="rodUnbend">Take the bends out</button><button data-tocolor><svg class="i"><use href="#i-brush"/></svg>Color it under Look</button></div>
         </div>
       </section>
 
@@ -260,14 +273,17 @@
       <section data-card="look" hidden>
         <h3>Shading</h3>
         <div class="thumbs" id="shades" role="group" aria-label="Shading"><button data-shade="soft"><img alt=""><span>Soft</span></button><button data-shade="clay"><img alt=""><span>Clay</span></button><button data-shade="drawing"><img alt=""><span>Drawing</span></button><button data-shade="xray"><img alt=""><span>X-ray</span></button><button data-shade="plain"><img alt=""><span>Plain</span></button></div>
-        <h3>Parts</h3>
-        <div class="seg" id="paletteRow" role="group" aria-label="Finish of the parts"><button data-palette="classic">Classic</button><button data-palette="metal">Metal</button><button data-palette="bright">Bright</button><button data-palette="bold">Bold</button><button id="byLevelBtn" aria-pressed="false">By level</button></div>
+        <h3>Colors</h3>
+        <div class="seg" id="paletteRow" role="group" aria-label="A set of colors for the hardware"><button data-palette="classic">Classic</button><button data-palette="metal">Metal</button><button data-palette="bright">Bright</button><button data-palette="bold">Bold</button><button id="byLevelBtn" aria-pressed="false">By level</button></div>
+        <div class="chips" id="colorWhat" role="group" aria-label="What the color goes on"><button data-what="rods">Rods</button><button data-what="screws">Screws</button><button data-what="hooks">Hooks</button><button data-what="crosslinks">Links</button><button data-what="bone">Bone</button><button data-what="disc">Discs</button><button data-what="one"><svg class="i"><use href="#i-brush"/></svg>One part</button></div>
+        <div class="swatches" id="lookColors"></div>
+        <p class="small fine" id="colorSay"></p>
+        <div class="row" id="ownRow" hidden><span class="small" id="ownSay"></span><button id="ownClear" class="quiet">Clear them</button></div>
         <h3>Background</h3>
         <div class="row backs" id="backs" role="group" aria-label="Background"><button data-back="dark" aria-label="Dark"></button><button data-back="grey" aria-label="Grey"></button><button data-back="light" aria-label="Light"></button><button data-back="white" aria-label="White"></button><button data-back="black" aria-label="Black"></button><span class="gap"></span><label class="check"><input type="checkbox" id="labelsOn">Bone names</label></div>
         <label class="dial">Bone, see-through to solid<span><input id="boneOpacity" type="range" min="10" max="100" value="100"></span></label>
         <details class="fold" id="lookMore">
           <summary>More</summary>
-          <div class="pair colors"><label>Bone <input type="color" id="colBone"></label><label>Discs <input type="color" id="colDisc"></label></div>
           <label class="check"><input type="checkbox" id="simpleBones">Simple bone shapes (drawn from measurements)</label>
           <h3>What is shown</h3>
           <div class="checks" id="showChecks">
@@ -279,7 +295,7 @@
             <label><input type="checkbox" data-group="crosslinks" checked>Cross-links</label>
             <label><input type="checkbox" data-group="marks" checked>Pain and notes</label>
           </div>
-          <div class="row"><button id="lookReset">Back to the usual look</button></div>
+          <div class="row"><button id="lookReset" data-reset="view">Reset the view</button></div>
         </details>
         <div class="row"><button id="cleanBtn"><svg class="i"><use href="#i-eye"/></svg>Clean view, for a picture</button></div>
       </section>
@@ -301,10 +317,26 @@
   <div class="grab" aria-hidden="true"></div>
   <header><h2 id="startTitle">Start a sketch</h2><button id="startClose" class="icon" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></header>
   <p class="small">Pick the shape nearest to yours. Everything can be changed after. It replaces what is on screen. These are made-up shapes of common patterns, not a diagnosis.</p>
+  <button id="startTour" class="big"><svg class="i"><use href="#i-help"/></svg><span><strong>New here? Take the tour</strong><em>It builds a small example with you in a few steps</em></span></button>
   <div id="galleryList"></div>
   <div class="row two"><button id="startOpen"><svg class="i"><use href="#i-folder"/></svg>Open a sketch</button><button id="aboutBtn">About and privacy</button></div>
   <p class="small foot">Nothing you make leaves this device.</p>
   <p class="small sitelinks" hidden><a data-page="privacy.html">Privacy</a><a data-page="terms.html">Terms</a><a data-page="accessibility.html">Accessibility</a></p>
+</dialog>
+
+<!-- the tour: one step at a time, in a card under the top bar -->
+<section id="tour" aria-label="Tour" hidden>
+  <header><span id="tourCount"></span><h2 id="tourTitle"></h2><button id="tourEnd" class="icon" aria-label="End the tour"><svg class="i"><use href="#i-close"/></svg></button></header>
+  <p id="tourText" role="status"></p>
+  <div class="row"><button id="tourBack" class="quiet">Back</button><button id="tourDo">Do it for me</button><button id="tourNext" class="main">Next</button></div>
+</section>
+
+<dialog id="guide" aria-labelledby="guideTitle">
+  <div class="grab" aria-hidden="true"></div>
+  <header><h2 id="guideTitle">Guide</h2><button id="guideClose" class="icon" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></header>
+  <p class="small">The tour builds a simple example with you, one step at a time. Or open a part below to read what its tools do and try only that part.</p>
+  <button id="tourAll" class="big main"><svg class="i"><use href="#i-help"/></svg><span><strong>Take the tour</strong><em>The whole tool in about two minutes</em></span></button>
+  <div id="guideList"></div>
 </dialog>
 
 <dialog id="share" aria-labelledby="shareTitle">

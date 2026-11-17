@@ -5,7 +5,7 @@
 # not to pass on where a visitor came from and not to offer camera, microphone or location.
 # The last one tells the browser to come back over HTTPS only, for the next year.
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-Un3ih8ChzzPxU+hnXIulspvTLpEqAAH8jDAxfdVWsOY=' 'sha256-8nJu+g6brOi3ERv6c3Y5QPUUNvs0a/n88thHmlzRTiA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-svoxqxa1U8feDnKKm9bJX4fRf26HaozX0EoTPI4uVPI=' 'sha256-Nlhf3I+uNPTUPPWgi5AYxwaqRLA+DhpAtuUo28DzPro='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer

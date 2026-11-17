@@ -17,21 +17,32 @@ const KINDS = [['rods', 'Rods'], ['screws', 'Screws'], ['hooks', 'Hooks'], ['cro
 // A row of round colour buttons.
 //   chosen: the name of the colour that is on now      pick(name): called with the new one
 //   usual:  true to add a button that goes back to the usual colour (pick is called with '')
-export function swatches(box, label, chosen, pick, usual = false) {
+//   usual: true adds "the usual" (it gives ''), or a word of its own for that button
+//   other: true adds a well for any colour at all (it gives '#rrggbb')
+export function swatches(box, label, chosen, pick, usual = false, other = false) {
+  const hex = (name) => '#' + FINISHES[name].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+  const named = Object.keys(FINISHES).find((name) => name === chosen || hex(name) === String(chosen).toLowerCase());
   box.textContent = '';
   if (label) { const span = document.createElement('span'); span.textContent = label; box.appendChild(span); }
   for (const name of Object.keys(FINISHES)) {
     const b = document.createElement('button'), c = FINISHES[name].map((v) => Math.round(v * 255));
     b.className = 'swatch'; b.style.background = 'rgb(' + c.join(',') + ')'; b.title = name; b.dataset.color = name;
-    b.setAttribute('aria-label', (label ? label + ': ' : '') + name); b.setAttribute('aria-pressed', chosen === name ? 'true' : 'false');
+    b.setAttribute('aria-label', (label ? label + ': ' : '') + name); b.setAttribute('aria-pressed', named === name ? 'true' : 'false');
     b.addEventListener('click', () => pick(name));
     box.appendChild(b);
   }
   if (usual) {
     const b = document.createElement('button');
-    b.className = 'swatch none'; b.textContent = 'the usual'; b.dataset.color = ''; b.setAttribute('aria-pressed', chosen ? 'false' : 'true');
+    b.className = 'swatch none'; b.textContent = usual === true ? 'the usual' : usual; b.dataset.color = ''; b.setAttribute('aria-pressed', chosen ? 'false' : 'true');
     b.addEventListener('click', () => pick(''));
     box.appendChild(b);
+  }
+  if (other) {
+    const wrap = document.createElement('label'), well = document.createElement('input'), mine = /^#[0-9a-f]{6}$/i.test(chosen || '') && !named;
+    wrap.className = 'swatch any'; wrap.title = 'another color'; if (mine) wrap.classList.add('on');
+    well.type = 'color'; well.value = mine ? chosen : '#888888'; well.setAttribute('aria-label', (label ? label + ': ' : '') + 'another color');
+    well.addEventListener('change', () => pick(well.value));
+    wrap.appendChild(well); box.appendChild(wrap);
   }
 }
 
@@ -515,8 +526,8 @@ export function setupEasy(app, kit) {
   const colorNow = (kind) => (hw().colors || {})[kind] || USUAL_FINISH[kind];
   function setColors(colors) { app.change(() => { hw().colors = { ...(hw().colors || {}), ...colors }; }, { ride: false }); }
   const kindColor = (kind) => (colorOf(colorNow(kind)) ? colorNow(kind) : '');
-  each('[data-palette]', (b) => b.addEventListener('click', () => setColors(PALETTES[b.dataset.palette])));
-  const showPalettes = () => each('[data-palette]', (b) => b.setAttribute('aria-pressed', KINDS.every(([kind]) => colorNow(kind) === PALETTES[b.dataset.palette][kind]) ? 'true' : 'false'));
+  // (the sets of colours are picked on the Look card: build.js. This says which set is on, if one is.)
+  const paletteNow = () => Object.keys(PALETTES).find((name) => KINDS.every(([kind]) => colorNow(kind) === PALETTES[name][kind])) || '';
 
   function sync() {
     const list = ids();
@@ -542,11 +553,10 @@ export function setupEasy(app, kit) {
       $('gFusedRow').hidden = $('gLinkRow').hidden = last;
       $('gFused').checked = fusedBelow(app.spine, id); $('gLink').checked = linkBelow(app.spine, id);
     }
-    showPalettes();
     drawMap();
   }
 
   return { sync, tap, draw, putOnModel, hints, rodTap, setTool,
     // for the keyboard: the part on one side of a vertebra, the tool in hand used on that side or on the gap below, a rod started or ended there
-    partAt, rodPick, put: (id, side) => { $('traySay').textContent = usualSay(); return putOnSlot(id, side); }, putGap: (id) => putOnGap(id, {}), markAt: (e) => !!hintAt(e), rodding: () => mapTool === 'rod', opened: () => { guideFor = ''; }, tool: () => mapTool, kindColor, setKindColor: (kind, name) => setColors({ [kind]: name }), picking: () => !!guide.picking, startDrawing: (plane = lastPlane) => setDrawing(plane), stopDrawing: () => { if (drawing !== null) setDrawing(null); }, stopPicking: () => { if (guide.picking) setPicking(0); } };
+    partAt, rodPick, put: (id, side) => { $('traySay').textContent = usualSay(); return putOnSlot(id, side); }, putGap: (id) => putOnGap(id, {}), markAt: (e) => !!hintAt(e), rodding: () => mapTool === 'rod', opened: () => { guideFor = ''; }, tool: () => mapTool, kindColor, setKindColor: (kind, name) => setColors({ [kind]: name }), paletteNow, picking: () => !!guide.picking, startDrawing: (plane = lastPlane) => setDrawing(plane), stopDrawing: () => { if (drawing !== null) setDrawing(null); }, stopPicking: () => { if (guide.picking) setPicking(0); } };
 }
