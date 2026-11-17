@@ -1,4 +1,0 @@
-# Text files keep plain line ends on every computer, so the built page is byte for byte the
-# same everywhere (the page checks the fingerprint of its own script).
-* text=auto eol=lf
-*.png binary

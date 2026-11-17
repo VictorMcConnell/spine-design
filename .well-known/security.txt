@@ -1,0 +1,7 @@
+# Found a security problem in Spine Builder? Thank you for saying so.
+# The page below is public. Please do not post the details of a problem that is not fixed yet:
+# say that you have one and ask for a private way to send it.
+Contact: https://github.com/VictorMcConnell/spine-design/issues
+Expires: 2027-11-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://spine-design.com/.well-known/security.txt

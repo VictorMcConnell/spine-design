@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accessibility | Spine Builder</title>
+<meta name="description" content="How Spine Builder works with a keyboard, a screen reader and one finger, what it does not do yet, and how to report a problem.">
+<meta name="theme-color" content="#131419">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23191a20'/%3E%3Cg fill='%23d9c39a'%3E%3Crect x='20' y='8' width='22' height='9' rx='3.5'/%3E%3Crect x='23' y='20' width='22' height='9' rx='3.5'/%3E%3Crect x='24' y='32' width='22' height='9' rx='3.5'/%3E%3Crect x='21' y='44' width='22' height='10' rx='3.5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="canonical" href="https://spine-design.com/accessibility.html">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #131419; color: #eceae5; font: 17px/1.6 Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header, main, footer { max-width: 44rem; margin: 0 auto; padding: 0 20px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding-top: 20px; padding-bottom: 14px; border-bottom: 1px solid #2c2f3c; }
+  header .home { font-weight: 700; font-size: 18px; color: #eceae5; text-decoration: none; margin-right: auto; }
+  nav { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+  a { color: #b4baff; text-underline-offset: 3px; }
+  nav a { display: inline-block; padding: 6px 0; }
+  nav a[aria-current="page"] { color: #eceae5; font-weight: 650; text-decoration-thickness: 2px; }
+  a:focus-visible { outline: 2px solid #9ca3ff; outline-offset: 3px; border-radius: 3px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 34px 0 4px; }
+  h2 { font-size: 20px; line-height: 1.3; margin: 34px 0 6px; }
+  p, ul { margin: 10px 0; }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  .date { color: #a9adbb; font-size: 15px; }
+  .short { margin: 20px 0; padding: 14px 16px; border: 1px solid #2c2f3c; border-radius: 12px; background: #1c1e27; }
+  .short p:first-child { margin-top: 0; } .short p:last-child { margin-bottom: 0; }
+  kbd { padding: 1px 6px; border: 1px solid #767b96; border-radius: 5px; background: #1c1e27; font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  footer a { display: inline-block; padding: 5px 0; }
+  footer { margin-top: 44px; padding-top: 16px; padding-bottom: 40px; border-top: 1px solid #2c2f3c; color: #a9adbb; font-size: 15px; }
+</style>
+</head>
+<body>
+<header><a class="home" href="./">Spine Builder</a><nav aria-label="Pages of this site"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="accessibility.html" aria-current="page">Accessibility</a></nav></header>
+<main>
+<h1>Accessibility</h1>
+<p class="date">Last changed on 16 November 2026</p>
+<div class="short">
+<p><strong>The short version.</strong> Spine Builder was built to meet the Web Content Accessibility Guidelines (WCAG) 2.2 at Level AA. It meets them in part. Every tool that works by tapping also works from the keyboard. Drawing a line freehand needs a finger or a mouse, and sliders do the same job without one.</p>
+</div>
+
+<h2>With a keyboard</h2>
+<ul>
+<li><kbd>Tab</kbd> moves through the buttons, sliders and sheets. What has the focus has a clear outline.</li>
+<li><kbd>1</kbd> to <kbd>6</kbd> take the tools of the open step in hand. <kbd>Esc</kbd> puts down what is held and closes sheets and menus.</li>
+<li>With the 3D view in focus, <kbd>↑</kbd> and <kbd>↓</kbd> move from vertebra to vertebra, <kbd>←</kbd> and <kbd>→</kbd> choose the left or the right side, and <kbd>Enter</kbd> does what a tap would do with the tool in hand: pick a vertebra, lock it, put on a screw, a hook, a cross-link or a rod, erase a part, or add a pain point or a note. <kbd>+</kbd> and <kbd>−</kbd> zoom.</li>
+<li>The shape of the spine can be set without a pointer: the Curve tool bends any part with sliders, and One bone picks a vertebra by name.</li>
+<li><kbd>Delete</kbd> removes what is selected. <kbd>Ctrl</kbd> <kbd>Z</kbd> and <kbd>Ctrl</kbd> <kbd>Y</kbd> undo and redo.</li>
+</ul>
+
+<h2>With one finger</h2>
+<ul>
+<li>Nothing needs two fingers. The View menu looks from each side, zooms in and out and moves the picture up and down.</li>
+<li>Nothing has to be dragged, except for freehand drawing. Parts go on with taps, and a part is moved by taking it off and putting it on again.</li>
+<li>Undo takes back anything that was touched by mistake.</li>
+</ul>
+
+<h2>With a screen reader</h2>
+<ul>
+<li>Every button, slider, list and sheet has a name. Sliders of the curve say what they are set to in words, such as "35° to the right".</li>
+<li>The 3D picture is described in words: the curves of the spine, what is fused, the hardware, and the pain points and notes. The description changes as the sketch changes.</li>
+<li>What the app reports, and where the keyboard is on the model, is announced as it happens.</li>
+</ul>
+
+<h2>Seeing and reading</h2>
+<ul>
+<li>Text has a contrast of at least 4.5 to 1 against its ground. The edges of boxes to type in and the mark of a choice that is on have at least 3 to 1.</li>
+<li>The page works at 200% zoom and on a screen 320 pixels wide, with no sideways scrolling.</li>
+<li>Colour is never the only sign. Screws are round and hooks are square on the map, and the words say which is which.</li>
+<li>Nothing flashes, nothing plays sound and nothing has a time limit. If your device asks for less motion, the soft pulsing of the marks stops.</li>
+</ul>
+
+<h2>What does not work yet</h2>
+<ul>
+<li><strong>Freehand drawing.</strong> Draw and Points follow a line made with a finger or a mouse. The Curve tool reaches the same shapes with sliders.</li>
+<li><strong>A few fine moves need a pointer:</strong> bending a rod by dragging it, sliding the blocks, dragging the handles on one vertebra to move it sideways, and dragging the label of a pain point away from its spot.</li>
+<li><strong>The picture itself cannot be explored part by part</strong> with a screen reader. The description and the keyboard on the model stand in for that.</li>
+<li><strong>On a small phone the dots of the map are smaller than 24 pixels.</strong> The card of a vertebra does the same with large buttons: take Turn in hand and tap the vertebra.</li>
+<li><strong>Saved pictures and 3D print files</strong> carry no description of what they show.</li>
+</ul>
+
+<h2>How it was checked</h2>
+<p>The page was checked in November 2026 with automated tests in Chrome: names of controls, contrast, sizes of things to press, reflow at small sizes, and the main tasks done with the keyboard alone. It has not yet been tried with VoiceOver, TalkBack, NVDA or JAWS, or on real phones and tablets. So this is the project's own assessment, not an outside audit.</p>
+
+<h2>Tell us what gets in your way</h2>
+<p>If something here does not work for you, say so on the project's page for problems: <a href="https://github.com/VictorMcConnell/spine-design/issues">github.com/VictorMcConnell/spine-design/issues</a>. Say what you were trying to do and what you use (browser, screen reader, switch, voice control). That page is public, so leave out personal and medical details.</p>
+</main>
+<footer><p><a href="./">Back to Spine Builder</a></p><p>Spine Builder is free and open source. It is a sketching tool, not a medical device.</p></footer>
+</body>
+</html>

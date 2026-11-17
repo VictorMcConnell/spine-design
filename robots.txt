@@ -5,3 +5,5 @@ Disallow: /src/
 Disallow: /tools/
 Disallow: /docs/
 Disallow: /examples/
+
+Sitemap: https://spine-design.com/sitemap.xml
