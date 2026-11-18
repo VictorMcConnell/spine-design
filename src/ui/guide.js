@@ -43,6 +43,7 @@ export function setupGuide(app, host) {
       ['Points', 'shape:points', 'A line with a few points lies over the spine. Drag a point and the spine follows.'],
       ['One bone', 'shape:one', 'Pick one vertebra and move it, turn it or resize it on its own.'],
       ['Lock', 'shape:lock', 'Pick vertebrae that stay where they are while the rest is shaped.'],
+      ['X-ray', 'shape:xray', 'Lay a picture of an X-ray over the model or beside it, trace the spine on it and the model takes that shape. The picture stays on this device.'],
     ] },
     { id: 'parts', name: 'Hardware', says: 'Put screws, hooks, rods and cross-links on the spine. The map beside the model has a row for every vertebra.', tools: [
       ['Turn', 'parts:turn', 'Pick a part to change it: drag a screw to another vertebra, set its length and thickness, or remove it.'],

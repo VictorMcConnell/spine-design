@@ -41,7 +41,12 @@ it from a folder. It works without an internet connection.
 
 ## Pictures and X-rays
 
-Pictures saved from the app hold only what is on screen. If you later share an X-ray, check
+A picture of an X-ray that you open to trace over is read by your own browser and held in
+the memory of the page. It is not sent anywhere, it is not kept on the device, and it is not
+part of the sketch: a saved file, a share link and a saved picture hold nothing of it. Close
+the page and it is gone.
+
+Pictures saved from the app hold only the model and its labels. If you later share an X-ray, check
 its edges first. X-rays often carry a name and a date of birth in the margins.
 
 ## Not medical advice

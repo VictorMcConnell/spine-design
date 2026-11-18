@@ -1,6 +1,6 @@
 // The builder. There are four things to work on: the shape of the spine, its hardware, pain
 // points and notes, and the look. Each has a few tools, and one tool is in hand at a time:
-//   Shape:    Turn, Draw, Curve (sliders for a part of the spine), Points, One bone, Lock
+//   Shape:    Turn, Draw, Curve (sliders for a part of the spine), Points, One bone, Lock, X-ray (trace over a picture)
 //   Hardware: Turn, Screw, Hook, Link, Rod, Erase
 //   Pain:     Turn, Pain point, Note
 // A tool that works with sliders, and anything that is selected, shows a card. Everything
@@ -19,6 +19,7 @@ import { vAdd, vSub, vScale, vLerp, vDist, vDot } from '../core/vec.js';
 import { setupEasy, swatches } from './easy.js';
 import { PALETTES, FINISHES } from '../core/hardware.js';
 import { setupChart } from './chart.js';
+import { setupXray } from './xray.js';
 
 const PART_NAMES = { screws: 'Screw', hooks: 'Hook', crosslinks: 'Cross-link', rods: 'Rod' };
 const AXES = { left: [1, 0, 0], back: [0, 1, 0], up: [0, 0, 1] };
@@ -32,7 +33,7 @@ export function setupBuilder(app) {
   const { $, renderer } = app;
   // tab:  what is being worked on ('shape', 'parts' for the hardware, 'marks' for pain and notes, 'look')
   // hand: the tool in hand for each of them        how: what the handles on the model do for one bone and for a stretch
-  let tab = 'shape', marking = null, drag = null, pending = null, hot = null, hookFace = 'down', both = true, filling = false, stripWas = false, cardWas = null;
+  let tab = 'shape', marking = null, drag = null, pending = null, hot = null, hookFace = 'down', both = true, filling = false, stripWas = '', cardWas = null;
   const hand = { shape: 'draw', parts: 'screw', marks: 'pain' }, how = { one: 'move', stretch: 'bow' };
   const stripOn = { shape: false, parts: true };
   const levels = () => sortedLevels(app.spine), ids = () => levels().map((l) => l.id);
@@ -95,10 +96,10 @@ export function setupBuilder(app) {
 
   // Make the tool in hand ready: what a press on the model does from now on.
   function arm() {
-    easy.stopDrawing(); chart.stopLine(); chart.stopPicking(); easy.stopPicking();
+    easy.stopDrawing(); chart.stopLine(); chart.stopPicking(); easy.stopPicking(); xray.stop();
     marking = null;
     const t = hand[tab];
-    if (tab === 'shape') { if (t === 'draw') easy.startDrawing(); else if (t === 'points') chart.startLine(); else if (t === 'lock') chart.setPicking(true); }
+    if (tab === 'shape') { if (t === 'draw') easy.startDrawing(); else if (t === 'points') chart.startLine(); else if (t === 'lock') chart.setPicking(true); else if (t === 'xray') xray.start(); }
     else if (tab === 'parts') easy.setTool(t === 'hook' ? 'hook-' + hookFace : MAP_TOOL[t]);
     else if (tab === 'marks') marking = t === 'turn' ? null : t;
     $('stage').classList.toggle('placing', (tab === 'shape' && t === 'lock') || (tab === 'parts' && t !== 'turn') || (tab === 'marks' && t !== 'turn'));
@@ -122,7 +123,7 @@ export function setupBuilder(app) {
   // "Done" on a card: a tool that works in its card is put down, a selection is let go
   each('[data-done]', (b) => b.addEventListener('click', () => {
     const card = b.closest('[data-card]').dataset.card;
-    if (card === 'curve' || card === 'one') pickTool('turn');
+    if (card === 'curve' || card === 'one' || card === 'xray') pickTool('turn');
     else if (card === 'fill') { filling = false; easy.stopPicking(); app.say(''); sync(); }
     else app.pick(null);
   }));
@@ -555,6 +556,7 @@ export function setupBuilder(app) {
     if (tab !== 'shape') return;
     const hit = hitLevel(e), id = hit && hit.level.id, p = app.picked || {}, t = hand.shape;
     if (t === 'lock') { if (id) chart.tapLock(id); return; }
+    if (t === 'xray') { xray.tap(); return; }
     // the tapped vertebra and its block on the chart light up together
     if (id) app.flash(id, true);
     if (!id) return;
@@ -569,6 +571,8 @@ export function setupBuilder(app) {
     down(e) {
       if (!app.spine) return false;
       if (easy.draw.on()) return easy.draw.down(e);
+      // with the X-ray tool in hand and the picture over the model, a press traces on the picture or moves it
+      if (xray.takes()) return xray.down(e);
       const h = handles(), box = renderer.canvas.getBoundingClientRect();
       const grabbed = h && gizmoHit(h.spec, renderer, e.clientX, e.clientY, e.pointerType === 'touch' ? 24 : 13);
       if (grabbed) { drag = { name: grabbed.handle.name, ring: grabbed.handle.kind === 'ring', grab: grabbed.grab, dx: 0, dy: 0, moved: false }; app.redraw(); return true; }
@@ -599,6 +603,7 @@ export function setupBuilder(app) {
     },
     move(e, dx, dy) {
       if (easy.draw.on()) { easy.draw.move(e); return; }
+      if (xray.busy()) { xray.move(e); return; }
       if (!drag) return;
       drag.dx += dx; drag.dy += dy; drag.e = e;
       if (Math.abs(drag.dx) + Math.abs(drag.dy) < 3 && !drag.moved) return;
@@ -628,6 +633,7 @@ export function setupBuilder(app) {
     },
     up(e) {
       if (easy.draw.on()) { easy.draw.up(e); return; }
+      if (xray.busy()) { xray.up(e); return; }
       const was = drag; drag = null;
       if (was && was.moved) app.settle(); else { if (was && was.name) app.redraw(); if (e.type === 'pointerup' && !(was && was.name)) tap(e); }
     },
@@ -635,6 +641,7 @@ export function setupBuilder(app) {
     // a second finger came down, to zoom or to move the picture: what the first one held is let go
     cancel() {
       if (easy.draw.on()) { easy.draw.cancel(); return; }
+      if (xray.busy()) { xray.cancel(); return; }
       const was = drag; drag = null;
       if (was && was.moved) app.settle(); else if (was && was.name) app.redraw();
     },
@@ -678,7 +685,7 @@ export function setupBuilder(app) {
       if (t === 'lock') chart.tapLock(id);
       else if (t === 'one') app.pick({ kind: 'level', id });
       else if (t === 'curve') app.pick(p.kind === 'stretch' && p.top && !p.bottom && p.top !== id ? sorted(p.top, id) : { kind: 'stretch', top: id, bottom: null });
-      else { app.flash(id, true); if (t !== 'turn') { app.say('Drawing needs a finger or a mouse. The Curve tool bends the spine with sliders.'); return; } }
+      else { app.flash(id, true); if (t !== 'turn') { app.say((t === 'xray' ? 'Tracing' : 'Drawing') + ' needs a finger or a mouse. The Curve tool bends the spine with sliders.'); return; } }
     } else if (tab === 'parts') {
       const t = hand.parts, part = sidePart(id, side);
       if (t === 'rod') { if (!easy.rodPick(id, side)) app.say('A rod runs from part to part. There is no part here.'); return; }
@@ -745,6 +752,7 @@ export function setupBuilder(app) {
       const t = hand.shape, p = app.picked || {}, locked = chart.lockWords();
       text = t === 'turn' ? turnSays
         : t === 'draw' || t === 'points' ? $('drawSay').textContent
+          : t === 'xray' ? xray.says()
           : t === 'curve' ? (stretch() ? 'Move the sliders, or drag that part of the model.' : p.top ? p.top + ' is one end. ' + Press() + ' the other end.' : Press() + ' the two ends of the stretch.')
             : t === 'one' ? (one() ? (how.one === 'size' ? 'Drag a knob to resize it.' : how.one === 'turn' ? 'Drag a ring to turn it.' : 'Drag an arrow, or the vertebra itself.') : Press() + ' a vertebra.')
               : (locked ? 'Locked: ' + locked + '. ' : '') + Press() + ' vertebrae to lock them. They stay put while the rest is shaped.';
@@ -831,7 +839,7 @@ export function setupBuilder(app) {
   function cardNow() {
     const p = app.picked;
     if (tab === 'look') return 'look';
-    if (tab === 'shape') return hand.shape === 'curve' ? 'curve' : hand.shape === 'one' ? 'one' : null;
+    if (tab === 'shape') return hand.shape === 'curve' ? 'curve' : hand.shape === 'one' ? 'one' : hand.shape === 'xray' ? 'xray' : null;
     if (tab === 'parts') return filling ? 'fill' : !p ? null : p.kind === 'rods' && chosen().length < 2 ? 'rod' : PART_NAMES[p.kind] ? 'piece' : p.kind === 'level' ? 'bone' : null;
     return markOf() ? 'mark' : null;
   }
@@ -851,17 +859,19 @@ export function setupBuilder(app) {
     pressed('[data-hook]', 'hook', hookFace); $('bothBtn').setAttribute('aria-pressed', both ? 'true' : 'false');
     if (tab === 'look') showColors();
     // the flat view beside the model: the map with the hardware, and on a wide screen the blocks with the shape
-    const can = tab === 'parts' || (tab === 'shape' && wide()), on = can && stripOn[tab];
-    $('strip').hidden = !on; $('mapBox').hidden = tab !== 'parts'; $('blocksBox').hidden = tab !== 'shape';
-    $('stripBtn').hidden = !can; $('stripBtn').setAttribute('aria-pressed', on ? 'true' : 'false'); $('stripBtn').lastElementChild.textContent = tab === 'parts' ? 'Map' : 'Blocks';
-    document.body.classList.toggle('stripped', on);
+    // (a picture of an X-ray that is shown side by side takes that place, except while the map of the hardware is open)
+    const beside = xray.beside(), can = tab === 'parts' || (tab === 'shape' && wide() && !beside);
+    const on = tab === 'parts' && stripOn.parts ? 'map' : beside ? 'xray' : can && stripOn[tab] ? 'blocks' : '';
+    $('strip').hidden = !on; $('mapBox').hidden = on !== 'map'; $('blocksBox').hidden = on !== 'blocks'; $('xrayBox').hidden = on !== 'xray';
+    $('stripBtn').hidden = !can; $('stripBtn').setAttribute('aria-pressed', on === 'map' || on === 'blocks' ? 'true' : 'false'); $('stripBtn').lastElementChild.textContent = tab === 'parts' ? 'Map' : 'Blocks';
+    document.body.classList.toggle('stripped', !!on);
     // (the picture has a new shape: bring the whole spine into it again once the page has been laid out)
     if (on !== stripWas) { stripWas = on; requestAnimationFrame(() => { app.fit(); renderer.requestDraw(); }); }
     if (card === 'one') oneBox();
     if (card === 'curve') curveBox();
     if (card === 'piece' || card === 'rod') pieceBox();
     if (card === 'mark') markBox();
-    easy.sync(); chart.sync(); listBox(); coach();
+    easy.sync(); chart.sync(); xray.sync(); listBox(); coach();
   }
   WIDE.addEventListener('change', () => { if (app.spine) sync(); });
 
@@ -870,6 +880,7 @@ export function setupBuilder(app) {
     filled(text) { filling = false; hand.parts = 'turn'; arm(); app.say(text); sync(); },
     held: () => chart.held(), stopLine: () => { chart.stopLine(); chart.stopPicking(); }, lineOn: () => chart.lineOn() });
   const chart = setupChart(app, { $, each, pressed, ids, levelOf, hint: coach, stopOthers: () => easy.stopDrawing(), drawing: () => easy.draw.on(), regionIds, touch });
+  const xray = setupXray(app, { $, each, pressed, options, ids, hint: coach, touch, held: () => chart.held(), changed: () => sync() });
   showTab('shape');
   return {
     sync, handles,
@@ -883,7 +894,9 @@ export function setupBuilder(app) {
     go(name) { showTab(name); },
     tool(name) { pickTool(name); },
     // where things stand (the checks in a browser use this)
-    state: () => ({ tab, tool: hand[tab] || null, card: cardNow(), both, strip: !$('strip').hidden }),
+    state: () => ({ tab, tool: hand[tab] || null, card: cardNow(), both, strip: !$('strip').hidden, xray: xray.state() }),
+    // the X-ray tool: open a picture file, and where its spots are on the page (the checks in a browser use these)
+    xray: { open: (file) => xray.open(file), pageOf: (px) => xray.pageOf(px), pixelOf: (x, y) => xray.pixelOf(x, y) },
     // the vertebra under a point of the page, if there is one (the checks in a browser use this)
     levelAt(clientX, clientY) { const hit = hitLevel({ clientX, clientY }); return hit ? hit.level.id : null; },
     // is one of the soft marks under a point of the page?

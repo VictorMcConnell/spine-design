@@ -21,7 +21,7 @@ app needs to draw one spine. This page describes format 1.
 | `fused` | Stretches that are fused, each written as `[top, bottom]`, for example `["T4", "L2"]`. |
 | `hardware` | Rods, screws, hooks and cross-links. |
 | `marks` | Things the person wants to point at, such as where it hurts. |
-| `pictures` | Reserved for X-rays and their scale. Empty for now. |
+| `pictures` | Reserved for X-rays and their scale. Empty for now: a picture traced over in the app is not kept in the file. |
 
 ## A vertebra
 

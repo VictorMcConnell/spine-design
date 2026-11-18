@@ -30,7 +30,9 @@ that keeps anything.
 
 - The page does not send what you build anywhere. It also carries a rule that stops it from
   contacting any server once it is open, and that rule is checked by your browser, not by us.
-- Files you open are read by your own browser and go nowhere.
+- Files you open are read by your own browser and go nowhere. That goes for a picture of an
+  X-ray too: it is held in the memory of the page while you trace over it, and it is not
+  part of the sketch, a saved file, a link or a saved picture.
 - A share link carries the sketch inside the address itself, in the part after the # sign.
   Browsers do not send that part to a web server. Whoever gets the link gets the whole sketch,
   with its name, its pain points and its notes, so send it only to people who should see those.
@@ -94,6 +96,18 @@ Milestone 2 of 5, the builder, is done. What works today:
 - **Lock.** Lock vertebrae so they stay where they are while you draw, move the line or slide
   blocks: tap them on the model, or lock the neck, the chest or the low back in one press.
   That way one section can be worked on without losing the rest.
+- **X-ray.** Open a photo or a saved picture of an X-ray, taken from the back or from the
+  side, and trace over it. The picture lies over the model and turns with it, or stands
+  beside it. Drag a line up the spine on the picture, or tap a few spots along it, say
+  which two vertebrae the trace runs between, and press Fit: the picture is given the size
+  that makes the traced line as long as that part of the spine, and the spine is laid along
+  the line. After that a spot can be dragged and the spine follows, or any other tool takes
+  over with the picture still there to check against. The picture can be made brighter and
+  harder, its black can be made see-through so only the bone stays, and it can be moved,
+  resized, turned and flipped left to right with one button (films are often shown as if you
+  face the person). The app does not read the picture or measure it. The picture stays in the memory
+  of the page: it is not saved with the sketch, not put in a link and not in a saved
+  picture.
 - **Blocks**, on a wide screen. Every vertebra as a block in a column beside the model, seen
   from the back or from the side. Slide a block sideways and its neighbours follow in a
   smooth bulge. Good for small, plain curves.
@@ -208,8 +222,11 @@ are left out on a phone, where they did not fit. Version 0.9 replaced the three 
 control with this one page, and a few things of the old "Full control" went with them:
 placing a part off the usual spots, the place of a part as numbers, the table with a row
 for each vertebra, the switches that turned the rules off, and freezing a part. A file
-with frozen parts still opens, and its parts can be unfrozen. The X-ray tools do not exist
-yet. See the roadmap below.
+with frozen parts still opens, and its parts can be unfrozen. The X-ray tool traces by
+hand: it finds nothing on the picture by itself, it has been tried with made-up pictures
+and with one real film, a photo of a screen, and the eye of the 3D view is not endlessly far away, so a
+vertebra that stands well in front of the picture or behind it shows a little beside its
+place on it. See the roadmap below.
 
 ## What this is not
 
@@ -312,8 +329,9 @@ still drawn.
    part with separate fusions, rods that can be bent and stay believable, soft marks that
    show where to tap, real bones, pain points and notes, shadings and looks, shapes to start
    from, undo, share link, picture, STL with a stand and OBJ.
-3. **X-ray:** put your own X-ray behind the model, set its scale, find the metal on it
-   automatically, and a score that rises as model and X-ray line up.
+3. **X-ray.** **Done:** a picture of your own X-ray over the model or beside it, traced by
+   hand, with the size of the picture worked out from the trace. **Still to do:** finding
+   the metal on it automatically, and a score that rises as model and X-ray line up.
 4. **Polish:** a glossary, and a try on real phones and tablets.
    **Done early:** a copy that is ready to host, with an opening note about what the tool is
    and what it keeps.

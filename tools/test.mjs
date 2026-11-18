@@ -24,6 +24,7 @@ import { standFor } from '../src/core/stand.js';
 import { smoother } from '../src/core/smooth.js';
 import zlib from 'node:zlib';
 import { buildScene } from '../src/view/scene.js';
+import { sheetOf, pictureOf, placeAbout, firstPlace, cornersOf, depthOf, fitTrace, followTrace, runOf, spotsAlong, toneTable, tonePicture, quadMatrix, USUAL_TONE } from '../src/core/trace.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const spine = JSON.parse(fs.readFileSync(path.join(root, 'examples', 'fusion-t4-l2.spine.json'), 'utf8'));
@@ -737,6 +738,106 @@ ok('the model is written as an STL file: every face, to scale, pointing outward'
   const parts = buildScene(whole, 1.8, {}).filter((it) => ['vertebrae', 'discs', 'rods', 'screws', 'hooks', 'crosslinks'].includes(it.group));
   const all = read(stlOf(parts, 1)), zs = all.flatMap((t) => [t[5], t[8], t[11]]), low = zs.reduce((a, b) => Math.min(a, b)), high = zs.reduce((a, b) => Math.max(a, b));
   assert.ok(all.length > 60000 && high - low > 450 && high - low < 700 && volume(all) > 300000, all.length + ' faces, ' + (high - low).toFixed(0) + ' mm tall, ' + (volume(all) / 1000).toFixed(0) + ' cm3');
+});
+// ---- tracing over a picture of an X-ray
+const openExample = (name) => JSON.parse(fs.readFileSync(path.join(root, 'examples', name), 'utf8'));
+// The spots a person would mark on a picture of this spine: the middles of some of its vertebrae, as pixels of a picture that lies at "place".
+const marksOn = (target, place, size, ids) => ids.map((id) => { const l = target.levels.find((x) => x.id === id), axis = place.plane === 0 ? 0 : 1; return pictureOf(place, size, [l.centre[axis], l.centre[2]]); });
+ok('a picture keeps its place on the sheet: there and back, flipped and turned, and held by one spot while it is resized', () => {
+  const size = [800, 1400];
+  for (const place of [{ plane: 0, at: [12, 300], k: 0.4, turn: 0, flip: false }, { plane: 0, at: [-30, 280], k: 0.55, turn: 7, flip: true }, { plane: 1, at: [5, 310], k: 0.3, turn: -12, flip: false }]) {
+    for (const px of [[0, 0], [800, 0], [400, 700], [123, 1311]]) { const back = pictureOf(place, size, sheetOf(place, size, px)); assert.ok(Math.abs(back[0] - px[0]) < 1e-6 && Math.abs(back[1] - px[1]) < 1e-6); }
+    // the middle of the picture is where the place says, and going down the picture goes down the sheet
+    assert.deepEqual(sheetOf(place, size, [400, 700]).map((v) => Math.round(v * 1e6) / 1e6), place.at);
+    if (!place.turn) assert.ok(sheetOf(place, size, [400, 1400])[1] < sheetOf(place, size, [400, 0])[1]);
+    const held = [200, 1000], was = sheetOf(place, size, held), next = placeAbout(place, size, held, { k: place.k * 1.7, turn: place.turn + 9 }), now = sheetOf(next, size, held);
+    assert.ok(Math.abs(now[0] - was[0]) < 1e-9 && Math.abs(now[1] - was[1]) < 1e-9 && next.k === place.k * 1.7);
+  }
+  // seen from the back the person's left is on the left of the picture, unless it is flipped
+  const plain = { plane: 0, at: [0, 300], k: 0.5, turn: 0, flip: false };
+  assert.ok(sheetOf(plain, size, [0, 700])[0] > 0 && sheetOf({ ...plain, flip: true }, size, [0, 700])[0] < 0);
+  // seen from the side the back of the person is on the right
+  assert.ok(sheetOf({ ...plain, plane: 1 }, size, [800, 700])[0] > 0);
+  // a new picture stands upright over the whole spine
+  const s = openExample('average.spine.json'), first = firstPlace(s, 0, size), corners = cornersOf(first, size, depthOf(s, 0));
+  assert.ok(corners[0][2] > 605 && corners[2][2] < 0 && Math.abs(corners[0][1] - depthOf(s, 0)) < 1e-9 && first.turn === 0 && !first.flip);
+});
+ok('a trace over a picture fits the spine to it and finds the size of the picture', () => {
+  const size = [900, 1500], ids = ['L5', 'L3', 'L1', 'T11', 'T9', 'T7', 'T5', 'T3', 'T1'];
+  for (const [file, plane] of [['curve-chest-45.spine.json', 0], ['curve-double.spine.json', 0], ['round-back.spine.json', 1]]) {
+    const target = openExample(file), s = openExample('average.spine.json'), rig = rigOf(s);
+    // the picture as it really lies over the target, which the fit is not told: its size, its place and that it is flipped
+    const real = { plane, at: [14, 270], k: 0.43, turn: 0, flip: plane === 0 };
+    const points = marksOn(target, real, size, ids);
+    const start = { ...firstPlace(s, plane, size), flip: real.flip };
+    const fit = fitTrace(s, rig, start, size, points, 'T1', 'L5');
+    assert.ok(fit, file + ' was not fitted');
+    assert.ok(Math.abs(fit.place.k - real.k) < real.k * 0.04, file + ': one pixel came out as ' + fit.place.k.toFixed(3) + ' mm, not ' + real.k);
+    assert.ok(fit.miss < 6, file + ': the top of the trace ends ' + fit.miss + ' mm from T1');
+    const axis = plane === 0 ? 0 : 1, base = (x) => x.levels.find((l) => l.id === 'L5').centre;
+    let worst = 0;
+    for (const id of LEVEL_ORDER.slice(LEVEL_ORDER.indexOf('T1'), LEVEL_ORDER.indexOf('L5') + 1)) {
+      const a = s.levels.find((l) => l.id === id), b = target.levels.find((l) => l.id === id);
+      worst = Math.max(worst, Math.abs((a.centre[axis] - base(s)[axis]) - (b.centre[axis] - base(target)[axis])));
+    }
+    assert.ok(worst < 6, file + ': a vertebra lies ' + worst.toFixed(1) + ' mm off the traced spine');
+    // the traced spots lie on the vertebrae they were marked on
+    ids.forEach((id, i) => { const at = sheetOf(fit.place, size, points[i]), l = s.levels.find((x) => x.id === id); assert.ok(Math.hypot(at[0] - l.centre[axis], at[1] - l.centre[2]) < 7, file + ': the spot for ' + id + ' is ' + Math.hypot(at[0] - l.centre[axis], at[1] - l.centre[2]).toFixed(1) + ' mm off'); });
+    // the other direction was left alone
+    const other = plane === 0 ? 1 : 0, plain = openExample('average.spine.json');
+    assert.ok(s.levels.every((l, i) => Math.abs(l.tilt[other] - plain.levels[i].tilt[other]) < 1e-9 && l.turn === plain.levels[i].turn));
+  }
+});
+ok('a trace that is too short is refused, locked vertebrae stay put, and a moved picture is followed where it lies', () => {
+  const size = [900, 1500], target = openExample('curve-chest-45.spine.json'), real = { plane: 0, at: [0, 270], k: 0.43, turn: 0, flip: false };
+  const s = openExample('average.spine.json'), rig = rigOf(s), before = JSON.stringify(s.levels);
+  assert.equal(fitTrace(s, rig, real, size, [[400, 700]], 'T1', 'L5'), null);
+  assert.equal(fitTrace(s, rig, real, size, [[400, 700], [401, 702]], 'T1', 'L5'), null);
+  assert.equal(fitTrace(s, rig, real, size, marksOn(target, real, size, ['L5', 'T10', 'T1']), 'L5', 'T1'), null, 'the ends are the wrong way round');
+  assert.equal(JSON.stringify(s.levels), before, 'a trace that was refused changed the spine');
+  // the low back is locked: it stays as it was, and the chest takes the curve
+  const points = marksOn(target, real, size, ['L5', 'L3', 'L1', 'T11', 'T9', 'T7', 'T5', 'T3', 'T1']), held = ['L1', 'L2', 'L3', 'L4', 'L5', 'S1'], was = held.map((id) => JSON.stringify(s.levels.find((l) => l.id === id)));
+  assert.ok(fitTrace(s, rig, real, size, points, 'T1', 'L5', { held }));
+  assert.deepEqual(held.map((id) => JSON.stringify(s.levels.find((l) => l.id === id))), was);
+  assert.ok(measureSpine(s).curves.length > 0, 'the chest did not take the curve');
+  // following the trace where the picture lies: a straight line up the picture straightens the spine again
+  const again = openExample('curve-chest-45.spine.json'), rig2 = rigOf(again);
+  assert.ok(followTrace(again, rig2, real, size, [[450, 1400], [450, 1000], [450, 600], [450, 100]]));
+  assert.ok(Math.max(...again.levels.map((l) => Math.abs(l.tilt[0]))) < 1.5, 'still leaning ' + Math.max(...again.levels.map((l) => Math.abs(l.tilt[0]))).toFixed(1));
+  assert.ok(Math.abs(runOf(s, 0, 'T1', 'L5') - runOf(s, 0, 'L5', 'T1')) < 1e-9 && runOf(s, 0, 'T1', 'T1') === 0);
+});
+ok('a line drawn by hand becomes a few spots, and the picture can be made lighter, harder and see-through where it is dark', () => {
+  const stroke = []; for (let i = 0; i <= 200; i++) stroke.push([300 + 40 * Math.sin(i / 30), 1200 - i * 5]);
+  const spots = spotsAlong(stroke, 8);
+  assert.equal(spots.length, 8);
+  assert.deepEqual(spots[0], stroke[0]); assert.ok(Math.hypot(spots[7][0] - stroke[200][0], spots[7][1] - stroke[200][1]) < 1e-6);
+  const gaps = spots.slice(1).map((p, i) => Math.hypot(p[0] - spots[i][0], p[1] - spots[i][1]));
+  assert.ok(Math.max(...gaps) - Math.min(...gaps) < 6, 'the spots are not evenly spaced');
+  // as it is: every grey is itself and covers fully
+  const plain = toneTable(USUAL_TONE);
+  assert.ok([0, 60, 128, 255].every((g) => plain.shade[g] === g && plain.cover[g] === 255));
+  // lighter, harder, and the other way round
+  assert.ok(toneTable({ bright: 40 }).shade[100] > 100 && toneTable({ bright: -40 }).shade[100] < 100);
+  const hard = toneTable({ contrast: 60 }), flat = toneTable({ contrast: -60 });
+  assert.ok(hard.shade[200] - hard.shade[60] > 140 && flat.shade[200] - flat.shade[60] < 140 && hard.shade[128] === 128);
+  assert.ok(toneTable({ invert: true }).shade[0] === 255 && toneTable({ invert: true }).shade[255] === 0);
+  // the dark goes see-through up to a level, with a soft edge, and what is light stays
+  const cut = toneTable({ cut: 30 });
+  assert.ok(cut.cover[0] === 0 && cut.cover[40] === 0 && cut.cover[255] === 255 && cut.cover[76] > 0 && cut.cover[76] < 255);
+  for (let g = 1; g < 256; g++) assert.ok(cut.cover[g] >= cut.cover[g - 1]);
+  assert.ok(Math.abs(toneTable({ solid: 50 }).cover[200] - 127) <= 1 && toneTable({ solid: 0 }).cover[200] === 0);
+  const out = tonePicture(new Uint8Array([0, 128, 255]), new Uint8ClampedArray(12), { cut: 20, solid: 80 });
+  assert.deepEqual([...out], [0, 0, 0, 0, 128, 128, 128, 204, 255, 255, 255, 204]);
+});
+ok('a flat picture is laid onto four spots of the screen, and not when it is seen from its edge', () => {
+  const w = 640, h = 900, at = (m, x, y) => { const k = m[3] * x + m[7] * y + m[15]; return [(m[0] * x + m[4] * y + m[12]) / k, (m[1] * x + m[5] * y + m[13]) / k]; };
+  for (const quad of [[[10, 20], [330, 20], [330, 470], [10, 470]], [[100, 50], [420, 80], [380, 600], [60, 520]], [[300, 40], [180, 60], [200, 500], [330, 560]]]) {
+    const m = quadMatrix(w, h, quad);
+    assert.ok(m && m.length === 16);
+    [[0, 0], [w, 0], [w, h], [0, h]].forEach((corner, i) => { const p = at(m, corner[0], corner[1]); assert.ok(Math.hypot(p[0] - quad[i][0], p[1] - quad[i][1]) < 1e-6, 'corner ' + i + ' lands on ' + p); });
+  }
+  assert.equal(quadMatrix(w, h, [[100, 50], [100, 50.5], [100, 600], [100, 600.5]]), null);
+  assert.equal(quadMatrix(w, h, [[0, 0], [10, 10], [20, 20], [30, 30]]), null);
 });
 ok('the website at the top of the repository: the page allows its own scripts and nothing else, and its small files are there', () => {
   const top = root, page = fs.readFileSync(path.join(top, 'index.html'), 'utf8'), headers = fs.readFileSync(path.join(top, '_headers'), 'utf8');

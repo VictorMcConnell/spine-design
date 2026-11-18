@@ -48,6 +48,8 @@
   <symbol id="i-chain" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v4h4"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3V7Z"/></symbol>
+  <symbol id="i-flip" viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M9 7 4 12l5 5V7Z"/><path d="M15 7l5 5-5 5V7Z"/></symbol>
+  <symbol id="i-xray" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 6.5v11M9.5 8.5h5M9 12h6M9.5 15.5h5"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
 </svg>
 
@@ -99,10 +101,13 @@
   <section id="stage">
     <canvas id="view" tabindex="0" role="application" aria-label="3D view of the spine. Arrow keys pick a vertebra and a side, Enter does what a tap does, plus and minus zoom." aria-describedby="sketchSays"></canvas>
     <p id="sketchSays" class="sr"></p>
+    <!-- a picture of an X-ray laid over the model to trace over. It is read by this browser and goes nowhere. -->
+    <div id="xrayOver" aria-hidden="true" hidden></div>
     <div id="labels" aria-hidden="true"></div>
     <svg id="tagLines" aria-hidden="true"></svg>
     <div id="tags" aria-hidden="true"></div>
     <div id="drawPad" hidden><svg id="drawSvg"><polyline id="drawLine" fill="none"></polyline><polyline id="anchorPath"></polyline><polyline id="anchorHit"></polyline><g id="anchorDots"></g></svg></div>
+    <svg id="xrayMarks" class="xmarks" aria-hidden="true" hidden><polyline class="xstroke"></polyline><polyline class="xpath"></polyline><g class="xdots"></g></svg>
     <!-- one line of help that changes with the tool in hand, and under it what the app has to report -->
     <div id="says"><p id="coach" role="status"></p><p id="status" role="status"></p></div>
     <!-- (what the tools have to say is written here by the code that runs them, and shown in the line of help) -->
@@ -122,6 +127,9 @@
       <div class="seg" role="group" aria-label="Seen from"><button data-chart="0" aria-pressed="true">From the back</button><button data-chart="1" aria-pressed="false">From the side</button></div>
       <div id="blocksWrap"><svg id="blocks" role="img" aria-label="The vertebrae as blocks that can be dragged sideways. The Curve tool does the same with sliders."></svg></div>
       <p class="small">Drag a block sideways and its neighbours follow.</p>
+    </div>
+    <div id="xrayBox" hidden>
+      <div id="xrayWrap"><svg id="xraySvg" class="xmarks" role="img" aria-label="The picture of the X-ray. Drag a line up the spine on it, or tap spots along it."><polyline class="xstroke"></polyline><polyline class="xpath"></polyline><g class="xdots"></g></svg></div>
     </div>
   </aside>
 
@@ -149,6 +157,7 @@
         <button data-t="points" aria-pressed="false"><kbd>4</kbd><svg class="i"><use href="#i-points"/></svg>Points</button>
         <button data-t="one" aria-pressed="false"><kbd>5</kbd><svg class="i"><use href="#i-one"/></svg>One bone</button>
         <button data-t="lock" aria-pressed="false"><kbd>6</kbd><svg class="i"><use href="#i-lock"/></svg>Lock</button>
+        <button data-t="xray" aria-pressed="false"><kbd>7</kbd><svg class="i"><use href="#i-xray"/></svg>X-ray</button>
       </div>
       <div class="tools" data-tools="parts" hidden>
         <button data-t="turn" aria-pressed="false"><kbd>1</kbd><svg class="i"><use href="#i-turn"/></svg>Turn</button>
@@ -181,6 +190,42 @@
           <label class="dial">Twist<b id="twistSay"></b><span><input type="range" id="twistR" min="-60" max="60"><input type="number" id="twistN" min="-60" max="60"><i>°</i></span></label>
           <label class="dial">Lean<b id="offSay"></b><span><input type="range" id="offR" min="-80" max="80"><input type="number" id="offN" min="-80" max="80"><i>mm</i></span></label>
           <label class="check"><input type="checkbox" id="curveFused">This stretch is fused: it keeps its shape</label>
+        </div>
+      </section>
+
+      <section data-card="xray" hidden>
+        <header><svg class="i"><use href="#i-xray"/></svg><h2>Trace an X-ray</h2><button class="main" data-done>Done</button></header>
+        <!-- (once a picture is open, this row moves down the card, under the buttons that are used while tracing) -->
+        <div id="xrayWhich">
+          <div class="seg" role="group" aria-label="Which way the picture was taken"><button data-xplane="0" aria-pressed="true">From the back</button><button data-xplane="1" aria-pressed="false">From the side</button></div>
+          <div class="row xpick"><button id="xrayPick" class="main">Choose a picture</button><button id="xFlip" class="toggle" aria-pressed="false" hidden><svg class="i"><use href="#i-flip"/></svg>Flip left to right</button></div>
+        </div>
+        <input id="xrayFile" type="file" accept="image/*" hidden>
+        <p class="small" id="xrayNone">A photo or a saved picture of an X-ray (JPG or PNG). It stays on this device: it is not saved with the sketch and not put in a link.</p>
+        <div id="xrayOn" hidden>
+          <div class="seg" role="group" aria-label="Where the picture shows"><button data-xshow="over" aria-pressed="true">Over the model</button><button data-xshow="side" aria-pressed="false">Side by side</button><button data-xshow="off" aria-pressed="false">Hidden</button></div>
+          <div class="seg" id="xrayModeRow" role="group" aria-label="What a drag does"><button data-xmode="trace" aria-pressed="true">Trace</button><button data-xmode="move" aria-pressed="false">Move the picture</button></div>
+          <div class="pair" id="xrayEnds"><label for="xrayBottom">Trace from</label><select id="xrayBottom" aria-label="The lowest vertebra of the trace"></select><label for="xrayTop">up to</label><select id="xrayTop" aria-label="The highest vertebra of the trace"></select></div>
+          <div class="row xfit"><button id="xrayFit" class="main">Fit the spine to the trace</button><button id="xrayPointGone" hidden>Remove the spot</button><button id="xrayClear" class="quiet">Clear the trace</button></div>
+          <p class="small" id="xraySay" role="status"></p>
+          <details class="fold" id="xrayTone">
+            <summary>The picture</summary>
+            <label class="dial">Brightness<span><input type="range" id="xBright" min="-100" max="100" value="0"></span></label>
+            <label class="dial">Contrast<span><input type="range" id="xContrast" min="-100" max="100" value="0"></span></label>
+            <label class="dial">Black, solid to see-through<span><input type="range" id="xCut" min="0" max="100" value="0"></span></label>
+            <label class="dial">Picture, see-through to solid<span><input type="range" id="xSolid" min="5" max="100" value="100"></span></label>
+            <label class="check"><input type="checkbox" id="xInvert">Swap light and dark (bone should be light)</label>
+            <div class="row"><button id="xToneReset">The picture as it is</button></div>
+          </details>
+          <details class="fold" id="xrayPlace">
+            <summary>Size and place</summary>
+            <label class="dial">Size<b id="xSizeSay"></b><span><input type="range" id="xSize" min="30" max="300" value="100"></span></label>
+            <label class="dial">Turn<b id="xTurnSay"></b><span><input type="range" id="xTurn" min="-45" max="45" step="0.5" value="0"></span></label>
+            <p class="small">Films are often shown as if you face the person. If the side marked L is not on the left when the model is seen from the back, flip the picture with the button next to Another picture.</p>
+            <p class="small">To move it, choose Move the picture above and drag it.</p>
+            <div class="row"><button id="xrayBack">Put it back on the spine</button><button id="xrayRemove" class="quiet warn">Take the picture away</button></div>
+          </details>
+          <p class="small foot">The picture is only there to trace over. The app does not read it or measure it, and it stays on this device.</p>
         </div>
       </section>
 
@@ -362,7 +407,7 @@
 <dialog id="welcome" aria-labelledby="welcomeTitle">
   <h2 id="welcomeTitle">Before you start</h2>
   <p><strong>This is a sketching tool.</strong> Spine Builder is not a medical device and gives no medical advice. What you build here is a picture to think and talk with. It is not a measurement and not a diagnosis. Take questions about your own spine to the people who treat you.</p>
-  <p><strong>Your sketch stays with you.</strong> There are no accounts and no tracking. This page does not send what you build anywhere, and it carries a rule that stops it from contacting any server once it is open. Files you open are read by your own browser. A share link carries the sketch inside the link itself, so it goes only where you send it.</p>
+  <p><strong>Your sketch stays with you.</strong> There are no accounts and no tracking. This page does not send what you build anywhere, and it carries a rule that stops it from contacting any server once it is open. Files you open are read by your own browser, and so is a picture of an X-ray you trace over: it is not kept and not part of the sketch. A share link carries the sketch inside the link itself, so it goes only where you send it.</p>
   <p><strong>What is kept on this device.</strong> Two small settings: how you set the look, and whether you ticked the box below. Nothing about your spine is kept. Close the page without saving and the sketch is gone.</p>
   <p class="small" id="welcomeHost" hidden>Like any website, the service that hosts this page can see that a device asked for the page. It does not see what you do here.</p>
   <p class="small" id="welcomeMore"></p>
