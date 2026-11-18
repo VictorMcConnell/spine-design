@@ -2,7 +2,7 @@
 // about files, sharing, viewing and the look. The builder (shape, hardware, pain) is in
 // build.js.
 
-import { createRenderer } from '../view/renderer.js';
+import { createRenderer, SHADINGS } from '../view/renderer.js';
 import { buildScene, boundsOf } from '../view/scene.js';
 import { gizmoItems } from '../view/gizmo.js';
 import { validateSpine, sortedLevels } from '../core/spinefile.js';
@@ -473,7 +473,7 @@ async function saveObj() {
 
 function applyLook(save = true) {
   renderer.setBackground(BACKS[look.back] || BACKS.dark);
-  $('stage').classList.toggle('pale', look.shade !== 'xray' && (look.back === 'light' || look.back === 'white' || look.back === 'grey'));
+  $('stage').classList.toggle('pale', !(SHADINGS[look.shade] || {}).night && (look.back === 'light' || look.back === 'white' || look.back === 'grey'));
   document.querySelectorAll('[data-back]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.back === look.back ? 'true' : 'false'));
   renderer.setShading(look.shade);
   document.querySelectorAll('[data-shade]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.shade === look.shade ? 'true' : 'false'));
@@ -485,7 +485,7 @@ function applyLook(save = true) {
 
 // The small pictures on the shading buttons: the middle of the model as it is now, drawn
 // once in each shading. They are made again only when something they show has changed.
-let thumbsFor = '', thumbsTimer = null;
+let thumbsFor = '', thumbsTimer = null, thumbsRun = 0;
 function thumbsSoon() { clearTimeout(thumbsTimer); thumbsTimer = setTimeout(makeThumbs, 80); }
 function makeThumbs() {
   if (!spine || !renderer) return;
@@ -496,7 +496,12 @@ function makeThumbs() {
   thumbsFor = key;
   const small = document.createElement('canvas'), g = small.getContext('2d');
   small.width = 132; small.height = 156;
-  document.querySelectorAll('#shades [data-shade]').forEach((b) => {
+  // (one picture on each frame, so that eleven of them never hold the page up. After each the view is drawn
+  // again in its own shading before the screen shows it.)
+  const run = ++thumbsRun, todo = [...document.querySelectorAll('#shades [data-shade]')];
+  const next = () => {
+    if (run !== thumbsRun || !todo.length) return;
+    const b = todo.shift();
     renderer.setShading(b.dataset.shade);
     // (a piece of the middle of the picture, about 12 cm of the model tall, so the shading can be told apart)
     const full = renderer.picture(), k = full.height / full.clientHeight, tall = Math.min(full.height, (120 / renderer.screenScale(mid).perPixel) * k), across = tall * small.width / small.height;
@@ -504,8 +509,10 @@ function makeThumbs() {
     g.fillStyle = '#131419'; g.fillRect(0, 0, small.width, small.height);
     g.drawImage(full, x, y, across, tall, 0, 0, small.width, small.height);
     b.querySelector('img').src = small.toDataURL('image/jpeg', 0.82);
-  });
-  renderer.setShading(look.shade);
+    renderer.setShading(look.shade); renderer.drawNow();
+    if (todo.length) requestAnimationFrame(next);
+  };
+  next();
 }
 
 // Reset the view: everything about how the sketch is drawn goes back to how it starts. The shading, the background,

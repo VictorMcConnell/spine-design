@@ -75,11 +75,12 @@
   <div class="right">
     <div class="seg views vast" role="group" aria-label="Look from"><button data-look="back">Back</button><button data-look="left">Side</button><button data-look="front">Front</button></div>
     <button class="tb vast" data-fit>Fit</button>
-    <button class="tb roomy toggle" data-stand aria-pressed="false"><svg class="i"><use href="#i-stand"/></svg>Stand</button>
-    <button id="resetBtn" class="tb roomy" aria-haspopup="true" aria-expanded="false" aria-controls="resetMenu"><svg class="i"><use href="#i-reset"/></svg>Reset</button>
+    <button class="tb roomy toggle" data-stand aria-label="Stand" aria-pressed="false"><svg class="i"><use href="#i-stand"/></svg><span>Stand</span></button>
+    <button id="resetBtn" class="tb roomy" aria-label="Reset" aria-haspopup="true" aria-expanded="false" aria-controls="resetMenu"><svg class="i"><use href="#i-reset"/></svg><span>Reset</span></button>
+    <label id="namesBox" class="tb names"><input type="checkbox" id="labelsOn"><span><b>Bone names</b><i>Names</i></span></label>
     <button id="guideBtn" class="tb" aria-label="Guide"><svg class="i"><use href="#i-help"/></svg><span>Guide</span></button>
     <button id="viewBtn" class="tb" aria-label="View" aria-haspopup="true" aria-expanded="false" aria-controls="viewMenu"><svg class="i"><use href="#i-view"/></svg><span>View</span></button>
-    <button id="shareBtn" class="tb main"><svg class="i"><use href="#i-share"/></svg><span>Share</span></button>
+    <button id="shareBtn" class="tb main" aria-label="Share"><svg class="i"><use href="#i-share"/></svg><span>Share</span></button>
   </div>
 </header>
 <div id="viewMenu" class="menu" role="group" aria-label="View" hidden>
@@ -88,7 +89,7 @@
   <div class="pairrow"><button data-zoom="in">Zoom in</button><button data-zoom="out">Zoom out</button></div>
   <div class="pairrow"><button data-move="up">Move up</button><button data-move="down">Move down</button></div>
   <hr>
-  <button data-stand aria-pressed="false"><svg class="i"><use href="#i-stand"/></svg>Stand</button>
+  <button data-stand aria-pressed="false"><svg class="i"><use href="#i-stand"/></svg><span>Stand</span></button>
   <button data-reset="view"><svg class="i"><use href="#i-reset"/></svg>Reset the view</button>
   <button data-reset="model"><svg class="i"><use href="#i-reset"/></svg>Reset the model</button>
   <button data-guide><svg class="i"><use href="#i-help"/></svg>Guide and tour</button>
@@ -325,7 +326,7 @@
 
       <section data-card="look" hidden>
         <h3>Shading</h3>
-        <div class="thumbs" id="shades" role="group" aria-label="Shading"><button data-shade="soft"><img alt=""><span>Soft</span></button><button data-shade="clay"><img alt=""><span>Clay</span></button><button data-shade="drawing"><img alt=""><span>Drawing</span></button><button data-shade="xray"><img alt=""><span>X-ray</span></button><button data-shade="plain"><img alt=""><span>Plain</span></button></div>
+        <div class="thumbs" id="shades" role="group" aria-label="Shading"><button data-shade="soft"><img alt=""><span>Soft</span></button><button data-shade="clay"><img alt=""><span>Clay</span></button><button data-shade="drawing"><img alt=""><span>Drawing</span></button><button data-shade="xray"><img alt=""><span>X-ray</span></button><button data-shade="plain"><img alt=""><span>Plain</span></button><button data-shade="matte"><img alt=""><span>Matte</span></button><button data-shade="chrome"><img alt=""><span>Chrome</span></button><button data-shade="gold"><img alt=""><span>Gold</span></button><button data-shade="candy"><img alt=""><span>Candy</span></button><button data-shade="rainbow"><img alt=""><span>Rainbow</span></button><button data-shade="neon"><img alt=""><span>Neon</span></button></div>
         <h3>Colors</h3>
         <div class="seg" id="paletteRow" role="group" aria-label="A set of colors for the hardware"><button data-palette="classic">Classic</button><button data-palette="metal">Metal</button><button data-palette="bright">Bright</button><button data-palette="bold">Bold</button><button id="byLevelBtn" aria-pressed="false">By level</button></div>
         <div class="chips" id="colorWhat" role="group" aria-label="What the color goes on"><button data-what="rods">Rods</button><button data-what="screws">Screws</button><button data-what="hooks">Hooks</button><button data-what="crosslinks">Links</button><button data-what="bone">Bone</button><button data-what="disc">Discs</button><button data-what="one"><svg class="i"><use href="#i-brush"/></svg>One part</button></div>
@@ -333,7 +334,7 @@
         <p class="small fine" id="colorSay"></p>
         <div class="row" id="ownRow" hidden><span class="small" id="ownSay"></span><button id="ownClear" class="quiet">Clear them</button></div>
         <h3>Background</h3>
-        <div class="row backs" id="backs" role="group" aria-label="Background"><button data-back="dark" aria-label="Dark"></button><button data-back="grey" aria-label="Grey"></button><button data-back="light" aria-label="Light"></button><button data-back="white" aria-label="White"></button><button data-back="black" aria-label="Black"></button><span class="gap"></span><label class="check"><input type="checkbox" id="labelsOn">Bone names</label></div>
+        <div class="row backs" id="backs" role="group" aria-label="Background"><button data-back="dark" aria-label="Dark"></button><button data-back="grey" aria-label="Grey"></button><button data-back="light" aria-label="Light"></button><button data-back="white" aria-label="White"></button><button data-back="black" aria-label="Black"></button></div>
         <label class="dial">Bone, see-through to solid<span><input id="boneOpacity" type="range" min="10" max="100" value="100"></span></label>
         <details class="fold" id="lookMore">
           <summary>More</summary>

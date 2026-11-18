@@ -106,6 +106,15 @@ details.fold summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 /* (a very narrow screen has the guide under View) */
 @media (max-width: 359px) { #guideBtn { display: none; } }
 .tb.icon { width: 44px; padding: 0; }
+/* (the bone names switch is in the bar at every size: the short word on a phone, both words with room) */
+.tb.names { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 13.5px; cursor: pointer; user-select: none; }
+.tb.names input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.tb.names b { display: none; font-weight: inherit; }
+.tb.names i { font-style: normal; }
+.tb.names:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 389px) { .tb.names { gap: 4px; padding: 0 6px; font-size: 12.5px; } #topbar, #topbar .left, #topbar .right { gap: 4px; } }
+@media (max-width: 359px) { #shareBtn span { display: none; } #shareBtn { width: 44px; padding: 0; } }
+@media (min-width: 600px) and (max-width: 899px) and (min-height: 560px), (min-width: 1500px) { .tb.names b { display: inline; } .tb.names i { display: none; } }
 .tb.main { background: var(--accent); }
 .rule { width: 1px; height: 22px; background: var(--line); }
 .roomy, .vast { display: none !important; }
@@ -310,7 +319,7 @@ button.more::after { content: ""; width: 7px; height: 7px; margin-left: 2px; bor
 #stretchOn { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
 #stretchOn > * { grid-column: 1 / -1; }
 #stretchOn > .dial:nth-of-type(n+3) { grid-column: auto; }
-.thumbs { display: grid; grid-template-columns: repeat(5, minmax(0, 92px)); gap: 6px; }
+.thumbs { display: grid; grid-template-columns: repeat(6, minmax(0, 92px)); gap: 6px 5px; }
 .thumbs button { flex-direction: column; gap: 4px; min-width: 0; padding: 4px 4px 5px; border-radius: 12px; background: var(--bg); font-size: 11.5px; color: var(--soft); }
 .thumbs button[aria-pressed="true"] { color: var(--ink); }
 .thumbs img { display: block; width: 100%; aspect-ratio: 132 / 156; object-fit: cover; border-radius: 8px; background: #0f1014; }
@@ -396,10 +405,13 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
    (and a phone on its side, which is wide and short) */
 @media (min-width: 900px), (min-width: 600px) and (max-height: 559px) {
   body { padding-bottom: 0; }
-  #topbar { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; height: 56px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #17181f; }
+  /* (the modes sit in the middle of the bar while both sides have room, and move over when one side needs more) */
+  #topbar { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); gap: 12px; height: 56px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #17181f; }
   #topbar .right { justify-self: end; }
   .tb { min-height: 38px; border-radius: 11px; background: var(--second); }
   .tb.icon, #guideBtn { width: 38px; }
+  /* (below the widest layout the bar keeps New and View as pictures, so the bone names fit) */
+  @media (max-width: 1279px), (max-height: 559px) { #newBtn span, #viewBtn span { display: none; } #newBtn, #viewBtn { width: 38px; padding: 0; } }
   #modes { position: static; height: auto; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 13px; background: var(--bg); }
   #modes button { flex: none; flex-direction: row; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: 10px; font-size: 14px; }
   #modes button[aria-current="true"] { background: var(--pressed); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
@@ -453,7 +465,9 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
 @media (min-width: 1280px) and (min-height: 560px) {
   .roomy { display: inline-flex !important; }
   /* (the set views and Fit have a place in the bar only on a very wide screen. They are always under View.) */
-  @media (min-width: 1680px) { .vast { display: inline-flex !important; } }
+  @media (min-width: 1840px) { .vast { display: inline-flex !important; } }
+  /* (Stand and Reset are pictures until there is room for their words) */
+  @media (max-width: 1499px) { [data-stand] span, #resetBtn span { display: none; } [data-stand], #resetBtn { width: 38px; padding: 0; } }
   .rule.roomy { display: block !important; }
   #topbar h1 { position: static; flex: none; width: auto; height: auto; clip-path: none; margin-right: 6px; }
   /* (the views have buttons of their own here: the View menu, which also zooms and moves, makes do with its picture) */

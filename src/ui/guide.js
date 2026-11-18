@@ -60,7 +60,7 @@ export function setupGuide(app, host) {
       ['Turn', 'marks:turn', 'Pick a pain point or a note to change it or remove it.'],
     ] },
     { id: 'look', name: 'Look', says: 'How the sketch is drawn. Nothing here changes its shape.', tools: [
-      ['Shading', '#shades', 'Soft, clay, a line drawing, an X-ray look or plain color.'],
+      ['Shading', '#shades', 'Soft, clay, a line drawing, an X-ray look or plain color. Then six for fun: matte, chrome, gold, candy, rainbow and neon.'],
       ['Sets of colors', '#paletteRow', 'One press colors all the hardware. By level gives the parts of each vertebra a color of their own.'],
       ['A color for one kind', '#colorWhat', 'Pick Rods, Screws, Hooks, Links, Bone or Discs, then a color.'],
       ['One part', '#colorWhat [data-what="one"]', 'Pick a color, then paint single parts or vertebrae with it.'],
@@ -68,6 +68,7 @@ export function setupGuide(app, host) {
       ['Clean view', '#cleanBtn', 'Puts the tools away so the model stands alone, for a picture of the screen.'],
     ] },
     { id: 'share', name: 'Share and the top bar', says: 'Keep the sketch or pass it on. Nothing leaves your device unless you send it yourself.', tools: [
+      ['Bone names', '#namesBox', 'Tick it to put the name of each vertebra beside it. It is in the top bar whatever you are working on.'],
       ['Share', '#shareBtn', 'Save a picture, copy a link that holds the whole sketch, save the file or export it for a 3D printer.'],
       ['Stand', '[data-stand]', 'Puts the model on a stand, the way it is printed. On a small screen it is under View.'],
       ['Reset', '[data-reset]', 'Reset the view puts colors, shading and background back. Reset the model gives a straight normal spine. On a small screen both are under View.'],

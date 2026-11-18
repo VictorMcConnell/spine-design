@@ -12,7 +12,7 @@ out vec3 vNor; out vec3 vPos;
 void main() { vec4 p = uView * uModel * vec4(aPos, 1.0); vPos = p.xyz; vNor = mat3(uView) * mat3(uModel) * aNor; gl_Position = uProj * p; }`;
 
 // How a surface is lit. uKind says what it is made of (0 bone, 1 disc, 2 metal, 3 anything
-// else) and uMode which of the shadings below is in use.
+// else) and uMode which of the shadings below is in use (the numbers are in SHADINGS).
 const FRAGMENT = `#version 300 es
 precision highp float;
 in vec3 vNor; in vec3 vPos;
@@ -23,6 +23,11 @@ float wrap(vec3 n, vec3 l, float w) { return max((dot(n, l) + w) / (1.0 + w), 0.
 // a made-up studio for metal to mirror: a bright ceiling, a soft box to one side, a dark floor
 vec3 studio(vec3 r) {
   return vec3(0.05) + vec3(0.5, 0.55, 0.62) * smoothstep(-0.3, 0.8, r.y) + vec3(1.25) * smoothstep(0.55, 0.92, dot(r, vec3(0.71, 0.35, 0.61))) + vec3(0.8) * smoothstep(0.86, 0.97, r.y);
+}
+// a colour made stronger: further from grey, and as bright as it can be
+vec3 strong(vec3 c, float much) {
+  vec3 s = clamp(mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, much), 0.0, 1.0);
+  return s / max(max(s.r, max(s.g, s.b)), 0.2);
 }
 void main() {
   vec3 n = normalize(vNor); if (!gl_FrontFacing) n = -n;
@@ -39,6 +44,12 @@ void main() {
     else c = mix(vec3(0.8, 0.9, 1.0), uColor, 0.35) * (0.06 + (uKind == 1 ? 0.12 : 0.42) * pow(1.0 - nv, 2.5)) * uAlpha;
     outColor = vec4(c, uAlpha); return;
   }
+  if (uMode == 9) {                                // neon: dark, with an edge that glows like a tube sign
+    vec3 tube = uKind == 0 ? vec3(0.15, 1.0, 0.92) : uKind == 1 ? vec3(1.0, 0.2, 0.78) : uKind == 2 ? vec3(1.0, 0.86, 0.2) : strong(uColor, 2.2);
+    float edge = pow(1.0 - nv, 2.2);
+    c = tube * (0.05 + 0.1 * wrap(n, KEY, 0.6) + 1.25 * edge) + vec3(1.0) * 0.55 * pow(1.0 - nv, 7.0);
+    outColor = vec4(c, uAlpha); return;
+  }
   vec3 base = pow(uColor, vec3(2.2));
   if (uMode == 2) {                                // drawing: a few flat tones, the ink lines are added afterwards
     float d = wrap(n, KEY, 0.5), tone = d > 0.72 ? 1.0 : d > 0.4 ? 0.8 : 0.58;
@@ -46,7 +57,28 @@ void main() {
     outColor = vec4(pow(c, vec3(1.0 / 2.2)), uAlpha); return;
   }
   vec3 sky = mix(vec3(0.1, 0.09, 0.085), vec3(0.23, 0.245, 0.27), 0.5 + 0.5 * n.y);
-  if (uMode == 1) {                                // clay: everything matte, like a model in grey clay
+  if (uMode == 5 || uMode == 6) {                  // chrome and gold: the whole model is polished metal
+    vec3 metal = uMode == 5
+      ? (uKind == 0 ? vec3(0.9, 0.91, 0.93) : uKind == 1 ? mix(base, vec3(0.3, 0.33, 0.4), 0.5) : mix(base, vec3(0.9), 0.35))
+      : (uKind == 0 ? vec3(1.0, 0.69, 0.27) : uKind == 1 ? vec3(0.62, 0.3, 0.13) : mix(base, vec3(1.0, 0.82, 0.55), 0.4));
+    vec3 f = metal + (1.0 - metal) * pow(1.0 - nv, 5.0);
+    vec3 room = studio(reflect(-v, n));
+    room = room * room * 0.9 + 0.02;               // (a harder mirror than the hardware has: darker darks, brighter lights)
+    c = room * f * 1.25 + metal * (0.03 + 0.14 * wrap(n, KEY, 0.25)) + pow(max(dot(n, h), 0.0), 90.0) * 1.2;
+  } else if (uMode == 7) {                         // matte: chalk, no shine anywhere, the colours a little paler
+    vec3 chalk = mix(base, vec3(0.85), 0.42);
+    c = chalk * (sky * 1.7 + vec3(1.0, 0.97, 0.93) * 0.95 * wrap(n, KEY, 0.75) + vec3(0.8, 0.88, 1.0) * 0.3 * wrap(n, FILL, 0.75));
+  } else if (uMode == 8) {                         // candy: strong colour under a hard clear glaze
+    vec3 sweet = pow(strong(uColor, 1.9), vec3(2.2));
+    c = sweet * (sky * 1.2 + vec3(1.0, 0.97, 0.92) * 1.2 * wrap(n, KEY, 0.5) + vec3(0.8, 0.88, 1.0) * 0.25 * wrap(n, FILL, 0.5)) + sweet * 0.5 * rim;
+    c += studio(reflect(-v, n)) * (0.05 + 0.95 * pow(1.0 - nv, 5.0)) * 0.7 + pow(max(dot(n, h), 0.0), 140.0) * 1.6;
+  } else if (uMode == 10) {                        // rainbow: the colour runs round the form like oil on water
+    float t = nv * 1.15 + n.y * 0.22 + n.x * 0.1 + (uKind == 1 ? 0.5 : uKind == 2 ? 0.25 : 0.0);
+    vec3 oil = 0.5 + 0.5 * cos(6.2832 * (t + vec3(0.0, 0.33, 0.67)));
+    oil = mix(oil, vec3(0.9, 0.88, 0.95), 0.25);
+    c = oil * (sky + vec3(1.0, 0.97, 0.92) * 1.05 * wrap(n, KEY, 0.4) + vec3(0.8, 0.88, 1.0) * 0.25 * wrap(n, FILL, 0.5));
+    c += studio(reflect(-v, n)) * (0.06 + 0.5 * pow(1.0 - nv, 4.0)) + pow(max(dot(n, h), 0.0), 60.0) * 0.8;
+  } else if (uMode == 1) {                                // clay: everything matte, like a model in grey clay
     if (uKind < 2) base = mix(base, vec3(0.52, 0.45, 0.38), 0.65);
     c = base * (sky * 1.3 + vec3(1.0, 0.97, 0.92) * 1.15 * wrap(n, KEY, 0.45) + vec3(0.8, 0.88, 1.0) * 0.22 * wrap(n, FILL, 0.5));
   } else if (uKind == 2) {                         // soft light, metal: mostly a mirror of the studio
@@ -121,13 +153,21 @@ void main() {
 }`;
 
 // The shadings a person can choose from.
-//   mode: which branch of the surface shader, shadow: how dark closed-in places get, ink: edge lines
+//   mode: which branch of the surface shader, shadow: how dark closed-in places get, ink: edge lines,
+//   night: drawn on black whatever background is chosen, because it is made of light
+// The last six are for fun.
 export const SHADINGS = {
   soft: { mode: 0, shadow: 1, ink: 0 },
   clay: { mode: 1, shadow: 1.25, ink: 0 },
   drawing: { mode: 2, shadow: 0.5, ink: 1 },
-  xray: { mode: 3, shadow: 0, ink: 0 },
+  xray: { mode: 3, shadow: 0, ink: 0, night: true },
   plain: { mode: 4, shadow: 0, ink: 0 },
+  matte: { mode: 7, shadow: 1.35, ink: 0 },
+  chrome: { mode: 5, shadow: 0.7, ink: 0 },
+  gold: { mode: 6, shadow: 0.7, ink: 0 },
+  candy: { mode: 8, shadow: 0.8, ink: 0 },
+  rainbow: { mode: 10, shadow: 0.8, ink: 0 },
+  neon: { mode: 9, shadow: 0, ink: 0, night: true },
 };
 const KINDS = { vertebrae: 0, discs: 1, rods: 2, screws: 2, hooks: 2, crosslinks: 2 };
 
@@ -254,9 +294,9 @@ export function createRenderer(canvas) {
     const c = camera, eye = eyeAxes().eye;
     const view = matView(eye, c.target, [0, 0, 1]), proj = matPerspective(FOV, w / h, c.distance * 0.05, c.distance * 6);
     matrix = matMul(proj, view);
-    const xray = shading.mode === 3, near = c.distance * 0.05, far = c.distance * 6;
+    const xray = shading.mode === 3, night = !!shading.night, near = c.distance * 0.05, far = c.distance * 6;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, w, h); gl.clearColor(xray ? 0 : back[0], xray ? 0 : back[1], xray ? 0.01 : back[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.viewport(0, 0, w, h); gl.clearColor(night ? 0 : back[0], night ? 0 : back[1], night ? 0.01 : back[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST); gl.useProgram(program);
     gl.uniformMatrix4fv(loc.uView, false, view); gl.uniformMatrix4fv(loc.uProj, false, proj); gl.uniform1i(loc.uMode, shading.mode);
     const shown = items.filter((it) => it.visible !== false && it.opacity > 0.01 && !(bare && it.hint));
@@ -403,5 +443,7 @@ export function createRenderer(canvas) {
   return { canvas, camera, setItems, requestDraw, project, frame, look, ray, screenScale, eye: () => eyeAxes().eye, items: () => items, afterDraw: (fn) => { onDraw = fn; }, setTool: (t) => { tool = t; }, setBackground: (rgb) => { back = rgb; requestDraw(); }, setShading: (name) => { shading = SHADINGS[name] || SHADINGS.soft; requestDraw(); }, secondPassOn: () => !!second,
     // draw now, without the handles, and hand back the canvas: right after this call the
     // picture can be copied off it
-    picture: () => { bare = true; draw(); bare = false; requestDraw(); return canvas; } };
+    picture: () => { bare = true; draw(); bare = false; requestDraw(); return canvas; },
+    // draws at once, not on the next frame: for putting the view back after a picture in another shading
+    drawNow: () => draw() };
 }

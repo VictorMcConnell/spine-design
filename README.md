@@ -169,10 +169,13 @@ Milestone 2 of 5, the builder, is done. What works today:
   is from 1 to 10, how wide it is and a few words, and move it with arrows. Notes are pins
   with a few words. A label sits above its spot, and can be dragged further away: a line
   then joins the two, so the words never cover the spot.
-- **Look:** five shadings, shown as small pictures of your own model (soft light, clay,
-  drawing with ink lines, X-ray and a plain quick one), the colours, the background, bone
-  names, see-through bone, and under "More" what is shown. **Clean view** puts every tool
+- **Look:** eleven shadings, shown as small pictures of your own model (soft light, clay,
+  drawing with ink lines, X-ray and a plain quick one, then six for fun: matte, chrome,
+  gold, candy, rainbow and neon), the colours, the background, see-through bone, and
+  under "More" what is shown. **Clean view** puts every tool
   away so the model stands alone. Kept on the device between visits.
+- **Bone names** is a check box in the top bar, there on every screen and whatever you
+  are working on.
 - **Stand, and two ways to start over,** in the top bar of a wide screen and under View on a
   small one. **Stand** puts the model on its stand or takes it off. **Reset the view** puts
   the shading, the background, every colour and what is shown back to how they start, and
@@ -211,7 +214,7 @@ Milestone 2 of 5, the builder, is done. What works today:
   could improve the numbers, with their licences, are listed in
   [docs/sources.md](docs/sources.md).
 
-![The same spine in the five shadings: soft light, clay, drawing, X-ray and plain](docs/pictures/shadings.png)
+![The same spine in the eleven shadings: soft light, clay, drawing, X-ray, plain, matte, chrome, gold, candy, rainbow and neon](docs/pictures/shadings.png)
 
 Known rough edges: parts can overlap each other and the bone a little. The limits on rods
 are rules of thumb for a sketch, not engineering. A real bone is one
