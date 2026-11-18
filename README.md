@@ -97,8 +97,10 @@ Milestone 2 of 5, the builder, is done. What works today:
   blocks: tap them on the model, or lock the neck, the chest or the low back in one press.
   That way one section can be worked on without losing the rest.
 - **X-ray.** Open a photo or a saved picture of an X-ray, taken from the back or from the
-  side, and trace over it. The picture lies over the model and turns with it, or stands
-  beside it. Drag a line up the spine on the picture, or tap a few spots along it, say
+  side, and trace over it. The picture stands beside the model to start with, or lies over
+  it and turns with it. Two tools float over the model, Trace and Move X-ray, and say what a
+  drag does. The card keeps its settings in groups: the view, the trace, the position of
+  the X-ray (flip, turn, back on the spine) and its adjustment (size, brightness, contrast). Drag a line up the spine on the picture, or tap a few spots along it, say
   which two vertebrae the trace runs between, and press Fit: the picture is given the size
   that makes the traced line as long as that part of the spine, and the spine is laid along
   the line. After that a spot can be dragged and the spine follows, or any other tool takes
@@ -183,7 +185,7 @@ Milestone 2 of 5, the builder, is done. What works today:
   share or print it. Each step says what to do and shows where, and "Do it for me" does it,
   so the tour can be watched or done by hand. Each part can also be walked through on its
   own, with the sketch that is open. The sheet you start from offers the tour as well.
-- **On this spine**, on a wide screen: a list beside the model of its curves, what is
+- **On this spine**, on a wide screen: a list beside the model of what is
   fused, the hardware and the pain points. A line of the list opens that thing.
 - Hardware and marks **move with the vertebrae** when the spine is bent afterwards.
 - **Undo and Redo** for every step. **Open** and **Save** for spine files: in the top bar

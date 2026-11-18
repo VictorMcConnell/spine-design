@@ -23,7 +23,8 @@ const NS = 'http://www.w3.org/2000/svg';
 export function setupXray(app, kit) {
   const { $, each, pressed, options, ids, hint, touch } = kit, { renderer } = app;
   const shots = [null, null];          // the picture of each flat view, or null
-  let plane = 0, inHand = false, show = 'over', mode = 'trace';
+  // the picture starts beside the model: that is where it is traced most easily. Over the model is for lining the two up.
+  let plane = 0, inHand = false, show = 'side', mode = 'trace';
   let stroke = null, grabbed = null, moving = null, picked = -1, busy = false, paintSoon = null, told = '';
   const shot = () => shots[plane];
   const Press = () => (touch() ? 'Tap' : 'Click');
@@ -55,7 +56,7 @@ export function setupXray(app, kit) {
     const place = firstPlace(app.spine, plane, [w, h]), list = ids();
     shots[plane] = { size: [w, h], grey, canvas, g, data, tone: { ...FIRST_TONE, invert: edge / n > 150 }, place, base: place.k, points: [], fitted: false,
       top: list.includes('T1') ? 'T1' : list[0], bottom: list.includes('L5') ? 'L5' : list[list.length - 1] };
-    picked = -1; mode = 'trace'; if (show === 'off') show = 'over';
+    picked = -1; mode = 'trace'; if (show === 'off') show = 'side';
     paint();
     renderer.look(plane === 0 ? 0 : Math.PI / 2);
     say('');
@@ -257,7 +258,8 @@ export function setupXray(app, kit) {
   $('xrayFile').addEventListener('change', () => { open($('xrayFile').files[0]); $('xrayFile').value = ''; });
   each('[data-xplane]', (b) => b.addEventListener('click', () => { plane = Number(b.dataset.xplane); picked = -1; renderer.look(plane === 0 ? 0 : Math.PI / 2); say(''); kit.changed(); }));
   each('[data-xshow]', (b) => b.addEventListener('click', () => { show = b.dataset.xshow; if (show !== 'over') mode = 'trace'; kit.changed(); }));
-  each('[data-xmode]', (b) => b.addEventListener('click', () => { mode = b.dataset.xmode; kit.changed(); }));
+  // (the picture is moved where it lies over the model: Move X-ray brings it there)
+  each('[data-xmode]', (b) => b.addEventListener('click', () => { mode = b.dataset.xmode; if (mode === 'move' && show !== 'over') { show = 'over'; renderer.look(plane === 0 ? 0 : Math.PI / 2); } kit.changed(); }));
   $('xrayTop').addEventListener('change', () => { const s = shot(); if (s) s.top = $('xrayTop').value; });
   $('xrayBottom').addEventListener('change', () => { const s = shot(); if (s) s.bottom = $('xrayBottom').value; });
   $('xrayFit').addEventListener('click', fit);
@@ -300,21 +302,25 @@ export function setupXray(app, kit) {
     if (!s) return 'Choose a picture of an X-ray to trace over. It stays on this device.';
     // (what was just done is said in the card, under its buttons. This line says what a press does next.)
     if (show === 'off') return 'The picture is hidden. Show it over the model or beside it to trace on it.';
-    if (mode === 'move') return 'Drag to move the picture. Its size and its turn are under Size and place.';
+    if (mode === 'move') return 'Drag to move the picture. Its turn is under X-ray position, its size under X-ray adjustment.';
     if (s.fitted) return 'Drag a spot and the spine follows. Any other tool shapes it by hand.';
     if (s.points.length > 1) return 'Say which vertebrae the trace runs between, then fit the spine to it.';
     return 'Drag a line up the spine on the picture' + (beside() ? ' beside the model' : '') + ', or ' + Press().toLowerCase() + ' spots along it.';
   }
 
+  // on a wide screen the two groups of settings stand open, on a phone they open when asked for
+  if (window.matchMedia('(min-width: 900px) and (min-height: 560px)').matches) { $('xrayPlace').open = true; $('xrayTone').open = true; }
   function sync() {
     const s = shot(), list = ids();
     pressed('[data-xplane]', 'xplane', plane);
     $('xrayPick').textContent = s ? 'Another picture' : 'Choose a picture';
-    $('xrayPick').classList.toggle('main', !s); $('xFlip').hidden = !s;
+    $('xrayPick').classList.toggle('main', !s); $('xrayRemove').hidden = !s;
+    // the two tools float over the model while the X-ray tool is in hand and a picture is to be seen
+    $('xrayBar').hidden = !(inHand && s && show !== 'off');
     $('xrayNone').hidden = !!s; $('xrayOn').hidden = !s;
-    // with a picture open, the choice of picture sits under the buttons that are used while tracing, so those stay in view on a phone
+    // with a picture open, the choice of picture sits at the foot of the card, under "Picture", so the buttons used while tracing stay in view
     const which = $('xrayWhich'), under = !!s;
-    if (under !== ($('xraySay').nextElementSibling === which)) { if (under) $('xraySay').after(which); else $('xrayFile').before(which); }
+    if (under !== (which.parentElement === $('xrayPicHome'))) { if (under) $('xrayPicHome').appendChild(which); else $('xrayFile').before(which); }
     $('stage').classList.toggle('tracing', inHand && over() && mode === 'trace');
     $('stage').classList.toggle('moving', inHand && over() && mode === 'move');
     if (!s) { lay(); return; }
@@ -322,7 +328,6 @@ export function setupXray(app, kit) {
     if (!list.includes(s.top)) s.top = list[0];
     if (!list.includes(s.bottom)) s.bottom = list[list.length - 1];
     pressed('[data-xshow]', 'xshow', show); pressed('[data-xmode]', 'xmode', mode);
-    $('xrayModeRow').hidden = show !== 'over';
     $('xrayEnds').hidden = $('xrayFit').parentElement.hidden = show === 'off';
     options($('xrayTop'), list.map((id) => [id, id]), s.top); options($('xrayBottom'), list.map((id) => [id, id]), s.bottom);
     $('xrayFit').disabled = s.points.length < 2; $('xrayFit').textContent = s.fitted ? 'Fit it again' : 'Fit the spine to the trace';

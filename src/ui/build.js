@@ -423,18 +423,19 @@ export function setupBuilder(app) {
     if (parts.length) add('Hardware', parts.join(', '), () => { showTab('parts'); pickTool('turn'); });
     if (!h.norods) for (const [top, bottom] of rodSets(app.spine)) add('Hardware', 'Rods from ' + top + ' to ' + bottom, () => { showTab('parts'); pickTool('rod'); });
     app.spine.marks.forEach((mark, index) => add('Pain and notes', (mark.text || (mark.kind === 'note' ? 'Note' : 'Pain')) + (mark.kind === 'pain' ? ', ' + (mark.strength || 5) + ' out of 10' : ''), () => { if (tab !== 'marks') showTab('marks'); app.pick({ kind: 'marks', index }); }));
-    const key = rows.map((r) => r.head + r.text).join('|');
     // (the same list, as one line of words, is what describes the 3D picture to a screen reader)
     $('sketchSays').textContent = (app.spine.name || 'A spine') + '. ' + (rows.length ? rows.map((r) => r.head + ': ' + r.text).join('. ') : 'No curve of 10° or more, no hardware and no pain points yet') + '.';
     if (!$('listBox').offsetParent) { listWas = ''; return; }
-    if (key === listWas && box.childNodes.length) return;
+    // The curves are listed only with the Curve tool in hand, where they can be worked on. The rest is always there.
+    const curving = tab === 'shape' && hand.shape === 'curve', seen = rows.filter((r) => r.head !== 'Curves' || curving), key = curving + '|' + seen.map((r) => r.head + r.text).join('|');
+    if (key === listWas) return;
     listWas = key; box.textContent = '';
     let head = '';
-    for (const r of rows) {
+    for (const r of seen) {
       if (r.head !== head) { head = r.head; const h3 = document.createElement('h3'); h3.textContent = head; box.appendChild(h3); }
       const b = document.createElement('button'); b.textContent = r.text; b.addEventListener('click', r.go); box.appendChild(b);
     }
-    if (!rows.length) { const p = document.createElement('p'); p.className = 'small'; p.textContent = 'No curve of 10° or more, no hardware and no pain points yet.'; box.appendChild(p); }
+    if (curving && !seen.some((r) => r.head === 'Curves')) { const p = document.createElement('p'); p.className = 'small'; p.textContent = 'No curve of 10° or more yet.'; box.insertBefore(p, box.firstChild); }
   }
   // Open the Curve tool on a stretch (the list does this).
   function workOn(top, bottom) {
