@@ -1,6 +1,6 @@
 # Privacy
 
-Spine Builder is a set of plain files that run in your browser. This is everything there is
+Spine-Design is a set of plain files that run in your browser. This is everything there is
 to say about what happens to your information.
 
 ## What leaves your device
@@ -32,6 +32,15 @@ A share link holds the whole sketch inside the address, in the part after the # 
 Browsers do not send that part to a web server. Whoever has the link can open the sketch,
 with its name, its pain points and its notes. Send it only to people who should see those.
 
+## A sketch on someone else's page
+
+Share can make a few lines of code that show a sketch on another website, in a small viewer.
+The sketch is inside that code, so anyone who can see the page can see the sketch. The viewer
+is loaded from this site and works the same way as the app: it sends nothing anywhere and
+keeps nothing on the device. The page around it cannot reach into the viewer, and the viewer
+cannot reach into the page. The host of this site can see that a device asked for the viewer,
+as with any page, and may be told by the browser which page it was shown on.
+
 ## The hosting service
 
 A hosted copy sits on a web host. Like any website, that host can see that a device asked
@@ -51,5 +60,5 @@ its edges first. X-rays often carry a name and a date of birth in the margins.
 
 ## Not medical advice
 
-Spine Builder is a sketching tool. It is not a medical device, it does not measure and it
+Spine-Design is a sketching tool. It is not a medical device, it does not measure and it
 does not diagnose.

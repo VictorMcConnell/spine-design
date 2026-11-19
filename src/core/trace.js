@@ -106,11 +106,16 @@ export function followTrace(spine, rig, place, size, points, opts = {}) {
 // the spine along a curve changes how long it shows on the sheet, so this is done a few
 // times over, until the size settles.
 //
+// When the size of the picture is known (opts.k, millimetres for one pixel), it is kept, and
+// "top" is not needed: the trace ends at whichever vertebra it reaches.
+//
 // Returns null if there is nothing to fit, or
-//   { place: where the picture lies now, miss: how far the top of the trace ends from the middle of the top vertebra, in mm }
+//   { place: where the picture lies now, top: the vertebra the trace ends at,
+//     miss: how far the top of the trace ends from the middle of that vertebra, in mm }
 export function fitTrace(spine, rig, place, size, points, top, bottom, opts = {}) {
-  const levels = sortedLevels(spine), a = levels.findIndex((l) => l.id === top), b = levels.findIndex((l) => l.id === bottom), axis = axisOf(place.plane);
-  if (points.length < 2 || a < 0 || b < 0 || a >= b) return null;
+  const levels = sortedLevels(spine), b = levels.findIndex((l) => l.id === bottom), axis = axisOf(place.plane), known = opts.k > 0;
+  let a = levels.findIndex((l) => l.id === top);
+  if (points.length < 2 || b < 0 || (!known && (a < 0 || a >= b))) return null;
   let next = { ...place, at: [place.at[0], place.at[1]] };
   // The length of the trace in pixels, which does not depend on where the picture lies. It is taken from the picture
   // blown up to about the size of a spine, as the smooth line is made for that size, less the short piece it
@@ -122,6 +127,13 @@ export function fitTrace(spine, rig, place, size, points, top, bottom, opts = {}
   // put the picture where its lowest traced spot sits on the bottom vertebra
   const settle = () => { const low = ordered(next, size, points)[0], to = foot(); next.at = [next.at[0] + to[0] - low.at[0], next.at[1] + to[1] - low.at[1]]; };
   for (let round = 0; round < 6; round++) {
+    if (known) {
+      // (the bottom vertebra moves a little as the spine is laid along the line, so this is done three times)
+      next.k = opts.k; settle();
+      if (!followTrace(spine, rig, next, size, points, opts)) return null;
+      if (round === 2) break;
+      continue;
+    }
     const k = runOf(spine, place.plane, top, bottom) / long, was = next.k;
     next.k = k; settle();
     if (!followTrace(spine, rig, next, size, points, opts)) return null;
@@ -129,8 +141,18 @@ export function fitTrace(spine, rig, place, size, points, top, bottom, opts = {}
   }
   settle();
   next.at = next.at.map(round2);
-  const high = ordered(next, size, points).pop().at, head = levels[a].centre;
-  return { place: next, miss: round2(Math.hypot(high[0] - head[axis], high[1] - head[2])) };
+  const high = ordered(next, size, points).pop().at;
+  if (known) a = levels.findIndex((l) => l.id === levelNear(spine, place.plane, high).id);
+  const head = levels[a].centre;
+  return { place: next, top: levels[a].id, miss: round2(Math.hypot(high[0] - head[axis], high[1] - head[2])) };
+}
+
+// The vertebra whose middle lies nearest a spot of the sheet: { id, far: how far off it is in mm }.
+export function levelNear(spine, plane, spot) {
+  const axis = axisOf(plane);
+  let best = null;
+  for (const l of spine.levels) { const far = Math.hypot(l.centre[axis] - spot[0], l.centre[2] - spot[1]); if (!best || far < best.far) best = { id: l.id, far }; }
+  return best;
 }
 
 // A line drawn by hand over the picture (pixels) as a few spots that can be dragged after: its

@@ -1,8 +1,8 @@
 # Getting bone shapes from BodyParts3D
 
-The bones in Spine Builder are real shapes. They come from
+The bones in Spine-Design are real shapes. They come from
 [BodyParts3D](https://dbarchive.biosciencedbc.jp/en/bodyparts3d/desc.html), a free archive that
-holds basically every part of a human body as its own 3D file. Spine Builder took the 24
+holds basically every part of a human body as its own 3D file. Spine-Design took the 24
 vertebrae and the sacrum from it and rebuilt them into an "average" spine that is easy to bend.
 
 If you want to do something like this yourself, the archive is a great place to start. The one
@@ -22,7 +22,7 @@ Both files are on the archive's
 | `partof_element_parts.txt` | 654 KB | The index. It says which file belongs to which part of the body. |
 
 The page also has a second set whose names start with `isa_`. It sorts the same body in a
-different way. Spine Builder used the `partof_` set, so that is the one described here.
+different way. Spine-Design used the `partof_` set, so that is the one described here.
 
 ## Step 1: Download and unzip into one folder
 
@@ -128,7 +128,7 @@ For anything else, look in the index first to see how the part is named. Search 
 
     Select-String -Path .\partof_element_parts.txt -Pattern "rib"
 
-## Use the files in Spine Builder
+## Use the files in Spine-Design
 
 The shapes are already in the app, so there is nothing to do if you only want to use it. To
 make them again from the files of the archive, give the folder to the script that wrote them:

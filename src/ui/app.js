@@ -7,7 +7,7 @@ import { buildScene, boundsOf } from '../view/scene.js';
 import { gizmoItems } from '../view/gizmo.js';
 import { validateSpine, sortedLevels } from '../core/spinefile.js';
 import { readSpineFile, saveSpineFile, loadExample, listExamples, download, fileNameFor } from '../io/files.js';
-import { packSpine, unpackSpine, linkFor, packedIn } from '../io/share.js';
+import { packSpine, unpackSpine, linkFor, packedIn, viewOptionsIn, viewLinkFor } from '../io/share.js';
 import { stlOf, objOf } from '../io/print.js';
 import { zipOf } from '../io/zip.js';
 import { standFor } from '../core/stand.js';
@@ -18,24 +18,28 @@ import { fitRods } from '../core/place.js';
 import { setBoneStyle } from '../core/bones.js';
 import { SHAPE_CREDIT } from '../shapes/bodyparts3d.js';
 import { setupBuilder } from './build.js';
+import { setupStory } from './story.js';
 
 const $ = (id) => document.getElementById(id);
 // phones get a slightly coarser grid for the bones so they appear sooner
 const DETAIL = window.matchMedia('(max-width: 760px)').matches ? 1.8 : 1.4;
 const START = 'average.spine.json';
 const renderer = createRenderer($('view'));
-let spine = null, labels = [], tags = [], builder = null;
+let spine = null, labels = [], tags = [], builder = null, story = null;
 let past = [], future = [];          // spine files as text, for Undo and Redo
 
 // ---- how things look (kept on this device between visits)
 const BACKS = { dark: [0.075, 0.08, 0.1], grey: [0.43, 0.44, 0.47], light: [0.93, 0.92, 0.89], white: [1, 1, 1], black: [0, 0, 0] };
 const USUAL = { back: 'dark', shade: 'soft', bone: '#c7ad85', disc: '#5485bd', hardware: '', byLevel: false, simple: false };
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+// The viewer is the page that only shows a sketch, made to sit inside other pages (view.html, the same app with
+// one mark on it). It keeps nothing on the device and takes how things look from its own address.
+const VIEWER = document.documentElement.hasAttribute('data-viewer');
 let look = { ...USUAL };
-try { look = { ...USUAL, ...JSON.parse(localStorage.getItem('spineBuilderLook') || '{}') }; } catch (e) { /* no storage here: use the usual look */ }
+if (!VIEWER) try { look = { ...USUAL, ...JSON.parse(localStorage.getItem('spineBuilderLook') || '{}') }; } catch (e) { /* no storage here: use the usual look */ }
 // (earlier versions kept a level of control and a layout with the look: both are gone)
 delete look.level; delete look.layout;
-const keepLook = () => { try { localStorage.setItem('spineBuilderLook', JSON.stringify(look)); } catch (e) { /* not kept, that is all */ } };
+const keepLook = () => { if (VIEWER) return; try { localStorage.setItem('spineBuilderLook', JSON.stringify(look)); } catch (e) { /* not kept, that is all */ } };
 
 // What the builder works with. "rig" is the spine as a chain (see core/shape.js). "picked" is
 // what is selected, "spots" the dots shown while a part is being placed.
@@ -78,12 +82,20 @@ const app = {
   pointed: null,
   point(id) { if (app.pointed !== id) { app.pointed = id; app.redraw(); } },
   fit: () => fitView(),                // bring the whole spine into the picture
+  picture: () => pictureOf(),          // the view as a picture, with the names and words that are showing
+  setBack: (name) => renderer.setBackground(BACKS[name] || BACKS.dark),   // the background for one picture (applyLook puts the chosen one back)
+  applyLook: () => applyLook(false),
   thumbs: () => thumbsSoon(),          // draw the small pictures of the shadings again
   clean: (on) => setClean(on),         // put the tools away for a clear picture, or bring them back
   stiff: true,                         // fused stretches move as blocks
   inLine: true,                        // a part stops where its rod could not follow
   showStiff: true,                     // tint the stiff blocks (while the shape is worked on)
+  // What is drawn in place of the sketch for a while, when steps are played or compared:
+  //   shown: { spine, fade } one spine (a step, or a blend of two; fade is how solid its hardware is drawn)
+  //   pair:  { a, b } two spines side by side
+  shown: null, pair: null,
   get spine() { return spine; },
+  now: () => past[past.length - 1] || '',   // the sketch as it was last remembered for Undo, as text
   // A remark over the model. It goes away by itself after a while.
   say(text) { $('status').textContent = text || ''; clearTimeout(sayTimer); if (text) sayTimer = setTimeout(() => { $('status').textContent = ''; }, 9000); },
 
@@ -95,17 +107,27 @@ const app = {
     // while the spine is being shaped, the stretches that are held stiff are drawn in a cooler colour
     const order = sortedLevels(spine).map((l) => l.id), stiff = [];
     if (app.showStiff && app.stiff && app.rig) for (const b of app.rig.blocks || []) stiff.push(...order.slice(b.from, b.to + 1));
-    const items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, also: app.also, stiff, locked: app.showStiff ? [...app.held] : [], spots: app.spots, lit: app.lit, pointed: app.pointed, hints: builder ? builder.hints() : null, look: { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel } });
+    const lookNow = { bone: rgb(look.bone), disc: rgb(look.disc), hardware: look.hardware ? rgb(look.hardware) : null, byLevel: look.byLevel };
+    const seen = app.shown ? app.shown.spine : spine;
+    let items;
+    if (app.pair) items = pairItems(lookNow);
+    else if (app.shown) {
+      // (a step that is only shown: nothing on it is selected, and its hardware may be on its way in or out)
+      items = buildScene(seen, DETAIL, { look: lookNow });
+      const fade = app.shown.fade;
+      if (fade < 1) items = items.filter((it) => !KINDS.includes(it.group) || fade > 0.02).map((it) => (KINDS.includes(it.group) ? { ...it, opacity: fade, baseOpacity: fade } : it));
+    } else items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, also: app.also, stiff, locked: app.showStiff ? [...app.held] : [], spots: app.spots, lit: app.lit, pointed: app.pointed, hints: builder ? builder.hints() : null, look: lookNow });
     // the stand chosen for printing is shown with the spine, so that what is saved is what is seen
-    const stand = standNow();
+    const stand = app.shown || app.pair ? null : standNow();
     if (stand) for (const [list, name] of [[stand.onSpine, 'stand_fitting_on_spine'], [stand.stand, 'stand']]) for (const mesh of list) items.push({ group: 'stand', mesh, color: STAND_COLOR, opacity: 1, baseOpacity: 1, visible: true, name });
-    const handles = builder && builder.handles();
+    const handles = !app.shown && !app.pair && builder && builder.handles();
     renderer.setItems(handles ? items.concat(gizmoItems(handles.spec, handles.active)) : items);
     applyToggles();
     const centre = {};
-    for (const l of spine.levels) centre[l.id] = l.centre;
-    for (const l of labels) l.at = centre[l.id];
-    buildTags();
+    for (const l of seen.levels) centre[l.id] = l.centre;
+    // (the names and the words of the marks go with the spine that is drawn. With two side by side there are none.)
+    for (const l of labels) l.at = app.pair ? null : centre[l.id] || null;
+    buildTags(app.pair ? null : seen);
   },
 
   // Change the spine. The hardware and the marks ride along with their vertebrae.
@@ -129,6 +151,23 @@ const app = {
     if (builder) builder.sync();
   },
 
+  // Make another spine the open one in place (another step of the same sketch). The tools start over for it, and
+  // the change is one step of the history, so Undo goes back to the step that was open.
+  reopen(fn) {
+    if (!spine) return;
+    fn();
+    for (const key of ['rods', 'screws', 'hooks', 'crosslinks']) { spine.hardware = spine.hardware || {}; spine.hardware[key] = spine.hardware[key] || []; }
+    spine.marks = spine.marks || []; spine.fused = spine.fused || [];
+    app.rig = rigOf(spine, app.stiff); app.picked = null; app.also = []; app.spots = []; app.held.clear();
+    if (builder) { builder.reset(); builder.stepped(); }
+    buildLabels(); app.redraw(); app.settle();
+  },
+  // where the names of two spines that stand side by side go: a point over the top of each
+  pairSpots() {
+    const shift = pairShift();
+    return [app.pair.a, app.pair.b].map((s, i) => { const b = boundsOf(s); return [(b.low[0] + b.high[0]) / 2 + shift[i][0], (b.low[1] + b.high[1]) / 2 + shift[i][1], b.high[2] + 6]; });
+  },
+
   // Select something. "also" lists more parts selected along with it.
   pick(what, also = []) {
     app.picked = what; app.also = what ? also : [];
@@ -137,8 +176,38 @@ const app = {
   },
 };
 
+// Two spines side by side, as the eye sees them: each is moved half the gap along the line that runs across the screen.
+// (The picture is put together again when the view has turned, so that they stay side by side.)
+let pairAround = null;
+function pairShift() {
+  const a = renderer.camera.around, right = [-Math.cos(a), Math.sin(a), 0], wide = (s) => { const b = boundsOf(s); return Math.hypot(b.high[0] - b.low[0], b.high[1] - b.low[1]) / 2; };
+  const half = Math.max(70, (wide(app.pair.a) + wide(app.pair.b)) / 2 * 0.62 + 20);
+  return [right.map((v) => -v * half), right.map((v) => v * half)];
+}
+function pairItems(lookNow) {
+  const shift = pairShift(), items = [];
+  pairAround = renderer.camera.around;
+  [app.pair.a, app.pair.b].forEach((s, i) => {
+    const d = shift[i];
+    for (const it of buildScene(s, DETAIL, { look: lookNow })) {
+      const m = it.matrix ? new Float32Array(it.matrix) : new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+      m[12] += d[0]; m[13] += d[1]; m[14] += d[2];
+      items.push({ ...it, matrix: m });
+    }
+  });
+  return items;
+}
+// The box that holds what is drawn: the sketch, the step that is shown, or the two side by side.
+function boundsNow() {
+  if (!app.pair) return boundsOf(app.shown ? app.shown.spine : spine);
+  const shift = pairShift(), low = [Infinity, Infinity, Infinity], high = [-Infinity, -Infinity, -Infinity];
+  [app.pair.a, app.pair.b].forEach((s, i) => { const b = boundsOf(s); for (let j = 0; j < 3; j++) { low[j] = Math.min(low[j], b.low[j] + shift[i][j]); high[j] = Math.max(high[j], b.high[j] + shift[i][j]); } });
+  return { low, high };
+}
+
 function restore(text) {
   spine = JSON.parse(text);
+  app.shown = null; app.pair = null;
   $('name').textContent = spine.name || 'A spine'; $('about').textContent = spine.about || '';
   // a picked vertebra or stretch stays picked; a picked part may no longer exist
   const p = app.picked, has = (id) => spine.levels.some((l) => l.id === id);
@@ -173,7 +242,7 @@ function show(next, problems, keep = false) {
   $('problemBox').hidden = !(problems && problems.length);
   if (!next || !Array.isArray(next.levels) || !next.levels.length) return;
   const before = keep && spine ? past.slice(-60) : [];
-  spine = next;
+  spine = next; app.shown = null; app.pair = null;
   for (const key of ['rods', 'screws', 'hooks', 'crosslinks']) { spine.hardware = spine.hardware || {}; spine.hardware[key] = spine.hardware[key] || []; }
   spine.marks = spine.marks || [];
   $('name').textContent = spine.name || 'A spine';
@@ -192,6 +261,7 @@ function show(next, problems, keep = false) {
     syncHistory();
     if (builder) builder.sync();
     app.say(before.length ? 'Undo brings back the sketch you had.' : '');
+    if (VIEWER) viewerShown();
   }, 30);
 }
 
@@ -220,10 +290,10 @@ function buildLabels() {
 }
 
 // The words that go with the pain points and the notes, shown next to them on the model.
-function buildTags() {
+function buildTags(of = spine) {
   $('tags').textContent = ''; $('tagLines').textContent = '';
   tags = [];
-  spine.marks.forEach((m, index) => {
+  ((of && of.marks) || []).forEach((m, index) => {
     if (!m.text) return;
     const el = document.createElement('span');
     el.textContent = m.text + (m.kind === 'pain' && m.strength ? ' ' + m.strength + '/10' : '');
@@ -249,13 +319,14 @@ function placeLabels() {
     el.style.display = p ? '' : 'none';
     if (p) el.style.transform = 'translate(' + p[0].toFixed(1) + 'px,' + p[1].toFixed(1) + 'px) translate(-50%,-50%)';
   };
-  if (!$('labels').hidden) for (const l of labels) put(l.el, renderer.project(l.at));
+  if (!$('labels').hidden) for (const l of labels) put(l.el, l.at && renderer.project(l.at));
   if (!$('tags').hidden) for (const t of tags) {
     const spots = tagSpots(t);
     put(t.el, spots && spots.label);
     if (t.line) { t.line.style.display = spots ? '' : 'none'; if (spots) { t.line.setAttribute('x1', spots.label[0]); t.line.setAttribute('y1', spots.label[1]); t.line.setAttribute('x2', spots.mark[0]); t.line.setAttribute('y2', spots.mark[1]); } }
   }
   for (const fn of app.frames) fn();
+  if (app.pair && pairAround !== renderer.camera.around) app.redraw();
 }
 
 // ---- the gallery of examples
@@ -354,6 +425,79 @@ function openLink() {
   return true;
 }
 
+// ---- the viewer (view.html): a sketch to look at, inside another page or on its own
+let viewerHow = {}, turning = 0;
+const stopTurning = () => { if (turning) cancelAnimationFrame(turning); turning = 0; };
+function startViewer() {
+  document.body.classList.add('viewer', 'clean');
+  $('viewer').hidden = false;
+  const packed = packedIn(location.hash), nothing = (text) => { $('viewerNone').textContent = text; $('viewerNone').hidden = false; openExample(START); };
+  viewerHow = viewOptionsIn(location.hash);
+  if (SHADINGS[viewerHow.shade]) look.shade = viewerHow.shade;
+  if (BACKS[viewerHow.back]) look.back = viewerHow.back;
+  $('labelsOn').checked = $('viewerNames').checked = !!viewerHow.names;
+  applyLook(false);
+  // the way to the whole app, with this sketch in it
+  $('viewerOpen').href = (location.protocol === 'file:' ? './index.html' : './') + (packed ? '#spine=' + packed : '');
+  if (!packed) { nothing('This viewer shows a sketch made with Spine-Design. Its address holds no sketch.'); return; }
+  unpackSpine(packed)
+    .then((s) => { const problems = validateSpine(s); if (problems.length) throw new Error(problems[0]); show(s, []); })
+    .catch(() => nothing('The sketch in this address could not be read. It may have been cut short on the way.'));
+}
+// the sketch is drawn: its name, where it is seen from, and the slow turn if that was asked for
+function viewerShown() {
+  const c = renderer.camera;
+  if (builder) builder.go('story');
+  $('viewerName').textContent = spine.name || 'A spine';
+  document.title = (spine.name || 'A spine') + ' | Spine-Design';
+  $('labels').hidden = !$('labelsOn').checked;
+  if (viewerHow.around !== undefined) { c.around = viewerHow.around; c.tilt = viewerHow.tilt; }
+  fitView();
+  stopTurning();
+  if (viewerHow.turn && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const step = () => { c.around += 0.0035; renderer.requestDraw(); turning = requestAnimationFrame(step); };
+    turning = requestAnimationFrame(step);
+  }
+}
+function viewerControls() {
+  const c = renderer.camera, view = $('view');
+  // (inside another page the wheel scrolls that page, until the model has been pressed. A press elsewhere gives it back.)
+  let mine = window.top === window;
+  renderer.wheelIf(() => mine);
+  $('stage').addEventListener('pointerdown', () => { mine = true; stopTurning(); }, true);
+  window.addEventListener('blur', () => { mine = window.top === window; });
+  window.addEventListener('wheel', stopTurning, { passive: true });
+  $('viewerNames').addEventListener('change', () => { $('labelsOn').checked = $('viewerNames').checked; $('labels').hidden = !$('labelsOn').checked; app.redraw(); });
+  $('viewerFit').addEventListener('click', () => fitView());
+  const full = $('viewerFull'), can = document.fullscreenEnabled && document.documentElement.requestFullscreen;
+  full.hidden = !can;
+  full.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); });
+  // the keys turn the model: there is nothing here to pick or to change
+  view.setAttribute('aria-label', '3D view of the spine. Arrow keys turn it, plus and minus zoom.');
+  view.addEventListener('keydown', (e) => {
+    const turn = { ArrowLeft: [-0.15, 0], ArrowRight: [0.15, 0], ArrowUp: [0, 0.08], ArrowDown: [0, -0.08] }[e.key], zoom = { '+': 0.85, '=': 0.85, '-': 1.18 }[e.key];
+    if (!turn && !zoom) return;
+    e.preventDefault(); e.stopImmediatePropagation(); stopTurning();
+    if (turn) { c.around += turn[0]; c.tilt = Math.max(-1.4, Math.min(1.4, c.tilt + turn[1])); } else c.distance = Math.max(80, Math.min(4000, c.distance * zoom));
+    renderer.requestDraw();
+  }, true);
+  window.addEventListener('hashchange', () => location.reload());
+}
+
+// The lines to paste into a web page to show this sketch there, in the viewer.
+function embedCode() {
+  if (!spine) return;
+  packSpine(spine).then((packed) => {
+    const c = renderer.camera, hosted = /^https?:$/.test(location.protocol);
+    const base = hosted ? new URL('view.html', location.href).href.split(/[?#]/)[0] : BUILD.address ? BUILD.address + '/view.html' : 'view.html';
+    const link = viewLinkFor(base, packed, { shade: look.shade, back: look.back, names: $('embedNames').checked, turn: $('embedTurn').checked, around: c.around, tilt: c.tilt });
+    const title = (spine.name || 'A spine').replace(/["<>&]/g, '');
+    $('embedText').value = '<iframe src="' + link + '" title="' + title + ', a 3D sketch of a spine" width="100%" height="' + $('embedTall').value + '" style="border:0;border-radius:12px;max-width:100%" loading="lazy" allowfullscreen></iframe>';
+    $('embedSee').href = link;
+    $('embedSay').textContent = (hosted || BUILD.address ? '' : 'This copy of the app has no address on the web, so the code only works where the app sits beside the page. ') + 'The sketch is inside the code, so anyone who can see the page can see the sketch.' + (link.length > 8000 ? ' The code is long (' + link.length + ' characters). Some site builders cut long code short.' : '');
+  });
+}
+
 // A link that holds the whole sketch: copied, and shown in a box to copy from where the browser does not allow that.
 function copyLink() {
   if (!spine) return;
@@ -383,7 +527,7 @@ function pictureOf() {
     g.fillStyle = '#eceae5'; g.fillText(text, p[0] * k, p[1] * k + k * 0.5);
   };
   const pill = (text, at, lift, size, bold) => { const p = renderer.project(at); if (p) pillAt(text, [p[0], p[1] - lift], size, bold); };
-  if (!$('labels').hidden) for (const l of labels) pill(l.el.textContent, l.at, 0, 11, true);
+  if (!$('labels').hidden) for (const l of labels) if (l.at) pill(l.el.textContent, l.at, 0, 11, true);
   if (!$('tags').hidden) for (const t of tags) {
     const spots = tagSpots(t);
     if (!spots) continue;
@@ -391,7 +535,7 @@ function pictureOf() {
     pillAt(t.el.textContent, spots.label, 12, false);
   }
   g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = 11 * k + 'px system-ui, sans-serif'; g.fillStyle = pale ? 'rgba(30, 31, 36, 0.75)' : 'rgba(236, 234, 229, 0.7)';
-  const lines = ['A sketch made with Spine Builder. Not a medical image.'].concat(look.simple ? [] : ['Bone shapes: ' + SHAPE_CREDIT]);
+  const lines = ['A sketch made with Spine-Design. Not a medical image.'].concat(look.simple ? [] : ['Bone shapes: ' + SHAPE_CREDIT]);
   lines.forEach((text, i) => g.fillText(text, 10 * k, out.height - (10 + (lines.length - 1 - i) * 15) * k));
   return out;
 }
@@ -411,7 +555,7 @@ function standNow() {
 // Bring the whole model into view, with its stand if one is shown.
 function fitView() {
   if (!spine) return;
-  const b = boundsOf(spine), stand = standNow();
+  const b = boundsNow(), stand = app.shown || app.pair ? null : standNow();
   if (stand) for (const mesh of stand.stand) for (let i = 0; i < mesh.positions.length; i += 3) for (let j = 0; j < 3; j++) { b.low[j] = Math.min(b.low[j], mesh.positions[i + j]); b.high[j] = Math.max(b.high[j], mesh.positions[i + j]); }
   renderer.frame(b.low, b.high);
 }
@@ -424,7 +568,7 @@ function showStand() {
   app.redraw();
   if (stand) fitView();
 }
-const READ_ME = (lines) => ['Made with Spine Builder. A sketch of a spine, not a medical image and not a measurement.', ''].concat(lines, look.simple ? [] : ['', 'The bone shapes are from BodyParts3D, (c) The Database Center for Life Science, licensed under CC Attribution 4.0 International.', 'Pass this credit on with the files.']).join('\r\n') + '\r\n';
+const READ_ME = (lines) => ['Made with Spine-Design. A sketch of a spine, not a medical image and not a measurement.', ''].concat(lines, look.simple ? [] : ['', 'The bone shapes are from BodyParts3D, (c) The Database Center for Life Science, licensed under CC Attribution 4.0 International.', 'Pass this credit on with the files.']).join('\r\n') + '\r\n';
 const shownParts = () => renderer.items().filter((it) => PRINTED.includes(it.group) && it.visible !== false);
 
 // The bones and discs made smoother for a print: each round cuts every triangle into four. Kept, so a second save is quick.
@@ -444,7 +588,7 @@ async function saveStl() {
   const scale = printScale(), rounds = parseInt($('stlFinish').value, 10) || 0, stand = standNow();
   const items = shownParts().map((it) => (rounds && (it.group === 'vertebrae' || it.group === 'discs') ? { ...it, mesh: finer(it.mesh, rounds) } : it));
   if (!items.length) { $('stlSay').textContent = 'Nothing is shown, so there is nothing to print. Tick some parts under Look, More.'; return; }
-  const bytes = stlOf(items.concat(stand ? stand.onSpine.map((mesh) => ({ mesh })) : []), scale, 'Spine Builder sketch. ' + (look.simple ? '' : CREDIT)), view = new DataView(bytes.buffer);
+  const bytes = stlOf(items.concat(stand ? stand.onSpine.map((mesh) => ({ mesh })) : []), scale, 'Spine-Design sketch. ' + (look.simple ? '' : CREDIT)), view = new DataView(bytes.buffer);
   // how tall the print will be: the highest and the lowest corner in the file
   let low = Infinity, high = -Infinity;
   for (let at = 84; at < bytes.length; at += 50) for (const k of [20, 32, 44]) { const z = view.getFloat32(at + k, true); if (z < low) low = z; if (z > high) high = z; }
@@ -453,7 +597,7 @@ async function saveStl() {
   if (!stand) { download(new Blob([bytes], { type: 'model/stl' }), name + '.stl'); $('stlSay').textContent = 'Saved: ' + (bytes.length / 1e6).toFixed(1) + ' MB, ' + told; return; }
   const zip = await zipOf([
     { name: name + '.stl', bytes },
-    { name: name + '-stand.stl', bytes: stlOf(stand.stand.map((mesh) => ({ mesh })), scale, 'Stand for a Spine Builder sketch') },
+    { name: name + '-stand.stl', bytes: stlOf(stand.stand.map((mesh) => ({ mesh })), scale, 'Stand for a Spine-Design sketch') },
     { name: 'READ ME.txt', bytes: READ_ME([name + '.stl: the spine, about ' + tall + ' mm tall, in millimetres.', name + '-stand.stl: its stand. Print it as it is, with the round base on the bed.', stand.says, 'Each file holds separate shapes that overlap. Slicers join them on their own.', 'The fit between the two was worked out, not tried on a printer. If it is tight, sand the peg or the arm a little.']) },
   ]);
   download(new Blob([zip], { type: 'application/zip' }), name + '-print.zip');
@@ -463,7 +607,7 @@ async function saveObj() {
   if (!spine) return;
   const items = shownParts().concat(renderer.items().filter((it) => it.group === 'stand'));
   if (!items.length) { $('objSay').textContent = 'Nothing is shown, so there is nothing to save. Tick some parts under Look, More.'; return; }
-  const name = fileNameFor(spine), files = objOf(items, 1, 'Spine Builder sketch. ' + (look.simple ? '' : CREDIT), name + '.mtl');
+  const name = fileNameFor(spine), files = objOf(items, 1, 'Spine-Design sketch. ' + (look.simple ? '' : CREDIT), name + '.mtl');
   const zip = await zipOf([{ name: name + '.obj', bytes: files.obj }, { name: name + '.mtl', bytes: files.mtl }, { name: 'READ ME.txt', bytes: READ_ME([name + '.obj: the model at full size, in millimetres, standing upright (y is up).', name + '.mtl: its colours. Keep the two files together.', 'Every vertebra, disc and part is an object of its own, named after what it is.']) }]);
   download(new Blob([zip], { type: 'application/zip' }), name + '-3d.zip');
   $('objSay').textContent = 'Saved a zip with the OBJ file and its colours: ' + items.length + ' objects, ' + (zip.length / 1e6).toFixed(1) + ' MB.';
@@ -485,7 +629,7 @@ function applyLook(save = true) {
 
 // The small pictures on the shading buttons: the middle of the model as it is now, drawn
 // once in each shading. They are made again only when something they show has changed.
-let thumbsFor = '', thumbsTimer = null, thumbsRun = 0;
+let thumbsFor = '', thumbsTimer = null;
 function thumbsSoon() { clearTimeout(thumbsTimer); thumbsTimer = setTimeout(makeThumbs, 80); }
 function makeThumbs() {
   if (!spine || !renderer) return;
@@ -496,23 +640,18 @@ function makeThumbs() {
   thumbsFor = key;
   const small = document.createElement('canvas'), g = small.getContext('2d');
   small.width = 132; small.height = 156;
-  // (one picture on each frame, so that eleven of them never hold the page up. After each the view is drawn
-  // again in its own shading before the screen shows it.)
-  const run = ++thumbsRun, todo = [...document.querySelectorAll('#shades [data-shade]')];
-  const next = () => {
-    if (run !== thumbsRun || !todo.length) return;
-    const b = todo.shift();
+  // (Only the piece that goes on the button is drawn, with a little round it for the soft shadow to reach into. That is
+  // a small part of the canvas, so all eleven together cost less than one whole frame. The view is drawn again after.)
+  const full = renderer.canvas, k = full.width / full.clientWidth, tall = Math.min(full.height, (120 / renderer.screenScale(mid).perPixel) * k), across = tall * small.width / small.height;
+  const x = Math.max(0, Math.min(full.width - across, at[0] * k - across / 2)), y = Math.max(0, Math.min(full.height - tall, at[1] * k - tall / 2));
+  document.querySelectorAll('#shades [data-shade]').forEach((b) => {
     renderer.setShading(b.dataset.shade);
-    // (a piece of the middle of the picture, about 12 cm of the model tall, so the shading can be told apart)
-    const full = renderer.picture(), k = full.height / full.clientHeight, tall = Math.min(full.height, (120 / renderer.screenScale(mid).perPixel) * k), across = tall * small.width / small.height;
-    const x = Math.max(0, Math.min(full.width - across, at[0] * k - across / 2)), y = Math.max(0, Math.min(full.height - tall, at[1] * k - tall / 2));
+    renderer.picture([x - 24, y - 24, across + 48, tall + 48]);
     g.fillStyle = '#131419'; g.fillRect(0, 0, small.width, small.height);
     g.drawImage(full, x, y, across, tall, 0, 0, small.width, small.height);
     b.querySelector('img').src = small.toDataURL('image/jpeg', 0.82);
-    renderer.setShading(look.shade); renderer.drawNow();
-    if (todo.length) requestAnimationFrame(next);
-  };
-  next();
+  });
+  renderer.setShading(look.shade);
 }
 
 // Reset the view: everything about how the sketch is drawn goes back to how it starts. The shading, the background,
@@ -546,6 +685,7 @@ function setStand(on) {
 
 // The clean view: the tools are put away so that the model stands alone, for a picture of the screen.
 function setClean(on) {
+  if (VIEWER) on = true;                // (the viewer has no tools to bring back)
   document.body.classList.toggle('clean', on);
   $('cleanOff').hidden = !on;
   renderer.requestDraw();
@@ -563,6 +703,8 @@ if (!renderer) {
 } else {
   renderer.afterDraw(placeLabels);
   builder = setupBuilder(app);
+  story = setupStory(app, { $, builder, download, fileNameFor, credit: () => (look.simple ? '' : 'Bone shapes: ' + SHAPE_CREDIT) });
+  builder.setStory(story);
   document.querySelectorAll('[data-group]').forEach((c) => c.addEventListener('change', applyToggles));
   $('labelsOn').addEventListener('change', applyToggles);
   $('boneOpacity').addEventListener('input', applyToggles);
@@ -580,17 +722,25 @@ if (!renderer) {
   $('welcome').addEventListener('cancel', (e) => { e.preventDefault(); welcomeDone(); });      // Esc
   $('aboutBtn').addEventListener('click', () => { $('start').close(); welcome(true); });
   $('linkBtn').addEventListener('click', copyLink);
+  $('embedBtn').addEventListener('click', () => { const open = $('embedBox').hidden; $('embedBox').hidden = !open; $('embedBtn').setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { embedCode(); $('embedBox').scrollIntoView({ block: 'nearest' }); } });
+  for (const id of ['embedNames', 'embedTurn', 'embedTall']) $(id).addEventListener('change', embedCode);
+  $('embedCopy').addEventListener('click', () => {
+    const box = $('embedText'), done = (ok) => { $('embedSay').textContent = ok ? 'Copied. Paste it where the page takes HTML.' : 'Copy it from the box above.'; if (!ok) { box.focus(); box.select(); } };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(box.value).then(() => done(true), () => done(false)); else done(false);
+  });
   $('pictureBtn').addEventListener('click', () => { if (spine) { pictureOf().toBlob((blob) => download(blob, fileNameFor(spine) + '.png'), 'image/png'); $('shSay').textContent = 'Saved a picture of the view as it is now to your downloads.'; } });
   $('stlBtn').addEventListener('click', saveStl);
   $('objBtn').addEventListener('click', saveObj);
   $('standKind').addEventListener('change', showStand); $('stlScale').addEventListener('change', showStand);
-  window.addEventListener('hashchange', openLink);
+  if (!VIEWER) window.addEventListener('hashchange', openLink);
   // New opens the sheet with the shapes to start from. Share opens the sheet with the ways to keep a sketch or pass it on.
   const SHARE_SAYS = $('shSay').textContent;
   sheet('start', 'startClose'); sheet('share', 'shareClose');
   $('newBtn').addEventListener('click', openStart);
   $('shareBtn').addEventListener('click', () => {
     $('linkText').hidden = true; $('shSay').textContent = SHARE_SAYS;
+    $('clipBox').hidden = true; $('clipBtn').setAttribute('aria-expanded', 'false'); $('clipSay').textContent = '';
+    $('embedBox').hidden = true; $('embedBtn').setAttribute('aria-expanded', 'false');
     $('printBox').hidden = true; $('printBtn').setAttribute('aria-expanded', 'false');
     if (!$('share').open) $('share').showModal();
   });
@@ -635,7 +785,7 @@ if (!renderer) {
   // Zooming and moving the picture with one finger or one key: the same as a pinch and a drag with two fingers.
   document.querySelectorAll('[data-zoom]').forEach((b) => b.addEventListener('click', () => { const c = renderer.camera; c.distance = Math.max(80, Math.min(4000, c.distance * (b.dataset.zoom === 'in' ? 0.8 : 1.25))); renderer.requestDraw(); }));
   document.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => { const c = renderer.camera; c.target = [c.target[0], c.target[1], c.target[2] + (b.dataset.move === 'up' ? -1 : 1) * c.distance * 0.1]; renderer.requestDraw(); }));
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') { viewMenu(false); if (document.body.classList.contains('clean')) setClean(false); } });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !VIEWER) { viewMenu(false); if (document.body.classList.contains('clean')) setClean(false); } });
   window.addEventListener('keydown', (e) => {
     if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
     const key = e.key.toLowerCase();
@@ -646,9 +796,12 @@ if (!renderer) {
   if (window.ResizeObserver) new ResizeObserver(() => renderer.requestDraw()).observe($('stage'));
   applyLook(false); siteLinks();
   // a link opens the sketch it holds. Without one the page starts with the average spine and the sheet of shapes to pick from.
-  if (!openLink()) { openExample(START); startNext = true; }
-  welcome(false);
-  if (startNext && !$('welcome').open) { startNext = false; openStart(); }
+  if (VIEWER) { viewerControls(); startViewer(); }
+  else {
+    if (!openLink()) { openExample(START); startNext = true; }
+    welcome(false);
+    if (startNext && !$('welcome').open) { startNext = false; openStart(); }
+  }
   // handy when trying things in the browser console
-  window.spineBuilder = { renderer, app, builder, guide, current: () => spine, show, openExample };
+  window.spineBuilder = { renderer, app, builder, guide, story, current: () => spine, show, openExample };
 }

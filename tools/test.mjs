@@ -11,20 +11,22 @@ import { SHAPES, SHAPE_CREDIT } from '../src/shapes/bodyparts3d.js';
 import { rodMesh, screwMesh, hookMesh, crosslinkMesh, rodDirectionNear, TYPICAL, screwRegion, typicalScrew, FINISHES, PALETTES, USUAL_FINISH, colorOf } from '../src/core/hardware.js';
 import { meshFromDistance } from '../src/core/solid.js';
 import { ANATOMY } from '../src/core/anatomy.js';
-import { LEVEL_ORDER } from '../src/core/spinefile.js';
+import { LEVEL_ORDER, MOST_STEPS } from '../src/core/spinefile.js';
 import { measureSpine } from '../src/core/measures.js';
 import { JOINT_MOST, lineOf, slideLevel, rigOf, restack, carry, readShape, applyShape, pullLevel, toLocal, frameOf, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, gapUnder, straighten, stiffen, blockOf, pivotAt, followLine } from '../src/core/shape.js';
 import { slot, planFor, buildHardware, fitRods, crosslinkAt, freeScrew, resizeScrew, screwLength, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, gapsOf, setRodCut, drawRod, splitAtGaps, rodSets, cutAll, rodsThroughAll, cutRodAt, linkFits, linkSpot, shiftParts, fitOut, ROD_RULES, strainAt, moveInLine, settleInLine, bendRod, unbendRod, faceHook } from '../src/core/place.js';
 import { rayMesh } from '../src/core/pick.js';
 import { ball } from '../src/core/mesh.js';
-import { packSpine, unpackSpine, linkFor, packedIn } from '../src/io/share.js';
+import { packSpine, unpackSpine, linkFor, packedIn, viewOptionsIn, viewLinkFor } from '../src/io/share.js';
 import { stlOf, objOf } from '../src/io/print.js';
 import { zipOf, crc32 } from '../src/io/zip.js';
 import { standFor } from '../src/core/stand.js';
 import { smoother } from '../src/core/smooth.js';
 import zlib from 'node:zlib';
 import { buildScene } from '../src/view/scene.js';
-import { sheetOf, pictureOf, placeAbout, firstPlace, cornersOf, depthOf, fitTrace, followTrace, runOf, spotsAlong, toneTable, tonePicture, quadMatrix, USUAL_TONE } from '../src/core/trace.js';
+import { sheetOf, pictureOf, placeAbout, firstPlace, cornersOf, depthOf, fitTrace, followTrace, levelNear, runOf, spotsAlong, toneTable, tonePicture, quadMatrix, USUAL_TONE } from '../src/core/trace.js';
+import { gifOf } from '../src/io/gif.js';
+import { stepCount, stepHere, captionOf, stepSpine, addStep, goStep, removeStep, moveStep, setCaption, blend } from '../src/core/story.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const spine = JSON.parse(fs.readFileSync(path.join(root, 'examples', 'fusion-t4-l2.spine.json'), 'utf8'));
@@ -727,8 +729,8 @@ ok('the model is written as an STL file: every face, to scale, pointing outward'
   const volume = (tris) => tris.reduce((s, t) => s + (t[3] * (t[7] * t[11] - t[8] * t[10]) - t[4] * (t[6] * t[11] - t[8] * t[9]) + t[5] * (t[6] * t[10] - t[7] * t[9])) / 6, 0);
   const round = ball([0, 0, 0], 10), inside = { positions: round.positions, indices: round.indices.map((x, i, all) => all[i - (i % 3) + [0, 2, 1][i % 3]]) };
   const shift = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 100, 0, 0, 1]);
-  const bytes = stlOf([{ mesh: round }, { mesh: inside, matrix: shift }], 0.5, 'Spine Builder test'), tris = read(bytes);
-  assert.equal(new TextDecoder().decode(bytes.slice(0, 18)), 'Spine Builder test');
+  const bytes = stlOf([{ mesh: round }, { mesh: inside, matrix: shift }], 0.5, 'Spine-Design test'), tris = read(bytes);
+  assert.equal(new TextDecoder().decode(bytes.slice(0, 17)), 'Spine-Design test');
   assert.ok(tris.length <= (2 * round.indices.length) / 3 && tris.length > (1.6 * round.indices.length) / 3 && tris.length % 2 === 0, tris.length + ' faces');
   // two balls of 5 mm radius, the second one 50 mm along, both counted as solid (not as a hole)
   assert.ok(volume(tris) > 950 && volume(tris) < 1050, 'volume ' + volume(tris).toFixed(0));
@@ -787,6 +789,121 @@ ok('a trace over a picture fits the spine to it and finds the size of the pictur
     const other = plane === 0 ? 1 : 0, plain = openExample('average.spine.json');
     assert.ok(s.levels.every((l, i) => Math.abs(l.tilt[other] - plain.levels[i].tilt[other]) < 1e-9 && l.turn === plain.levels[i].turn));
   }
+});
+ok('a sketch holds steps: added, opened, moved, taken out, and kept in a file that old readers still open', () => {
+  const s = openExample('average.spine.json');
+  assert.equal(stepCount(s), 1); assert.equal(stepHere(s), 0);
+  const straight = JSON.stringify(s.levels);
+  assert.ok(addStep(s, 'After'));
+  assert.equal(stepCount(s), 2); assert.equal(stepHere(s), 1); assert.equal(captionOf(s, 0), 'Step 1'); assert.equal(captionOf(s, 1), 'After');
+  // the new step starts as a copy, and changing it leaves the first alone
+  assert.equal(JSON.stringify(s.levels), straight);
+  s.levels.find((l) => l.id === 'T8').centre[0] += 30; s.marks.push({ kind: 'note', text: 'Here', at: [0, 0, 300] });
+  const bent = JSON.stringify(s.levels);
+  assert.equal(JSON.stringify(stepSpine(s, 0).levels), straight); assert.equal(stepSpine(s, 1), s);
+  assert.deepEqual(validateSpine(s), []);
+  // a reader that knows nothing of steps sees the open step: the file is still a spine at its top level
+  const plain = JSON.parse(JSON.stringify(s)); delete plain.steps;
+  assert.deepEqual(validateSpine(plain), []); assert.equal(JSON.stringify(plain.levels), bent);
+  // opening the other step swaps them, and back again
+  assert.ok(goStep(s, 0)); assert.equal(stepHere(s), 0); assert.equal(JSON.stringify(s.levels), straight); assert.equal(s.marks.length, 0);
+  assert.equal(JSON.stringify(stepSpine(s, 1).levels), bent); assert.equal(stepSpine(s, 1).marks.length, 1);
+  assert.ok(goStep(s, 1)); assert.equal(JSON.stringify(s.levels), bent); assert.equal(captionOf(s, 1), 'After');
+  assert.equal(goStep(s, 1), false); assert.equal(goStep(s, 5), false);
+  // through a file and back
+  const again = JSON.parse(JSON.stringify(s));
+  assert.deepEqual(validateSpine(again), []); assert.equal(stepHere(again), 1); assert.equal(JSON.stringify(stepSpine(again, 0).levels), straight);
+  // order, words, and taking one out
+  assert.ok(addStep(s, 'Later')); assert.equal(stepHere(s), 2); assert.ok(moveStep(s, 2, -1)); assert.equal(stepHere(s), 1); assert.equal(captionOf(s, 2), 'After');
+  assert.ok(setCaption(s, 0, 'Before')); assert.equal(captionOf(s, 0), 'Before');
+  assert.ok(removeStep(s, 1)); assert.equal(stepCount(s), 2); assert.equal(stepHere(s), 0); assert.equal(JSON.stringify(s.levels), straight);
+  assert.ok(removeStep(s, 1)); assert.equal(s.steps, undefined); assert.equal(stepCount(s), 1); assert.equal(removeStep(s, 0), false);
+  // no more than a sketch can hold
+  for (let i = 1; i < MOST_STEPS; i++) assert.ok(addStep(s));
+  assert.equal(addStep(s), false); assert.deepEqual(validateSpine(s), []);
+  // files that are not right are refused in plain words
+  const bad = JSON.parse(JSON.stringify(again)); bad.steps[0].levels[3].centre = 'x';
+  assert.ok(validateSpine(bad).some((p) => p.startsWith('Step 1: ')));
+  const two = JSON.parse(JSON.stringify(again)); two.steps[0].here = true;
+  assert.ok(validateSpine(two).length > 0);
+  assert.ok(validateSpine({ ...JSON.parse(JSON.stringify(again)), steps: 'no' }).length > 0);
+});
+ok('two steps blend: the bones go evenly from one to the other and the hardware rides along', () => {
+  const a = openExample('average.spine.json'), b = openExample('fusion-t4-l2.spine.json');
+  assert.equal(blend(a, b, 0).spine, a); assert.equal(blend(a, b, 1).spine, b);
+  const before = JSON.stringify([a, b]), half = blend(a, b, 0.5);
+  assert.equal(JSON.stringify([a, b]), before, 'blending changed the steps themselves');
+  for (const id of ['T4', 'T9', 'L2']) {
+    const la = a.levels.find((l) => l.id === id), lb = b.levels.find((l) => l.id === id), lh = half.spine.levels.find((l) => l.id === id);
+    for (let j = 0; j < 3; j++) assert.ok(Math.abs(lh.centre[j] - (la.centre[j] + lb.centre[j]) / 2) < 0.02, id + ' is not half way');
+    assert.ok(Math.abs(lh.turn - (la.turn + lb.turn) / 2) < 0.02);
+  }
+  assert.deepEqual(validateSpine({ ...half.spine, steps: undefined }), []);
+  // only the second has hardware: it is shown on the way, coming in softly, and it sits on its bones
+  assert.equal(half.spine.hardware.screws.length, b.hardware.screws.length);
+  assert.ok(blend(a, b, 0.2).fade === 0 && half.fade > 0 && half.fade < 1 && blend(a, b, 0.9).fade === 1);
+  const screw = half.spine.hardware.screws[0], bone = half.spine.levels.find((l) => l.id === screw.level);
+  assert.ok(Math.hypot(...screw.head.map((v, j) => v - bone.centre[j])) < 60, 'a screw is far from its vertebra on the way');
+  // and the other way round it goes out softly
+  assert.ok(blend(b, a, 0.1).fade === 1 && blend(b, a, 0.8).fade === 0);
+  // the first has a neck and the second has none: the neck is there near the first and gone near the second,
+  // and on the way it stays on top of the chest
+  const has = (x, id) => x.spine.levels.some((l) => l.id === id), early = blend(a, b, 0.3), late = blend(a, b, 0.7);
+  assert.ok(has(early, 'C4') && !has(late, 'C4') && has(late, 'T4') && early.spine.levels.length === a.levels.length && late.spine.levels.length === b.levels.length);
+  const c7 = early.spine.levels.find((l) => l.id === 'C7'), t1 = early.spine.levels.find((l) => l.id === 'T1'), gap = (x) => { const p = x.levels.find((l) => l.id === 'C7').centre, q = x.levels.find((l) => l.id === 'T1').centre; return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
+  assert.ok(Math.abs(Math.hypot(...c7.centre.map((v, j) => v - t1.centre[j])) - gap(a)) < 1.5, 'the neck came off the chest on the way');
+  assert.deepEqual(validateSpine({ ...early.spine, steps: undefined }), []);
+  // spines with next to nothing in common change over half way
+  const short = openExample('average.spine.json'); short.levels = short.levels.filter((l) => l.id === 'L5' || l.id === 'S1');
+  const top = openExample('average.spine.json'); top.levels = top.levels.filter((l) => /^[CT]/.test(l.id) || l.id === 'L5');
+  assert.equal(blend(top, short, 0.4).spine, top); assert.equal(blend(top, short, 0.6).spine, short);
+});
+ok('a link to the viewer says how to show the sketch, and anything it cannot read is left out', () => {
+  const link = viewLinkFor('https://example.org/view.html#old', 'AbC_-9', { shade: 'chrome', back: 'white', names: true, turn: true, around: 0.9, tilt: 0.204 });
+  assert.equal(link, 'https://example.org/view.html#spine=AbC_-9&shade=chrome&back=white&names=1&turn=1&at=0.9,0.2');
+  const hash = link.slice(link.indexOf('#'));
+  assert.equal(packedIn(hash), 'AbC_-9');
+  assert.deepEqual(viewOptionsIn(hash), { shade: 'chrome', back: 'white', names: true, turn: true, around: 0.9, tilt: 0.2 });
+  // the usual look needs no words, and a plain link still reads as it did
+  assert.equal(viewLinkFor('view.html', 'x', { shade: 'soft', back: 'dark' }), 'view.html#spine=x');
+  assert.equal(packedIn('#spine=AbC_-9'), 'AbC_-9'); assert.deepEqual(viewOptionsIn('#spine=AbC_-9'), {});
+  // nothing but letters, digits and a few signs gets through, and wild numbers are held in
+  assert.equal(packedIn('#spine=abc&shade=<script>'), null); assert.equal(packedIn('#spine=abc&x'), null); assert.deepEqual(viewOptionsIn('#shade=chrome'), {});
+  assert.deepEqual(viewOptionsIn('#spine=a&shade=CHROME1&at=99,-9&names=0&zzz=1'), { around: 7, tilt: -1.5, names: false });
+  assert.deepEqual(viewOptionsIn('#spine=a&at=x,1'), {});
+});
+ok('pictures go into a GIF file that says what it is, how large, and how many pictures it holds', () => {
+  const w = 40, h = 30, frames = [];
+  for (let f = 0; f < 5; f++) { const a = new Uint8ClampedArray(w * h * 4); for (let i = 0; i < a.length; i += 4) { a[i] = (i / 4 + f * 9) % 256; a[i + 1] = (i / 7) % 256; a[i + 2] = f * 40; a[i + 3] = 255; } frames.push(a); }
+  const gif = gifOf(frames, w, h, 8), text = (from, n) => String.fromCharCode(...gif.slice(from, from + n));
+  assert.equal(text(0, 6), 'GIF89a'); assert.equal(gif[6] + gif[7] * 256, w); assert.equal(gif[8] + gif[9] * 256, h);
+  assert.equal(gif[gif.length - 1], 0x3b);
+  assert.equal(text(13 + 768 + 3, 11), 'NETSCAPE2.0');
+  // each picture starts with its time on screen: five of them, 8 hundredths of a second each
+  let count = 0;
+  for (let i = 13 + 768; i < gif.length - 8; i++) if (gif[i] === 0x21 && gif[i + 1] === 0xf9 && gif[i + 2] === 4 && gif[i + 4] === 8 && gif[i + 8] === 0x2c) count++;
+  assert.equal(count, 5);
+  // one flat colour squeezes to next to nothing
+  const flat = new Uint8ClampedArray(w * h * 4).fill(200);
+  assert.ok(gifOf([flat], w, h, 8).length < 13 + 768 + 19 + 60 + 120);
+});
+ok('with the size of the picture known, a trace needs only its lowest vertebra, and its top is found', () => {
+  const size = [900, 1500], ids = ['L4', 'L2', 'T12', 'T10', 'T8', 'T6', 'T4'];
+  for (const [file, plane] of [['curve-chest-45.spine.json', 0], ['round-back.spine.json', 1]]) {
+    const target = openExample(file), s = openExample('average.spine.json'), rig = rigOf(s);
+    const real = { plane, at: [14, 270], k: 0.43, turn: 0, flip: false }, points = marksOn(target, real, size, ids);
+    // the picture starts in the wrong place and at the wrong size: only the measured size is given
+    const fit = fitTrace(s, rig, { ...firstPlace(s, plane, size) }, size, points, null, 'L4', { k: real.k });
+    assert.ok(fit && fit.place.k === real.k, file + ': the measured size was not kept');
+    assert.equal(fit.top, 'T4', file + ': the trace was found to end at ' + fit.top);
+    assert.ok(fit.miss < 8, file + ': the top of the trace ends ' + fit.miss + ' mm from T4');
+    const axis = plane === 0 ? 0 : 1, low = sheetOf(fit.place, size, points[0]), l4 = s.levels.find((l) => l.id === 'L4');
+    assert.ok(Math.hypot(low[0] - l4.centre[axis], low[1] - l4.centre[2]) < 3, file + ': the bottom of the trace is off L4');
+    assert.equal(levelNear(s, plane, low).id, 'L4');
+  }
+  // without a size, and without a top, there is nothing to go by
+  const s = openExample('average.spine.json');
+  assert.equal(fitTrace(s, rigOf(s), firstPlace(s, 0, size), size, [[450, 1200], [450, 300]], null, 'L4'), null);
 });
 ok('a trace that is too short is refused, locked vertebrae stay put, and a moved picture is followed where it lies', () => {
   const size = [900, 1500], target = openExample('curve-chest-45.spine.json'), real = { plane: 0, at: [0, 270], k: 0.43, turn: 0, flip: false };

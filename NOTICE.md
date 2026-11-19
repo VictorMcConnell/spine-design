@@ -1,6 +1,6 @@
 # Notices
 
-Spine Builder's own code is under the MIT licence (see [LICENSE](LICENSE)). One part of the
+Spine-Design's own code is under the MIT licence (see [LICENSE](LICENSE)). One part of the
 app comes from somebody else's work and keeps its own licence.
 
 ## Bone shapes: BodyParts3D

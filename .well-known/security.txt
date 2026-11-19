@@ -1,4 +1,4 @@
-# Found a security problem in Spine Builder? Thank you for saying so.
+# Found a security problem in Spine-Design? Thank you for saying so.
 # The page below is public. Please do not post the details of a problem that is not fixed yet:
 # say that you have one and ask for a private way to send it.
 Contact: https://github.com/VictorMcConnell/spine-design/issues

@@ -249,7 +249,7 @@ export function createRenderer(canvas) {
 
   // the camera looks at "target" from a direction (around, tilt) and a distance
   const camera = { around: 0.5, tilt: 0.12, distance: 900, target: [0, 0, 250] };
-  let items = [], matrix = null, pending = false, onDraw = null, tool = null, back = [0.075, 0.08, 0.1];
+  let items = [], matrix = null, pending = false, only = null, onDraw = null, tool = null, back = [0.075, 0.08, 0.1];
   const IDENTITY = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
   // Shapes already sent to the graphics card, kept by mesh. A mesh that shows up again in the
   // next list (a vertebra that only moved) is not sent twice. An item can carry a "matrix"
@@ -296,6 +296,8 @@ export function createRenderer(canvas) {
     matrix = matMul(proj, view);
     const xray = shading.mode === 3, night = !!shading.night, near = c.distance * 0.05, far = c.distance * 6;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    // (a picture of one piece only: nothing outside the piece is touched, in this pass or the second)
+    if (only) { gl.enable(gl.SCISSOR_TEST); gl.scissor(Math.floor(only[0]), Math.floor(h - only[1] - only[3]), Math.ceil(only[2]) + 1, Math.ceil(only[3]) + 1); }
     gl.viewport(0, 0, w, h); gl.clearColor(night ? 0 : back[0], night ? 0 : back[1], night ? 0.01 : back[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST); gl.useProgram(program);
     gl.uniformMatrix4fv(loc.uView, false, view); gl.uniformMatrix4fv(loc.uProj, false, proj); gl.uniform1i(loc.uMode, shading.mode);
@@ -351,7 +353,7 @@ export function createRenderer(canvas) {
       gl.uniform3fv(loc.uColor, it.color); gl.uniform1f(loc.uAlpha, 1); gl.uniformMatrix4fv(loc.uModel, false, m);
       gl.bindVertexArray(it.vao); gl.drawElements(gl.TRIANGLES, it.count, gl.UNSIGNED_INT, 0);
     }
-    gl.enable(gl.DEPTH_TEST); gl.bindVertexArray(null);
+    gl.enable(gl.DEPTH_TEST); gl.bindVertexArray(null); gl.disable(gl.SCISSOR_TEST);
     if (onDraw) onDraw();
   }
 
@@ -419,7 +421,9 @@ export function createRenderer(canvas) {
     else { camera.around -= dx * 0.008; camera.tilt = Math.max(-1.45, Math.min(1.45, camera.tilt + dy * 0.008)); }
     requestDraw();
   });
-  canvas.addEventListener('wheel', (e) => { e.preventDefault(); camera.distance = Math.max(80, Math.min(4000, camera.distance * Math.exp(e.deltaY * 0.0012))); requestDraw(); }, { passive: false });
+  // (inside another page the wheel belongs to that page until the model has been pressed: see wheelIf)
+  let wheelOk = () => true;
+  canvas.addEventListener('wheel', (e) => { if (!wheelOk()) return; e.preventDefault(); camera.distance = Math.max(80, Math.min(4000, camera.distance * Math.exp(e.deltaY * 0.0012))); requestDraw(); }, { passive: false });
 
   function pan(dx, dy) {
     const k = camera.distance * 0.0011, right = [Math.cos(camera.around), -Math.sin(camera.around), 0];
@@ -443,7 +447,9 @@ export function createRenderer(canvas) {
   return { canvas, camera, setItems, requestDraw, project, frame, look, ray, screenScale, eye: () => eyeAxes().eye, items: () => items, afterDraw: (fn) => { onDraw = fn; }, setTool: (t) => { tool = t; }, setBackground: (rgb) => { back = rgb; requestDraw(); }, setShading: (name) => { shading = SHADINGS[name] || SHADINGS.soft; requestDraw(); }, secondPassOn: () => !!second,
     // draw now, without the handles, and hand back the canvas: right after this call the
     // picture can be copied off it
-    picture: () => { bare = true; draw(); bare = false; requestDraw(); return canvas; },
-    // draws at once, not on the next frame: for putting the view back after a picture in another shading
-    drawNow: () => draw() };
+    // say when the wheel zooms: fn returns true when it may
+    wheelIf: (fn) => { wheelOk = fn; },
+    // piece: [left, top, width, height] in pixels of the canvas. Only that piece is drawn, which costs far less
+    // than the whole picture when the piece is small. The rest of the canvas is not to be used.
+    picture: (piece) => { bare = true; only = piece || null; draw(); bare = false; only = null; requestDraw(); return canvas; } };
 }

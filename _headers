@@ -5,10 +5,25 @@
 # not to pass on where a visitor came from and not to offer camera, microphone or location.
 # The last one tells the browser to come back over HTTPS only, for the next year.
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-O9pAKhOp32L+EDXpa8lpklDDAEKauKCTUGdI+ei2nIw=' 'sha256-4j+b2/bl47HWdpg8R5eaaROb5tmqkOkgxS992TQhWyQ='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-6XAwK1vjh2iIAc9tXzP29LKA5XIC9jCtJ0MpqQ+ZScY=' 'sha256-10AtC4B+Geca8jUoDrn6Dl0CPg4qkTK25MiSeE90Lso='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
   Strict-Transport-Security: max-age=31536000
+
+# The viewer (view.html) is the one page that may be shown inside other sites: it only shows a
+# sketch and changes nothing. The two lines with "!" take away what the rule above set for
+# every page, and the line after them sets the same rule again without the ban on frames.
+# Cloudflare serves view.html as /view, so both addresses are named.
+/view
+  ! Content-Security-Policy
+  ! X-Frame-Options
+  ! Cross-Origin-Opener-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-6XAwK1vjh2iIAc9tXzP29LKA5XIC9jCtJ0MpqQ+ZScY=' 'sha256-10AtC4B+Geca8jUoDrn6Dl0CPg4qkTK25MiSeE90Lso='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors *
+/view.html
+  ! Content-Security-Policy
+  ! X-Frame-Options
+  ! Cross-Origin-Opener-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-6XAwK1vjh2iIAc9tXzP29LKA5XIC9jCtJ0MpqQ+ZScY=' 'sha256-10AtC4B+Geca8jUoDrn6Dl0CPg4qkTK25MiSeE90Lso='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors *

@@ -43,7 +43,7 @@ export function setupGuide(app, host) {
       ['Points', 'shape:points', 'A line with a few points lies over the spine. Drag a point and the spine follows.'],
       ['One bone', 'shape:one', 'Pick one vertebra and move it, turn it or resize it on its own.'],
       ['Lock', 'shape:lock', 'Pick vertebrae that stay where they are while the rest is shaped.'],
-      ['X-ray', 'shape:xray', 'Lay a picture of an X-ray over the model or beside it, trace the spine on it and the model takes that shape. The picture stays on this device.'],
+      ['X-ray', 'shape:xray', 'Lay a picture of an X-ray over the model or beside it, trace the spine on it and the model takes that shape. Do it from the back and from the side for both directions. The picture stays on this device.'],
     ] },
     { id: 'parts', name: 'Hardware', says: 'Put screws, hooks, rods and cross-links on the spine. The map beside the model has a row for every vertebra.', tools: [
       ['Turn', 'parts:turn', 'Pick a part to change it: drag a screw to another vertebra, set its length and thickness, or remove it.'],
@@ -59,6 +59,12 @@ export function setupGuide(app, host) {
       ['Note', 'marks:note', 'Point at a spot and write a few words about it.'],
       ['Turn', 'marks:turn', 'Pick a pain point or a note to change it or remove it.'],
     ] },
+    { id: 'story', name: 'Story', says: 'The same spine at several moments, such as before and after an operation, and ways to show them.', tools: [
+      ['Add a step', '#stepAdd', 'A step starts as a copy of the spine as it is. Change it with the other tools and the steps before it stay as they were.'],
+      ['The steps', '#stepList', 'Give each step a few words, open it, move it up or down the order, or take it out.'],
+      ['Compare', '[data-compare="side"]', 'Two steps side by side, or Blend: a slider that takes one step over into the other.'],
+      ['The steps bar', '#storyBar', 'Under the model once there are two steps: the step before, the next one, and Play.'],
+    ] },
     { id: 'look', name: 'Look', says: 'How the sketch is drawn. Nothing here changes its shape.', tools: [
       ['Shading', '#shades', 'Soft, clay, a line drawing, an X-ray look or plain color. Then six for fun: matte, chrome, gold, candy, rainbow and neon.'],
       ['Sets of colors', '#paletteRow', 'One press colors all the hardware. By level gives the parts of each vertebra a color of their own.'],
@@ -69,7 +75,7 @@ export function setupGuide(app, host) {
     ] },
     { id: 'share', name: 'Share and the top bar', says: 'Keep the sketch or pass it on. Nothing leaves your device unless you send it yourself.', tools: [
       ['Bone names', '#namesBox', 'Tick it to put the name of each vertebra beside it. It is in the top bar whatever you are working on.'],
-      ['Share', '#shareBtn', 'Save a picture, copy a link that holds the whole sketch, save the file or export it for a 3D printer.'],
+      ['Share', '#shareBtn', 'Save a picture or a moving picture, copy a link that holds the whole sketch with its steps, print a page, get code that shows the sketch on your own web page, save the file or export it for a 3D printer.'],
       ['Stand', '[data-stand]', 'Puts the model on a stand, the way it is printed. On a small screen it is under View.'],
       ['Reset', '[data-reset]', 'Reset the view puts colors, shading and background back. Reset the model gives a straight normal spine. On a small screen both are under View.'],
       ['New', '#newBtn', 'Start from one of the made-up shapes, or open a sketch you saved.'],
@@ -96,7 +102,7 @@ export function setupGuide(app, host) {
   // open the place a tool is in, take it in hand and show it
   function showTool(part, where) {
     if (/^[a-z]+:[a-z]+$/.test(where)) { const [tab, tool] = where.split(':'); go(tab, tool); return '#tray [data-tools="' + tab + '"] [data-t="' + tool + '"]'; }
-    if (part.id === 'look') go('look'); else if (part.id === 'parts') go('parts', 'turn');
+    if (part.id === 'look') go('look'); else if (part.id === 'story') go('story'); else if (part.id === 'parts') go('parts', 'turn');
     return where;
   }
 

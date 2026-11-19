@@ -66,7 +66,7 @@ const head = ['<meta http-equiv="Content-Security-Policy" content="' + escape(po
 if (address) {
   // for previews where a link to the site is posted
   const words = 'Sketch a spine in 3D and shape it to look like your own. Free, open source and private.';
-  head.push('<link rel="canonical" href="' + escape(address) + '/">', '<meta property="og:type" content="website">', '<meta property="og:title" content="Spine Builder">',
+  head.push('<link rel="canonical" href="' + escape(address) + '/">', '<meta property="og:type" content="website">', '<meta property="og:title" content="Spine-Design">',
     '<meta property="og:description" content="' + words + '">', '<meta property="og:url" content="' + escape(address) + '/">', '<meta property="og:image" content="' + escape(address) + '/picture.png">',
     '<meta name="twitter:card" content="summary_large_image">');
 }
@@ -80,6 +80,12 @@ swap('<script type="module" src="ui/app.js"></script>', scripts.map((text) => '<
 
 // The headers file is the same rule again, for hosts that can send it with the page.
 fs.writeFileSync(path.join(root, 'index.html'), html);
+// The viewer is the same page with one mark on it (data-viewer), which the app reads when it starts: it then shows a
+// sketch and nothing else. It is a file of its own so that it alone may be shown inside other sites (see tools/headers.txt).
+const mark = (page, from, to) => { if (!page.includes(from)) throw new Error('the page no longer contains ' + from); return page.replace(from, () => to); };
+// (the one button that takes the focus when its sheet opens loses that here: the sheet never opens in the viewer, and a
+// browser complains in the console of the page around it when a framed page asks for the focus)
+fs.writeFileSync(path.join(root, 'view.html'), mark(mark(mark(html, '<html lang="en">', '<html lang="en" data-viewer>'), '<title>Spine-Design</title>', '<title>Spine-Design viewer</title>\n<meta name="robots" content="noindex">'), ' class="main" autofocus>', ' class="main">'));
 fs.writeFileSync(path.join(root, '_headers'), fs.readFileSync(path.join(root, 'tools', 'headers.txt'), 'utf8').replace(/\{\{policy\}\}/g, policy));
 console.log('index.html written,', Math.round(html.length / 1024), 'KB,', order.length, 'modules,', Object.keys(examples).length, 'example(s), version', version);
 console.log('_headers written', address ? '| hosted at ' + address : '| no address set in site.json');

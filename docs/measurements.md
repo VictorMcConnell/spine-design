@@ -1,6 +1,6 @@
 # Where the measurements come from
 
-The shapes in Spine Builder are drawn by code from plain measurements. No existing 3D model of
+The shapes in Spine-Design are drawn by code from plain measurements. No existing 3D model of
 a spine or of an implant was used to make them.
 
 The starting point is three spreadsheets of general, typical measurements put together for

@@ -186,10 +186,13 @@ body.clean .xmarks { display: none; }
 /* the same picture beside the model: it fills its box as far as it can without being cut */
 #xrayBox { width: 46vw; height: 100%; }
 #xrayWrap { position: relative; height: 100%; min-height: 160px; border: 1px solid var(--line); border-radius: 12px; background: #000; overflow: hidden; touch-action: none; }
-#xrayWrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+#xrayWrap canvas { position: absolute; }
+.xmarks .xrule { stroke: #ffc84d; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 2 7; }
+#xRuleSet input { flex: 0 1 6em; min-width: 0; }
+#xrayNext { flex: 1; }
 #xraySvg { pointer-events: auto; cursor: crosshair; }
 #xrayPick { flex: 1; }
-#xFlip, #xrayBack { flex: 1 1 auto; white-space: nowrap; }
+#xFlip, #xrayBack, #xQuarter { flex: 1 1 auto; white-space: nowrap; }
 #xFlip .i { width: 18px; height: 18px; }
 /* the two tools of the X-ray float over the model, ringed in the green of the trace, so that what a drag does is in plain sight */
 #xrayBar { position: absolute; z-index: 3; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; gap: 4px; max-width: calc(100% - 16px); padding: 5px; border: 1.5px solid #5fe0c5; border-radius: 16px; background: rgba(28, 30, 39, 0.96); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 0 4px rgba(95, 224, 197, 0.16); }
@@ -208,6 +211,7 @@ body.clean #xrayBar { display: none; }
 [data-card="xray"] details.fold summary { padding: 6px 0; }
 #xraySay:empty { display: none; }
 /* (on a phone this card stays lower than the others, so that there is room to trace on the picture above it) */
+#card:has([data-card="story"]:not([hidden])) { max-height: 40dvh; }
 #card:has([data-card="xray"]:not([hidden])) { max-height: 37dvh; }
 
 /* the flat view beside the model */
@@ -282,7 +286,7 @@ body.clean #xrayBar { display: none; }
 #tray button { position: relative; flex: 1 1 0; min-width: 0; flex-direction: column; gap: 3px; min-height: 58px; padding: 4px 2px; border: 0; border-radius: 13px; background: none; color: var(--soft); font-size: 11.5px; white-space: nowrap; }
 #tray button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 650; }
 #tray kbd { display: none; }
-body[data-at="look"] #tools, body.carded #tools { display: none; }
+body[data-at="look"] #tools, body[data-at="story"] #tools, body.carded #tools { display: none; }
 
 /* the card of what is selected, or of a tool that works with sliders */
 #side { grid-column: 1 / -1; grid-row: 3; min-width: 0; }
@@ -372,6 +376,9 @@ button.big span { display: flex; flex-direction: column; }
 button.big em { font-style: normal; font-size: 12.5px; color: var(--soft); }
 button.big.main em { color: rgba(20, 21, 28, 0.78); font-weight: 400; }
 #linkText { width: 100%; margin: 0 0 4px; font-size: 12px; }
+#embedBox { margin: 0 0 8px; padding: 2px 4px; }
+#embedText { display: block; width: 100%; margin: 6px 0; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; resize: vertical; word-break: break-all; }
+#embedSee { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; color: var(--accent); }
 #printBox { margin: 0 0 8px; padding: 4px 12px 8px; border: 1px solid var(--line); border-radius: 14px; }
 #welcome { width: min(560px, 94vw); max-height: 92dvh; overflow: auto; padding: 20px 22px; border-radius: 16px; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55); }
 #welcome h2 { margin: 0 0 10px; font-size: 20px; }
@@ -393,7 +400,7 @@ button.big.main em { color: rgba(20, 21, 28, 0.78); font-weight: 400; }
   #modes button[aria-current="true"]::before { top: auto; bottom: 0; }
   main { flex: none; grid-template-rows: auto auto auto; }
   #stage { height: 230px; }
-  #card, #card:has([data-card="xray"]:not([hidden])) { max-height: none; }
+  #card, #card:has([data-card="xray"]:not([hidden])), #card:has([data-card="story"]:not([hidden])) { max-height: none; }
 }
 
 /* ---- the clean view: the model alone, for a picture of the screen */
@@ -411,7 +418,10 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
   .tb { min-height: 38px; border-radius: 11px; background: var(--second); }
   .tb.icon, #guideBtn { width: 38px; }
   /* (below the widest layout the bar keeps New and View as pictures, so the bone names fit) */
-  @media (max-width: 1279px), (max-height: 559px) { #newBtn span, #viewBtn span { display: none; } #newBtn, #viewBtn { width: 38px; padding: 0; } }
+  @media (max-width: 1359px), (max-height: 559px) { #newBtn span, #viewBtn span { display: none; } #newBtn, #viewBtn { width: 38px; padding: 0; } }
+  /* (five places to work on: closer together until the bar has room, and without their pictures on a phone held sideways) */
+  @media (max-width: 1099px) { #topbar #modes button { padding: 0 8px; gap: 5px; font-size: 13px; } }
+  @media (max-height: 559px) { #modes .i { display: none; } }
   #modes { position: static; height: auto; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 13px; background: var(--bg); }
   #modes button { flex: none; flex-direction: row; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: 10px; font-size: 14px; }
   #modes button[aria-current="true"] { background: var(--pressed); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
@@ -432,10 +442,10 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
   #says p { max-width: 560px; }
   #stripBtn { left: 10px; right: auto; }
   #side { grid-column: 3; grid-row: 1 / 3; overflow: auto; padding: 14px 16px; border-left: 1px solid var(--line); background: var(--surface); }
-  #card, #card:has([data-card="xray"]:not([hidden])) { max-height: none; overflow: visible; padding: 0 0 12px; margin-bottom: 14px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
-  body[data-at="look"] #card { border-bottom: 0; margin-bottom: 0; }
+  #card, #card:has([data-card="xray"]:not([hidden])), #card:has([data-card="story"]:not([hidden])) { max-height: none; overflow: visible; padding: 0 0 12px; margin-bottom: 14px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+  body[data-at="look"] #card, body[data-at="story"] #card { border-bottom: 0; margin-bottom: 0; }
   #listBox { display: block; }
-  body[data-at="look"] #listBox { display: none; }
+  body[data-at="look"] #listBox, body[data-at="story"] #listBox { display: none; }
   #listBox h2 { margin-bottom: 4px; }
   #list button { display: block; width: 100%; min-height: 0; margin: 4px 0; padding: 7px 10px; text-align: left; font-size: 13.5px; background: var(--bg); }
   .fine { display: block; }
@@ -462,7 +472,7 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
   body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
 }
 /* with room to spare, the top bar also holds the name, Open and Save, and the views as buttons of their own */
-@media (min-width: 1280px) and (min-height: 560px) {
+@media (min-width: 1360px) and (min-height: 560px) {
   .roomy { display: inline-flex !important; }
   /* (the set views and Fit have a place in the bar only on a very wide screen. They are always under View.) */
   @media (min-width: 1840px) { .vast { display: inline-flex !important; } }
@@ -493,3 +503,82 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
   [data-card="fill"] .row:has(#gBuild) { position: sticky; bottom: -10px; margin: 10px -12px -10px; padding: 8px 12px 10px; background: var(--surface); border-top: 1px solid var(--line); }
   #side { scroll-padding-bottom: 70px; }
 }
+
+/* ---- the story: steps, two spines side by side, the page to print */
+#storyBar { position: absolute; z-index: 3; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; max-width: calc(100% - 16px); padding: 4px; border: 1px solid var(--line); border-radius: 16px; background: rgba(28, 30, 39, 0.95); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); }
+#storyBar[hidden] { display: none; }
+#storyBar p { display: flex; flex-direction: column; align-items: center; min-width: 96px; max-width: min(46vw, 320px); margin: 0 6px; font-size: 13.5px; line-height: 1.25; text-align: center; }
+#storyBar b { font-size: 11.5px; font-weight: 600; color: var(--soft); letter-spacing: 0.02em; }
+#storyBar span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+#storyBar span:empty { display: none; }
+#storyBar button { width: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 12px; background: none; }
+#storyBar button:disabled { opacity: 0.35; }
+#storyBar #stepPlay { color: var(--accent); }
+#storyBar #stepPlay.on { background: var(--toggle); color: var(--toggle-ink); }
+#storyBar #stepPlay .i { fill: currentColor; }
+/* (the two X-ray tools float in the same place: with them out, the steps sit above them) */
+#xrayBar:not([hidden]) ~ #storyBar { bottom: 74px; }
+body.stripped #stripBtn ~ #storyBar { }
+#pairCaps { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+#pairCaps[hidden] { display: none; }
+#pairCaps span { position: absolute; left: 0; top: 0; padding: 3px 10px; border-radius: 10px; background: rgba(19, 20, 24, 0.8); color: #eceae5; font-size: 13px; font-weight: 600; white-space: nowrap; }
+/* (on a phone the model keeps more than half of the screen while its steps are worked on) */
+#stepList { margin: 6px 0; padding: 0; list-style: none; }
+#stepList li { display: flex; align-items: center; gap: 4px; margin: 4px 0; padding: 3px; border: 1px solid transparent; border-radius: 12px; }
+#stepList li.here { border-color: var(--accent); background: var(--pressed); }
+#stepList .go { flex: 0 0 34px; min-height: 36px; padding: 0; font-weight: 650; }
+#stepList input { flex: 1; min-width: 0; min-height: 36px; padding: 0 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font: inherit; font-size: 14px; }
+#stepList .icon { flex: 0 0 30px; width: 30px; min-height: 34px; padding: 0; border: 0; background: none; color: var(--soft); font-size: 16px; }
+#stepList .icon:disabled { opacity: 0.3; }
+#compareBox .pair select { flex: 1 1 90px; }
+#blendPlay, #noteGo { flex: 1; }
+#clipBox { margin: 0 0 8px; padding: 2px 4px; }
+#printPage { display: none; }
+@media print {
+  html, body { height: auto !important; overflow: visible !important; padding: 0 !important; background: #fff !important; }
+  body > *:not(#printPage) { display: none !important; }
+  #printPage { display: block; color: #111; font: 11pt/1.4 system-ui, sans-serif; }
+  #printPage h1 { margin: 0 0 2pt; font-size: 18pt; }
+  #printPage h2 { margin: 12pt 0 2pt; font-size: 13pt; }
+  #printPage h3 { margin: 8pt 0 2pt; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.05em; color: #555; }
+  #printPage p { margin: 2pt 0; }
+  #printPage .what, #printPage .foot { font-size: 9pt; color: #555; }
+  #printPage .foot { margin-top: 12pt; padding-top: 6pt; border-top: 0.5pt solid #bbb; }
+  #printPage ul { margin: 0; padding-left: 14pt; }
+  #printPage .views { display: flex; flex-wrap: wrap; gap: 8pt 14pt; margin: 8pt 0; }
+  #printPage figure { display: flex; flex-wrap: wrap; gap: 6pt; margin: 0; break-inside: avoid; }
+  #printPage figure div { display: flex; flex-direction: column; align-items: center; }
+  #printPage figure img { height: 122mm; width: auto; }
+  #printPage.two figure img { height: 76mm; }
+  #printPage h2, #printPage h3 { break-after: avoid; }
+  #printPage li { break-inside: avoid; }
+  #printPage.many figure img { height: 60mm; }
+  #printPage figure span { font-size: 8.5pt; color: #555; }
+  #printPage figcaption { flex: 0 0 100%; font-weight: 600; text-align: center; }
+  @page { margin: 14mm; }
+}
+
+/* ---- the viewer (view.html): the model and little else */
+/* (inside another page a scroll that the viewer does not use goes on to that page) */
+html[data-viewer], html[data-viewer] body { overscroll-behavior: auto; }
+#viewer { display: none; }
+body.viewer #viewer { display: block; }
+body.viewer #cleanOff, body.viewer #problemBox, body.viewer #topbar, body.viewer #tools, body.viewer #side, body.viewer #strip, body.viewer #says, body.viewer #stripBtn, body.viewer #tour, body.viewer .menu { display: none !important; }
+#viewerHead { position: absolute; z-index: 3; left: 12px; top: 10px; max-width: calc(100% - 190px); margin: 0; display: flex; flex-direction: column; pointer-events: none; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
+#viewerHead b { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+#viewerHead span { font-size: 11.5px; color: var(--soft); }
+#stage.pale #viewerHead { color: #1c1e27; text-shadow: none; }
+#stage.pale #viewerHead span, #stage.pale #viewerFoot span { color: #55585f; }
+#viewerBar { position: absolute; z-index: 3; right: 10px; top: 8px; display: flex; gap: 6px; }
+#viewerBar .tb { background: rgba(28, 30, 39, 0.92); }
+#viewerNone { position: absolute; z-index: 3; left: 50%; top: 64px; transform: translateX(-50%); width: min(92%, 420px); margin: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(28, 30, 39, 0.95); font-size: 14px; text-align: center; }
+#viewerNone[hidden] { display: none; }
+#viewerFoot { position: absolute; z-index: 3; left: 12px; right: 12px; bottom: 8px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin: 0; font-size: 11.5px; pointer-events: none; }
+#viewerFoot a { pointer-events: auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(28, 30, 39, 0.92); color: var(--accent); font-size: 12.5px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+#viewerFoot span { color: var(--soft); text-align: right; }
+/* (the steps sit over the link to the app, clear of both corners) */
+body.viewer #storyBar { bottom: 46px; }
+@media (max-width: 420px) { #viewerHead span { display: none; } #viewerFoot span { max-width: 44%; } }
+
+/* the mark beside the name */
+h1 .mark { width: auto; height: 1.35em; margin-right: 0.45em; vertical-align: -0.3em; flex: none; }

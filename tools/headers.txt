@@ -12,3 +12,18 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
   Strict-Transport-Security: max-age=31536000
+
+# The viewer (view.html) is the one page that may be shown inside other sites: it only shows a
+# sketch and changes nothing. The two lines with "!" take away what the rule above set for
+# every page, and the line after them sets the same rule again without the ban on frames.
+# Cloudflare serves view.html as /view, so both addresses are named.
+/view
+  ! Content-Security-Policy
+  ! X-Frame-Options
+  ! Cross-Origin-Opener-Policy
+  Content-Security-Policy: {{policy}}; frame-ancestors *
+/view.html
+  ! Content-Security-Policy
+  ! X-Frame-Options
+  ! Cross-Origin-Opener-Policy
+  Content-Security-Policy: {{policy}}; frame-ancestors *

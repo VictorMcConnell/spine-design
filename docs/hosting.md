@@ -1,4 +1,4 @@
-# Hosting Spine Builder
+# Hosting Spine-Design
 
 The top of this repository is the website. `index.html` sits there, so a host that is
 pointed at the repository serves the app as its front page. There is nothing to build on the
@@ -10,11 +10,13 @@ host, nothing runs on a server and there is no database.
     privacy.html, terms.html, accessibility.html   the plain pages the app links to
     robots.txt    keeps the source folders out of search results
     sitemap.xml   the four pages of the site, for search engines
+    view.html     the viewer: a sketch to look at, for showing inside other sites (built, like index.html)
+    logo.svg      the mark of the app
     picture.png   the picture shown where a link to the site is posted
     apple-touch-icon.png   the icon a phone puts on its home screen
     .well-known/security.txt   where to report a security problem
 
-`index.html` and `_headers` are built from the sources by `node tools/build.mjs` and kept in
+`index.html`, `view.html` and `_headers` are built from the sources by `node tools/build.mjs` and kept in
 the repository, so the host takes them as they are.
 
 The steps below were written from the hosts' own documentation in November 2026. They have
@@ -114,8 +116,18 @@ The same Content-Security-Policy, without the part about frames, is written into
 itself. So it also holds on hosts that send no headers and when the app is opened from a
 folder.
 
-To let other sites show the app in a frame, take `frame-ancestors 'none'` and the
-X-Frame-Options line out of `tools/headers.txt` and build again.
+One page is made to be shown inside other sites: `view.html`, the viewer. It is the same
+app with one mark on it, and it only shows a sketch. `tools/headers.txt` ends with two
+blocks, for `/view` and `/view.html`, that take the ban on frames away for that page alone
+(the lines that start with `!`) and set the rest of the rule again. Cloudflare reads those
+lines. Its documentation says a later, narrower block can take a header away and set it
+anew. This has not been tried on the live site yet: after the first deployment, put the
+code from Share, "Put it on a web page", into a test page on another site and see that the
+sketch shows. If it does not, the headers of `/view` still carry the ban.
+
+To let other sites show the whole app in a frame, take `frame-ancestors 'none'` and the
+X-Frame-Options line out of `tools/headers.txt` and build again. That is not advised: the
+viewer is there so that the app itself never needs to be framed.
 
 ## After the first deployment
 

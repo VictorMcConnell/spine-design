@@ -1,4 +1,4 @@
-# Spine Builder
+# Spine-Design
 
 A free tool for people with scoliosis or a spinal fusion to build a 3D sketch of their own spine,
 in the browser, on their own device.
@@ -60,7 +60,7 @@ Milestone 2 of 5, the builder, is done. What works today:
   and one real spine. They are made-up shapes of common patterns, not a diagnosis.
   [docs/sources.md](docs/sources.md) says where the patterns were looked up. **New** in the
   top bar brings the sheet back.
-- **One page, four things to work on.** **Shape**, **Hardware**, **Pain** and **Look** are
+- **One page, five things to work on.** **Shape**, **Hardware**, **Pain**, **Story** and **Look** are
   always in the same place: along the bottom of a phone, in the middle of the top bar on a
   wide screen. Each has a few tools with a picture and a word, and one tool is in hand at a
   time. One line over the model says what a press does with that tool. Whatever is selected,
@@ -107,7 +107,12 @@ Milestone 2 of 5, the builder, is done. What works today:
   over with the picture still there to check against. The picture can be made brighter and
   harder, its black can be made see-through so only the bone stays, and it can be moved,
   resized, turned and flipped left to right with one button (films are often shown as if you
-  face the person). The app does not read the picture or measure it. The picture stays in the memory
+  face the person). A picture that lies on its side is turned a quarter at a time. If the
+  picture shows something whose size you know, such as a marker ball, a screw or a rod,
+  draw a line along it and give its length: the picture then has that size, and the trace
+  needs only its lowest vertebra named. After a fit the card offers the other view, so a
+  picture from the back and one from the side shape the spine in both directions. Undo
+  and Redo take the trace along with the spine. The app does not read the picture or measure it. The picture stays in the memory
   of the page: it is not saved with the sketch, not put in a link and not in a saved
   picture.
 - **Blocks**, on a wide screen. Every vertebra as a block in a column beside the model, seen
@@ -169,6 +174,14 @@ Milestone 2 of 5, the builder, is done. What works today:
   is from 1 to 10, how wide it is and a few words, and move it with arrows. Notes are pins
   with a few words. A label sits above its spot, and can be dragged further away: a line
   then joins the two, so the words never cover the spot.
+- **Story:** a sketch can hold the same spine at several moments, such as before and after
+  an operation. Add a step and it starts as a copy of the spine as it is: change its shape,
+  its hardware or its notes with the other tools and the steps before it stay as they were.
+  Each step has a few words of its own. Once there are two, a small bar under the model
+  goes from step to step, with the spine moving over from one shape into the next, and
+  plays them all. Compare puts two steps side by side, or blends one into the other with
+  a slider. Hardware that only one of the two steps has comes in softly on the way. Undo
+  works across steps, and the file and the share link hold every step.
 - **Look:** eleven shadings, shown as small pictures of your own model (soft light, clay,
   drawing with ink lines, X-ray and a plain quick one, then six for fun: matte, chrome,
   gold, candy, rainbow and neon), the colours, the background, see-through bone, and
@@ -193,8 +206,15 @@ Milestone 2 of 5, the builder, is done. What works today:
 - Hardware and marks **move with the vertebrae** when the spine is bent afterwards.
 - **Undo and Redo** for every step. **Open** and **Save** for spine files: in the top bar
   where there is room, and otherwise on the sheet to start from and on the Share sheet.
-- **Share**, one sheet with four choices: a picture of the view (PNG), a link that holds
-  the whole sketch, the spine file, and a model for a 3D printer. The print is an STL file
+- **Share**, one sheet with seven choices: a picture of the view (PNG), a moving picture
+  (the model turning once round, or its steps one after the other, as a video or a GIF,
+  made on your device), a link that holds the whole sketch with its steps, a page to print
+  or save as a PDF (the spine from the back and from the side, every step, what is on it
+  and your notes), code to put the sketch on a web page, the spine file, and a model for
+  a 3D printer. The code is one `iframe` that shows the sketch in a small viewer
+  (`view.html`): visitors can turn it, go through its steps and open it in the app, and
+  cannot change it. It carries the shading, the background and the side you were looking
+  from. The viewer is the only page of the site that may be shown inside another site. The print is an STL file
   at full size, a half, a third or a quarter, or an OBJ file with colours for other 3D
   programs, in which every vertebra and every part is its own named object. For the print
   the bones and discs can be made smoother: each step cuts every triangle into four and
@@ -252,7 +272,7 @@ same metal streaks the picture around it. What worked in the end was to stop try
 up the real surface. I built a clean spine with the vertebrae measured right, bent it into
 position and put the hardware on it.
 
-What made Spine Builder possible, other than the groundwork from that first model, was finding
+What made Spine-Design possible, other than the groundwork from that first model, was finding
 a fantastic resource of 3D parts that are free to use:
 [BodyParts3D](https://dbarchive.biosciencedbc.jp/en/bodyparts3d/desc.html). It has basically
 every single part of a body in 3D. With it I was able to reconstruct an "average" spine that
@@ -296,7 +316,8 @@ those scripts. [CONTRIBUTING.md](CONTRIBUTING.md) has the few house rules.
                  and the handles drawn on the model (gizmo.js)
     src/io/      opening and saving spine files, share links, the STL and OBJ files, the zip
                  they are saved in
-    src/ui/      the page, its sheets and the look (app.js), the four things to work on with
+    src/ui/      the page, its sheets and the look (app.js), the steps of a sketch and the
+                 ways to show them (story.js), the five things to work on with
                  their tools and cards (build.js), the tools that draw and tap and the map
                  of the hardware (easy.js), the blocks, the line with points and the locks
                  (chart.js)
@@ -327,7 +348,7 @@ still drawn.
 ## Roadmap
 
 1. **Done:** spine file, example, viewer.
-2. **Done:** the builder. One page for phones, tablets and desktops with four things to
+2. **Done:** the builder. One page for phones, tablets and desktops with five things to
    work on and a few tools for each, drawing the curve freely or as a line with points,
    sliders for a stretch, sliding blocks, locks, handles and sliders for one vertebra, stiff
    fused parts, hardware on a flat map, in three questions and by hand, rods from part to

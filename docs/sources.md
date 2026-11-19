@@ -1,6 +1,6 @@
-# Open data that could feed Spine Builder
+# Open data that could feed Spine-Design
 
-Spine Builder sizes its shapes from plain numbers (see [measurements.md](measurements.md)).
+Spine-Design sizes its shapes from plain numbers (see [measurements.md](measurements.md)).
 This page lists open data sets that could make those numbers better or supply real shapes,
 and what each licence would mean for the project. One of them, BodyParts3D, now supplies the
 bones. The licences were
@@ -30,7 +30,7 @@ This is a reading of the licence pages, not legal advice.
 
 ## Hardware
 
-The hardware in Spine Builder is generic: a rod, a threaded screw with a rod-holding head, a
+The hardware in Spine-Design is generic: a rod, a threaded screw with a rod-holding head, a
 hook, a cross-link. The sizes are typical published figures (rod 5.5 mm, heads 12 to 14 mm
 across, screws 3.5 to 7.5 mm by part of the spine). No maker's drawing or model was used.
 The head that swivels on the screw has been a common design for decades. Its first patent
@@ -74,7 +74,7 @@ and were not tied to a source.
 
 ## Left out on purpose
 
-- Bench test standards for implants (ASTM F1717) and strength figures. Spine Builder shows
+- Bench test standards for implants (ASTM F1717) and strength figures. Spine-Design shows
   shape and position. It does not work out forces and should not look as if it does.
 - Rules such as "a screw should fill no more than four fifths of the pedicle". The app uses
   that only to pick a starting size for a new screw. It never judges a real person's hardware

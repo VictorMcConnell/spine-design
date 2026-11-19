@@ -80,5 +80,24 @@ export function validateSpine(spine) {
   for (const kind of ['screws', 'hooks', 'crosslinks']) for (const piece of hw[kind] || []) if (piece.locked !== undefined && typeof piece.locked !== 'boolean') problems.push('A part says it is frozen in a way the app cannot read.');
   for (const [kind, color] of Object.entries(hw.colors || {})) if (!['rods', 'screws', 'hooks', 'crosslinks'].includes(kind) || !/^([a-z]+|#[0-9a-f]{6})$/i.test(color) || (color[0] !== '#' && !COLOR_NAMES.includes(color))) problems.push('The colour given for the ' + kind + ' is not one this app knows.');
   if (hw.splits !== undefined && (!Array.isArray(hw.splits) || hw.splits.some((x) => typeof x !== 'string' || !LEVEL_ORDER.includes(x.split(':')[0]) || !['', 'left', 'right'].includes(x.split(':')[1] || '') || x.split(':').length > 2))) problems.push('The list of places where the rods end names a vertebra that does not exist.');
+  return problems.concat(validateSteps(spine, validateSpine));
+}
+
+// the most steps a sketch can hold
+export const MOST_STEPS = 12;
+// The steps of a file, checked. Each step is put through the check of a whole
+// spine (check), as if it were a file of its own. See core/story.js for what steps are. Returns problems in plain words.
+function validateSteps(spine, check) {
+  const steps = spine.steps;
+  if (steps === undefined) return [];
+  if (!Array.isArray(steps) || steps.length < 2 || steps.length > MOST_STEPS) return ['The steps of this sketch are not written in a way the app can read.'];
+  const problems = [];
+  if (steps.filter((s) => s && s.here).length !== 1) problems.push('The file does not say which one of its steps is open.');
+  steps.forEach((s, i) => {
+    if (!s || typeof s !== 'object') { problems.push('Step ' + (i + 1) + ' is empty.'); return; }
+    if (s.caption !== undefined && (typeof s.caption !== 'string' || s.caption.length > 200)) problems.push('Step ' + (i + 1) + ' has words the app cannot use.');
+    if (s.here) return;
+    for (const p of check({ schema: spine.schema, levels: s.levels, fused: s.fused, hardware: s.hardware, marks: s.marks })) problems.push('Step ' + (i + 1) + ': ' + p);
+  });
   return problems;
 }

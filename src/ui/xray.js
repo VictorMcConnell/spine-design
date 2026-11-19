@@ -11,7 +11,7 @@
 // the side. All the working out is in core/trace.js. build.js decides when this tool is in
 // hand and passes the presses on the model in here.
 
-import { sheetOf, pictureOf, inSpace, depthOf, cornersOf, firstPlace, placeAbout, ordered, lineOfTrace, fitTrace, followTrace, spotsAlong, tonePicture, quadMatrix, USUAL_TONE } from '../core/trace.js';
+import { sheetOf, pictureOf, inSpace, depthOf, cornersOf, firstPlace, placeAbout, ordered, lineOfTrace, fitTrace, followTrace, levelNear, spotsAlong, tonePicture, quadMatrix, USUAL_TONE } from '../core/trace.js';
 
 // the longest side of the picture as it is kept, in pixels: enough to trace on, quick to repaint
 const MOST = 1600;
@@ -24,6 +24,7 @@ export function setupXray(app, kit) {
   const { $, each, pressed, options, ids, hint, touch } = kit, { renderer } = app;
   const shots = [null, null];          // the picture of each flat view, or null
   // the picture starts beside the model: that is where it is traced most easily. Over the model is for lining the two up.
+  // mode: what a drag on the picture does. 'trace' draws the line of the spine, 'move' moves the picture, 'rule' draws a line along something of a known length
   let plane = 0, inHand = false, show = 'side', mode = 'trace';
   let stroke = null, grabbed = null, moving = null, picked = -1, busy = false, paintSoon = null, told = '';
   const shot = () => shots[plane];
@@ -53,9 +54,11 @@ export function setupXray(app, kit) {
     let edge = 0, n = 0;
     for (let x = 0; x < w; x += 4) { edge += grey[x] + grey[(h - 1) * w + x]; n += 2; }
     for (let y = 0; y < h; y += 4) { edge += grey[y * w] + grey[y * w + w - 1]; n += 2; }
-    const place = firstPlace(app.spine, plane, [w, h]), list = ids();
-    shots[plane] = { size: [w, h], grey, canvas, g, data, tone: { ...FIRST_TONE, invert: edge / n > 150 }, place, base: place.k, points: [], fitted: false,
-      top: list.includes('T1') ? 'T1' : list[0], bottom: list.includes('L5') ? 'L5' : list[list.length - 1] };
+    const place = firstPlace(app.spine, plane, [w, h]), list = ids(), other = shots[1 - plane];
+    // (quarter: how many quarter turns the picture has had. sized: its size was set from a line of known length. rule: that line, in pixels.
+    //  The second view starts with the two vertebrae that were named in the first.)
+    shots[plane] = { size: [w, h], grey, canvas, g, data, tone: { ...FIRST_TONE, invert: edge / n > 150 }, place, base: place.k, points: [], fitted: false, quarter: 0, sized: false, rule: null,
+      top: other && other.fitted ? other.top : list.includes('T1') ? 'T1' : list[0], bottom: other && other.fitted ? other.bottom : list.includes('L5') ? 'L5' : list[list.length - 1] };
     picked = -1; mode = 'trace'; if (show === 'off') show = 'side';
     paint();
     renderer.look(plane === 0 ? 0 : Math.PI / 2);
@@ -83,15 +86,25 @@ export function setupXray(app, kit) {
     return t > 0 ? [ray.origin[a] + ray.direction[a] * t, ray.origin[2] + ray.direction[2] * t] : null;
   }
   // The picture beside the model fills its box as far as it can without being cut: where it lies in the box.
+  // (a picture that was turned by quarters lies turned in the box as well, so the spine runs up it)
   function fitBox() {
-    const s = shot(), box = $('xrayWrap').getBoundingClientRect(), k = Math.min(box.width / s.size[0], box.height / s.size[1]);
-    return { left: box.left + (box.width - s.size[0] * k) / 2, top: box.top + (box.height - s.size[1] * k) / 2, k, box };
+    const s = shot(), box = $('xrayWrap').getBoundingClientRect(), odd = s.quarter % 2 === 1, k = Math.min(box.width / s.size[odd ? 1 : 0], box.height / s.size[odd ? 0 : 1]);
+    return { x: box.left + box.width / 2, y: box.top + box.height / 2, k, box, c: [1, 0, -1, 0][s.quarter], s: [0, 1, 0, -1][s.quarter] };
+  }
+  // a spot of the picture in the box beside the model (page pixels), and the other way round
+  function besideOf(px) {
+    const s = shot(), f = fitBox(), u = (px[0] - s.size[0] / 2) * (s.place.flip ? -1 : 1), v = px[1] - s.size[1] / 2;
+    return [f.x + (u * f.c - v * f.s) * f.k, f.y + (u * f.s + v * f.c) * f.k];
+  }
+  function besideAt(e) {
+    const s = shot(), f = fitBox(), x = (e.clientX - f.x) / f.k, y = (e.clientY - f.y) / f.k;
+    return [s.size[0] / 2 + (x * f.c + y * f.s) * (s.place.flip ? -1 : 1), s.size[1] / 2 - x * f.s + y * f.c];
   }
   // the spot of the picture under the pointer, in its pixels (null when the pointer is not over the sheet)
   function pixelAt(e) {
     const s = shot();
     // (beside the model a picture whose left and right are swapped is shown the other way round, so that it faces the way the model does)
-    if (beside()) { const f = fitBox(), u = (e.clientX - f.left) / f.k; return [s.place.flip ? s.size[0] - u : u, (e.clientY - f.top) / f.k]; }
+    if (beside()) return besideAt(e);
     const at = sheetAt(e);
     return at ? pictureOf(s.place, s.size, at) : null;
   }
@@ -99,7 +112,7 @@ export function setupXray(app, kit) {
   // where a spot of the picture is drawn, in pixels of the box its marks are drawn in
   function onScreen(px) {
     const s = shot();
-    if (beside()) { const f = fitBox(); return [f.left - f.box.left + (s.place.flip ? s.size[0] - px[0] : px[0]) * f.k, f.top - f.box.top + px[1] * f.k]; }
+    if (beside()) { const f = fitBox(), at = besideOf(px); return [at[0] - f.box.left, at[1] - f.box.top]; }
     return renderer.project(inSpace(plane, depthOf(app.spine, plane), sheetOf(s.place, s.size, px)));
   }
 
@@ -111,7 +124,11 @@ export function setupXray(app, kit) {
     for (const other of shots) if (other && other !== s && other.canvas.parentElement) other.canvas.remove();
     if (s && home && s.canvas.parentElement !== home) home.insertBefore(s.canvas, home.firstChild);
     if (s && !home && s.canvas.parentElement) s.canvas.remove();
-    if (s) s.canvas.style.transform = beside() && s.place.flip ? 'scaleX(-1)' : '';
+    if (s && beside()) {
+      const f = fitBox(), st = s.canvas.style, w = s.size[0] * f.k, h = s.size[1] * f.k;
+      st.left = (f.x - f.box.left - w / 2).toFixed(1) + 'px'; st.top = (f.y - f.box.top - h / 2).toFixed(1) + 'px'; st.width = w.toFixed(1) + 'px'; st.height = h.toFixed(1) + 'px';
+      st.transform = 'rotate(' + s.quarter * 90 + 'deg)' + (s.place.flip ? ' scaleX(-1)' : '');
+    } else if (s) s.canvas.style.cssText = '';
     let matrix = null;
     if (over()) {
       const quad = cornersOf(s.place, s.size, depthOf(app.spine, plane)).map((p) => renderer.project(p));
@@ -125,9 +142,12 @@ export function setupXray(app, kit) {
     marks.toggleAttribute('hidden', !(live && over())); sideMarks.style.visibility = live && beside() ? '' : 'hidden';
     if (!live) return;
     const svg = beside() ? sideMarks : marks, at = (px) => { const p = onScreen(px); return p ? p[0].toFixed(1) + ',' + p[1].toFixed(1) : null; };
-    const line = s.points.length > 1 ? lineOfTrace(s.place, s.size, s.points).map((spot) => at(pictureOf(s.place, s.size, spot))).filter(Boolean).join(' ') : '';
-    svg.querySelector('.xpath').setAttribute('points', line);
-    svg.querySelector('.xstroke').setAttribute('points', stroke ? stroke.px.map(at).filter(Boolean).join(' ') : '');
+    const path = s.points.length > 1 ? lineOfTrace(s.place, s.size, s.points).map((spot) => at(pictureOf(s.place, s.size, spot))).filter(Boolean).join(' ') : '';
+    svg.querySelector('.xpath').setAttribute('points', path);
+    svg.querySelector('.xstroke').setAttribute('points', stroke && mode !== 'rule' ? stroke.px.map(at).filter(Boolean).join(' ') : '');
+    // the line along something of a known length, while it is drawn and until its length is given
+    const rule = mode === 'rule' ? (stroke ? [stroke.px[0], stroke.px[stroke.px.length - 1]] : s.rule) : null, ends = rule ? rule.map(onScreen) : null, line = svg.querySelector('.xrule');
+    if (ends && ends[0] && ends[1]) { line.setAttribute('x1', ends[0][0].toFixed(1)); line.setAttribute('y1', ends[0][1].toFixed(1)); line.setAttribute('x2', ends[1][0].toFixed(1)); line.setAttribute('y2', ends[1][1].toFixed(1)); line.style.display = ''; } else line.style.display = 'none';
     const dots = svg.querySelector('.xdots');
     while (dots.childNodes.length > s.points.length) dots.lastChild.remove();
     s.points.forEach((px, i) => {
@@ -151,23 +171,39 @@ export function setupXray(app, kit) {
   // The trace is new or longer: after a fit the spine follows it at once.
   function traced() {
     const s = shot();
-    if (s.fitted && s.points.length > 1) follow(true); else redraw();
+    if (s.fitted && s.points.length > 1) { follow(true); rename(); } else redraw();
     kit.changed();
+  }
+  // After a fit the two ends of the trace are named by the vertebrae they lie on now. A trace that was made longer,
+  // or shorter, then has the right names when it is fitted again.
+  function rename() {
+    const s = shot();
+    if (!s || !s.fitted || s.points.length < 2) return;
+    const list = ordered(s.place, s.size, s.points), low = levelNear(app.spine, plane, list[0].at), high = levelNear(app.spine, plane, list[list.length - 1].at);
+    if (low.id !== high.id) { s.bottom = low.id; s.top = high.id; }
   }
   function fit() {
     const s = shot();
     if (!s) return;
     if (s.points.length < 2) { say('Trace the spine on the picture first: drag a line up it, or ' + Press().toLowerCase() + ' a few spots along it.'); return; }
     const list = ids(), a = list.indexOf(s.top), b = list.indexOf(s.bottom);
-    if (a < 0 || b < 0 || a === b) { say('Choose two different vertebrae for the two ends of the trace.'); return; }
-    // (the two ends in either order: the higher one is the top)
-    const top = list[Math.min(a, b)], bottom = list[Math.max(a, b)];
-    let got = null;
-    app.change(() => { got = fitTrace(app.spine, app.rig, s.place, s.size, s.points, top, bottom, { held: held() }); });
+    let got = null, top, bottom;
+    if (s.sized) {
+      // the size of the picture is known: the trace starts at the lowest vertebra and ends where it ends
+      if (b < 0) { say('Choose the vertebra the trace starts from.'); return; }
+      bottom = list[b];
+      app.change(() => { got = fitTrace(app.spine, app.rig, s.place, s.size, s.points, null, bottom, { held: held(), k: s.place.k }); });
+      if (got) top = got.top;
+    } else {
+      if (a < 0 || b < 0 || a === b) { say('Choose two different vertebrae for the two ends of the trace.'); return; }
+      // (the two ends in either order: the higher one is the top)
+      top = list[Math.min(a, b)]; bottom = list[Math.max(a, b)];
+      app.change(() => { got = fitTrace(app.spine, app.rig, s.place, s.size, s.points, top, bottom, { held: held() }); });
+    }
     if (!got) { say('That trace is too short to fit. Trace a longer stretch of the spine.'); return; }
     s.place = got.place; s.base = s.place.k; s.fitted = true; s.top = top; s.bottom = bottom;
     renderer.look(plane === 0 ? 0 : Math.PI / 2);
-    say('The spine lies along your trace from ' + bottom + ' up to ' + top + '.' + (got.miss > 12 ? ' The top of the trace ends a little away from ' + top + '. Check the two vertebrae, or drag the spots.' : ' Drag a spot to change it, or shape it by hand with any other tool.'));
+    say('The spine lies along your trace from ' + bottom + ' up to ' + top + '.' + (s.sized ? ' The size is from the line you measured.' : got.miss > 12 ? ' The top of the trace ends a little away from ' + top + '. Check the two vertebrae, or drag the spots.' : ' Drag a spot to change it, or shape it by hand with any other tool.'));
     kit.changed();
   }
   function removeSpot(i) {
@@ -208,8 +244,17 @@ export function setupXray(app, kit) {
   const end = () => {
     const s = shot(), was = stroke, moved = moving;
     stroke = null; moving = null; busy = false;
-    if (moved) { if (s) s.place.at = s.place.at.map((v) => Math.round(v * 100) / 100); redraw(); return; }
+    if (moved) { if (s) s.place.at = s.place.at.map((v) => Math.round(v * 100) / 100); redraw(); kit.changed(); return; }
     if (!was || !s) { redraw(); return; }
+    if (mode === 'rule') {
+      const a = was.px[0], b = was.px[was.px.length - 1];
+      if (was.far < 6 || Math.hypot(a[0] - b[0], a[1] - b[1]) < 3) { say('Drag a line from one end of the thing you know the size of to the other.'); redraw(); return; }
+      s.rule = [a, b]; say('Now give the length of that line in millimetres.');
+      kit.changed(); redraw();
+      // (the box for the length is in the folded part of the card: it is opened and brought into view)
+      $('xrayTone').open = true; $('xRuleMm').scrollIntoView({ block: 'center' }); $('xRuleMm').focus({ preventScroll: true });
+      return;
+    }
     if (was.far < 6) {
       // a tap: one more spot, where it was tapped
       if (!was.inside) { say(Press() + ' on the picture.'); redraw(); return; }
@@ -247,7 +292,7 @@ export function setupXray(app, kit) {
     } else if (busy && beside()) drag(e);
   });
   const letGo = () => {
-    if (grabbed) { const moved = grabbed.moved; grabbed = null; if (moved && shot() && shot().fitted) app.settle(); redraw(); kit.changed(); }
+    if (grabbed) { const moved = grabbed.moved; grabbed = null; if (moved && shot() && shot().fitted) { rename(); app.settle(); } redraw(); kit.changed(); }
     else if (busy && beside()) end();
   };
   window.addEventListener('pointerup', letGo); window.addEventListener('pointercancel', () => { if (grabbed) letGo(); else if (busy && beside()) cancel(); });
@@ -257,7 +302,7 @@ export function setupXray(app, kit) {
   $('xrayPick').addEventListener('click', () => $('xrayFile').click());
   $('xrayFile').addEventListener('change', () => { open($('xrayFile').files[0]); $('xrayFile').value = ''; });
   each('[data-xplane]', (b) => b.addEventListener('click', () => { plane = Number(b.dataset.xplane); picked = -1; renderer.look(plane === 0 ? 0 : Math.PI / 2); say(''); kit.changed(); }));
-  each('[data-xshow]', (b) => b.addEventListener('click', () => { show = b.dataset.xshow; if (show !== 'over') mode = 'trace'; kit.changed(); }));
+  each('[data-xshow]', (b) => b.addEventListener('click', () => { show = b.dataset.xshow; if (show !== 'over' && mode === 'move') mode = 'trace'; kit.changed(); }));
   // (the picture is moved where it lies over the model: Move X-ray brings it there)
   each('[data-xmode]', (b) => b.addEventListener('click', () => { mode = b.dataset.xmode; if (mode === 'move' && show !== 'over') { show = 'over'; renderer.look(plane === 0 ? 0 : Math.PI / 2); } kit.changed(); }));
   $('xrayTop').addEventListener('change', () => { const s = shot(); if (s) s.top = $('xrayTop').value; });
@@ -272,8 +317,36 @@ export function setupXray(app, kit) {
   $('xToneReset').addEventListener('click', () => { const s = shot(); if (s) { s.tone = { ...USUAL_TONE, invert: s.tone.invert }; repaint(); sync(); } });
   // The size and the turn of the picture are changed about the bottom of the trace, which stays where it is. With no trace it is the middle of the picture.
   const anchor = (s) => (s.points.length ? ordered(s.place, s.size, s.points)[0].px : [s.size[0] / 2, s.size[1] / 2]);
-  $('xSize').addEventListener('input', () => { const s = shot(); if (s) { s.place = placeAbout(s.place, s.size, anchor(s), { k: (s.base * Number($('xSize').value)) / 100 }); placeSays(); redraw(); } });
-  $('xTurn').addEventListener('input', () => { const s = shot(); if (s) { s.place = placeAbout(s.place, s.size, anchor(s), { turn: Number($('xTurn').value) }); placeSays(); redraw(); } });
+  // (a size set by hand is no longer the size that was measured)
+  $('xSize').addEventListener('input', () => { const s = shot(); if (s) { s.place = placeAbout(s.place, s.size, anchor(s), { k: (s.base * Number($('xSize').value)) / 100 }); s.sized = false; placeSays(); redraw(); } });
+  $('xTurn').addEventListener('input', () => { const s = shot(); if (s) { s.place = placeAbout(s.place, s.size, anchor(s), { turn: s.quarter * 90 + Number($('xTurn').value) }); placeSays(); redraw(); } });
+  for (const id of ['xSize', 'xTurn']) $(id).addEventListener('change', () => kit.changed());
+  // A quarter turn, for a picture that was taken or saved on its side. Four of them bring it round again.
+  $('xQuarter').addEventListener('click', () => {
+    const s = shot();
+    if (!s) return;
+    const fine = s.place.turn - s.quarter * 90;
+    s.quarter = (s.quarter + 1) % 4;
+    s.place = placeAbout(s.place, s.size, anchor(s), { turn: s.quarter * 90 + fine });
+    say('');
+    if (s.fitted) follow(true);
+    kit.changed(); redraw();
+  });
+  // The size of the picture from a line along something of a known length.
+  $('xRule').addEventListener('click', () => { const s = shot(); if (!s) return; mode = mode === 'rule' ? 'trace' : 'rule'; s.rule = null; if (mode === 'rule' && show === 'off') show = 'side'; say(''); kit.changed(); redraw(); });
+  const ruled = () => {
+    const s = shot(), mm = Number($('xRuleMm').value);
+    if (!s || !s.rule) return;
+    if (!(mm >= 1 && mm <= 2000)) { say('Give the length in millimetres, from 1 to 2000. An inch is 25.4 mm.'); return; }
+    const long = Math.hypot(s.rule[0][0] - s.rule[1][0], s.rule[0][1] - s.rule[1][1]);
+    s.place = placeAbout(s.place, s.size, anchor(s), { k: mm / long }); s.base = s.place.k; s.sized = true; s.rule = null; mode = 'trace';
+    $('xRuleMm').value = '';
+    if (s.fitted) fit(); else { say('The size of the picture is set. Trace the spine and name the vertebra the trace starts from.'); kit.changed(); redraw(); }
+  };
+  $('xRuleGo').addEventListener('click', ruled);
+  $('xRuleMm').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ruled(); } });
+  // The other view: with the spine traced from the back, a picture from the side gives it its shape front to back, and the other way round.
+  $('xrayNext').addEventListener('click', () => { plane = 1 - plane; picked = -1; if (mode !== 'trace') mode = 'trace'; renderer.look(plane === 0 ? 0 : Math.PI / 2); say(''); kit.changed(); $('xrayFile').click(); });
   // Flipped left to right: the picture is turned over about the bottom of the trace, and the trace with it. After a fit the spine follows.
   $('xFlip').addEventListener('click', () => { const s = shot(); if (!s) return; s.place = placeAbout(s.place, s.size, anchor(s), { flip: !s.place.flip }); say(s.place.flip ? 'Flipped: the left of the picture is now on the right.' : 'The picture is the way round it was opened.'); if (s.fitted) follow(true); kit.changed(); redraw(); });
   // Back on the spine: the bottom of the trace on its vertebra, or with no trace the picture upright over the whole spine.
@@ -283,7 +356,7 @@ export function setupXray(app, kit) {
     if (s.points.length) {
       const l = app.spine.levels.find((x) => x.id === s.bottom) || app.spine.levels[app.spine.levels.length - 1], low = ordered(s.place, s.size, s.points)[0].at, a = plane === 0 ? 0 : 1;
       s.place = { ...s.place, at: [s.place.at[0] + l.centre[a] - low[0], s.place.at[1] + l.centre[2] - low[1]] };
-    } else { const first = firstPlace(app.spine, plane, s.size); s.place = { ...first, flip: s.place.flip }; s.base = first.k; }
+    } else { const first = firstPlace(app.spine, plane, s.size); s.place = { ...first, flip: s.place.flip }; s.base = first.k; s.quarter = 0; s.sized = false; }
     renderer.look(plane === 0 ? 0 : Math.PI / 2);
     sync(); redraw();
   });
@@ -291,8 +364,8 @@ export function setupXray(app, kit) {
   function placeSays() {
     const s = shot();
     if (!s) return;
-    const size = Math.round((s.place.k / s.base) * 100), turn = s.place.turn;
-    $('xSizeSay').textContent = size + '%'; $('xTurnSay').textContent = Math.abs(turn) < 0.25 ? 'upright' : Math.abs(turn) + '° ' + (turn > 0 ? 'clockwise' : 'the other way');
+    const size = Math.round((s.place.k / s.base) * 100), turn = Math.round((s.place.turn - s.quarter * 90) * 10) / 10;
+    $('xSizeSay').textContent = s.sized ? 'as measured' : size + '%'; $('xTurnSay').textContent = Math.abs(turn) < 0.25 ? 'none' : Math.abs(turn) + '° ' + (turn > 0 ? 'clockwise' : 'the other way');
     $('xSize').setAttribute('aria-valuetext', $('xSizeSay').textContent); $('xTurn').setAttribute('aria-valuetext', $('xTurnSay').textContent);
   }
 
@@ -303,6 +376,7 @@ export function setupXray(app, kit) {
     // (what was just done is said in the card, under its buttons. This line says what a press does next.)
     if (show === 'off') return 'The picture is hidden. Show it over the model or beside it to trace on it.';
     if (mode === 'move') return 'Drag to move the picture. Its turn is under X-ray position, its size under X-ray adjustment.';
+    if (mode === 'rule') return s.rule ? 'Give the length of the line in the card, in millimetres.' : 'Drag a line along something whose size you know: a marker ball, a screw or a rod.';
     if (s.fitted) return 'Drag a spot and the spine follows. Any other tool shapes it by hand.';
     if (s.points.length > 1) return 'Say which vertebrae the trace runs between, then fit the spine to it.';
     return 'Drag a line up the spine on the picture' + (beside() ? ' beside the model' : '') + ', or ' + Press().toLowerCase() + ' spots along it.';
@@ -310,8 +384,32 @@ export function setupXray(app, kit) {
 
   // on a wide screen the two groups of settings stand open, on a phone they open when asked for
   if (window.matchMedia('(min-width: 900px) and (min-height: 560px)').matches) { $('xrayPlace').open = true; $('xrayTone').open = true; }
+  // ---------------------------------------------------------------- Undo and Redo
+  // The trace is not part of the sketch, so Undo would leave it behind: the spine would go back and the trace stay.
+  // To keep the two together, the trace and the place of each picture are remembered with every step of the history,
+  // and put back when Undo or Redo brings that step up again. The pictures themselves stay as they are.
+  const kept = new Map();
+  const copyOf = (s) => ({ points: s.points.map((p) => p.slice()), place: { ...s.place, at: s.place.at.slice() }, base: s.base, fitted: s.fitted, top: s.top, bottom: s.bottom, quarter: s.quarter, sized: s.sized });
+  function remember() {
+    const step = app.now();
+    if (!step || stroke || moving || grabbed) return;
+    kept.delete(step); kept.set(step, shots.map((s) => s && copyOf(s)));
+    if (kept.size > 100) kept.delete(kept.keys().next().value);
+  }
+  function recall() {
+    const was = kept.get(app.now());
+    shots.forEach((s, i) => {
+      if (!s) return;
+      // (a step from before the picture was opened: the trace stays to be fitted again, but the spine no longer follows it)
+      if (was && was[i]) Object.assign(s, copyOf(was[i])); else s.fitted = false;
+      s.rule = null;
+    });
+    picked = -1; stroke = null; moving = null; grabbed = null; busy = false; if (mode === 'rule') mode = 'trace';
+  }
+
   function sync() {
     const s = shot(), list = ids();
+    remember();
     pressed('[data-xplane]', 'xplane', plane);
     $('xrayPick').textContent = s ? 'Another picture' : 'Choose a picture';
     $('xrayPick').classList.toggle('main', !s); $('xrayRemove').hidden = !s;
@@ -321,7 +419,7 @@ export function setupXray(app, kit) {
     // with a picture open, the choice of picture sits at the foot of the card, under "Picture", so the buttons used while tracing stay in view
     const which = $('xrayWhich'), under = !!s;
     if (under !== (which.parentElement === $('xrayPicHome'))) { if (under) $('xrayPicHome').appendChild(which); else $('xrayFile').before(which); }
-    $('stage').classList.toggle('tracing', inHand && over() && mode === 'trace');
+    $('stage').classList.toggle('tracing', inHand && over() && mode !== 'move');
     $('stage').classList.toggle('moving', inHand && over() && mode === 'move');
     if (!s) { lay(); return; }
     // (a spine that was opened since may not have the vertebrae that were chosen)
@@ -330,13 +428,18 @@ export function setupXray(app, kit) {
     pressed('[data-xshow]', 'xshow', show); pressed('[data-xmode]', 'xmode', mode);
     $('xrayEnds').hidden = $('xrayFit').parentElement.hidden = show === 'off';
     options($('xrayTop'), list.map((id) => [id, id]), s.top); options($('xrayBottom'), list.map((id) => [id, id]), s.bottom);
+    // (with the size measured, the top of the trace is found, not chosen)
+    $('xrayTop').disabled = s.sized; $('xRule').setAttribute('aria-pressed', mode === 'rule' ? 'true' : 'false'); $('xRule').textContent = mode === 'rule' ? 'Stop measuring' : s.sized ? 'Measure the size again' : 'Set the size from a known length';
+    $('xRuleSet').hidden = !(mode === 'rule' && s.rule);
+    // the step after a fit: the other view, while it has no picture
+    $('xrayNextRow').hidden = !(s.fitted && !shots[1 - plane]); $('xrayNext').textContent = plane === 0 ? 'Next: a picture from the side' : 'Next: a picture from the back';
     $('xrayFit').disabled = s.points.length < 2; $('xrayFit').textContent = s.fitted ? 'Fit it again' : 'Fit the spine to the trace';
     $('xrayClear').disabled = !s.points.length;
     $('xrayPointGone').hidden = picked < 0 || picked >= s.points.length;
     $('xraySay').textContent = told;
     for (const [id, key] of TONES) $(id).value = s.tone[key];
     $('xInvert').checked = !!s.tone.invert; $('xFlip').setAttribute('aria-pressed', s.place.flip ? 'true' : 'false');
-    $('xSize').value = Math.max(30, Math.min(300, Math.round((s.place.k / s.base) * 100))); $('xTurn').value = s.place.turn;
+    $('xSize').value = Math.max(30, Math.min(300, Math.round((s.place.k / s.base) * 100))); $('xTurn').value = s.place.turn - s.quarter * 90;
     placeSays();
     lay();
   }
@@ -356,8 +459,12 @@ export function setupXray(app, kit) {
     tap() { say(shot() ? (show === 'side' ? 'Trace on the picture beside the model.' : 'The picture is hidden. Show it to trace on it.') : 'Choose a picture of an X-ray first.'); },
     // the spine on screen is another one, or was changed from outside: the picture lies where it lay
     refresh: redraw,
+    // the spine under the trace is another one now (another step was opened): the trace stays, to be fitted to it if wanted
+    loosen() { for (const s of shots) if (s) s.fitted = false; picked = -1; },
+    // Undo or Redo brought another step of the history up: the trace that went with it comes back
+    recall,
     // where things stand (the checks in a browser use this)
-    state: () => { const s = shot(); return { inHand, plane, show, mode, has: shots.map(Boolean), spots: s ? s.points.map((p) => p.slice()) : [], fitted: !!(s && s.fitted), place: s ? { ...s.place } : null, tone: s ? { ...s.tone } : null, size: s ? s.size.slice() : null, picked }; },
+    state: () => { const s = shot(); return { inHand, plane, show, mode, has: shots.map(Boolean), spots: s ? s.points.map((p) => p.slice()) : [], fitted: !!(s && s.fitted), top: s ? s.top : null, bottom: s ? s.bottom : null, quarter: s ? s.quarter : 0, sized: !!(s && s.sized), rule: s && s.rule ? s.rule.map((p) => p.slice()) : null, place: s ? { ...s.place } : null, tone: s ? { ...s.tone } : null, size: s ? s.size.slice() : null, picked }; },
     // where a spot of the picture is on the page, and the other way round (the checks in a browser use these)
     pageOf(px) { const p = shot() && onScreen(px), box = (beside() ? $('xrayWrap') : renderer.canvas).getBoundingClientRect(); return p ? [p[0] + box.left, p[1] + box.top] : null; },
     pixelOf(clientX, clientY) { return shot() ? pixelAt({ clientX, clientY }) : null; },

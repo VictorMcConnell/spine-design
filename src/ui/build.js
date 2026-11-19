@@ -90,6 +90,8 @@ export function setupBuilder(app) {
     // the hardware goes on from the back: turn the model that way if it is seen from somewhere else
     if (name === 'parts' && was !== 'parts') { const a = Math.atan2(Math.sin(renderer.camera.around), Math.cos(renderer.camera.around)); if (Math.abs(a) > 1 || Math.abs(renderer.camera.tilt) > 0.9) renderer.look(0); }
     if (name === 'look') app.thumbs();
+    // (what was compared on the Story place is over when it is left)
+    if (was === 'story' && name !== 'story' && story) story.left();
     app.redraw(); sync();
   }
   each('#modes [data-tab]', (b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
@@ -411,9 +413,11 @@ export function setupBuilder(app) {
   // A list beside the model on a wide screen: its curves, what is fused, the hardware, the
   // pain points and notes. A line of it opens that thing.
   let listWas = '';
+  let lastRows = [];
   function listBox() {
     const box = $('list');
     const m = measureSpine(app.spine), h = hw(), rows = [];
+    lastRows = rows;
     const add = (head, text, go) => rows.push({ head, text, go });
     for (const c of m.curves) add('Curves', c.top + ' to ' + c.bottom + ': about ' + c.degrees + '° to the ' + c.bowsTo, () => workOn(c.top, c.bottom));
     if (m.kyphosis !== null) add('Curves', 'Rounding of the chest: about ' + m.kyphosis + '°', () => workOn('T5', 'T12'));
@@ -524,6 +528,7 @@ export function setupBuilder(app) {
     // (in the clean view, with the tools put away, a tap brings them back)
     if (document.body.classList.contains('clean')) { app.clean(false); return; }
     if (tab === 'look') { paintTap(e); return; }
+    if (tab === 'story') return;          // (nothing is changed there: a drag turns the model)
     if (tab === 'marks') {
       // a tap on a pain point or a note selects it. Anywhere else, the tool in hand puts a new one there.
       const m = hitThing(e, true);
@@ -671,6 +676,7 @@ export function setupBuilder(app) {
     else app.say(kb.id + (app.held.has(kb.id) ? ', locked.' : '.'));
   }
   function kbTap() {
+    if (tab === 'story') return;
     const id = kb.id, side = kb.side, l = levelOf(id), p = app.picked || {};
     if (tab === 'look') {
       // With the brush, Enter paints the part on this side of the vertebra. Where there is none, or it has that colour already, it paints the vertebra.
@@ -766,6 +772,8 @@ export function setupBuilder(app) {
               : kind === 'level' ? 'Choose what ' + app.picked.id + ' carries.'
                 : t === 'turn' ? Press() + ' a part or a vertebra to change it. Drag to turn the model.'
                   : t === 'rod' ? $('rodSay').textContent : $('traySay').textContent;
+    } else if (tab === 'story') {
+      text = story ? story.says() : '';
     } else if (tab === 'look') {
       text = colorWhat === 'one' ? Press() + ' a part or a vertebra to ' + (brush ? 'give it this color.' : 'give it back the color of the rest.') : 'Pick what the color goes on, then the color. Drag to turn the model.';
     } else if (tab === 'marks') {
@@ -840,6 +848,7 @@ export function setupBuilder(app) {
   function cardNow() {
     const p = app.picked;
     if (tab === 'look') return 'look';
+    if (tab === 'story') return 'story';
     if (tab === 'shape') return hand.shape === 'curve' ? 'curve' : hand.shape === 'one' ? 'one' : hand.shape === 'xray' ? 'xray' : null;
     if (tab === 'parts') return filling ? 'fill' : !p ? null : p.kind === 'rods' && chosen().length < 2 ? 'rod' : PART_NAMES[p.kind] ? 'piece' : p.kind === 'level' ? 'bone' : null;
     return markOf() ? 'mark' : null;
@@ -872,7 +881,7 @@ export function setupBuilder(app) {
     if (card === 'curve') curveBox();
     if (card === 'piece' || card === 'rod') pieceBox();
     if (card === 'mark') markBox();
-    easy.sync(); chart.sync(); xray.sync(); listBox(); coach();
+    easy.sync(); chart.sync(); xray.sync(); listBox(); if (story) story.sync(); coach();
   }
   WIDE.addEventListener('change', () => { if (app.spine) sync(); });
 
@@ -882,20 +891,27 @@ export function setupBuilder(app) {
     held: () => chart.held(), stopLine: () => { chart.stopLine(); chart.stopPicking(); }, lineOn: () => chart.lineOn() });
   const chart = setupChart(app, { $, each, pressed, ids, levelOf, hint: coach, stopOthers: () => easy.stopDrawing(), drawing: () => easy.draw.on(), regionIds, touch });
   const xray = setupXray(app, { $, each, pressed, options, ids, hint: coach, touch, held: () => chart.held(), changed: () => sync() });
+  let story = null;
   showTab('shape');
   return {
     sync, handles,
+    // the steps of the sketch are looked after by ui/story.js, which is set up after the builder
+    setStory(s) { story = s; sync(); },
+    // another step of the sketch was opened: a trace on an X-ray belongs to the step it was fitted to
+    stepped() { xray.loosen(); },
+    // what is on the open spine, as lines of words under headings: [{ head, text }]
+    rows: () => lastRows.map((r) => ({ head: r.head, text: r.text })),
     // the soft marks on the model that show where the tool in hand can be used (only with the hardware)
     hints: () => (tab === 'parts' && !filling ? easy.hints() : null),
     // a spine was opened: the tools start over for it
     opened() { easy.opened(); if (tab === 'shape' && hand.shape === 'curve') app.picked = firstStretch(); arm(); },
     // Undo went back, or a spine was opened: let go of what was being done to the spine as it was
-    reset() { easy.stopPicking(); hot = null; drag = null; if (tab === 'shape' && hand.shape === 'points' && chart.lineOn()) chart.startLine(); },
-    // open one of the four by its name ('shape', 'parts', 'marks', 'look'), or take a tool of the open one in hand
+    reset() { xray.recall(); easy.stopPicking(); hot = null; drag = null; if (tab === 'shape' && hand.shape === 'points' && chart.lineOn()) chart.startLine(); },
+    // open one of the five by its name ('shape', 'parts', 'marks', 'story', 'look'), or take a tool of the open one in hand
     go(name) { showTab(name); },
     tool(name) { pickTool(name); },
     // where things stand (the checks in a browser use this)
-    state: () => ({ tab, tool: hand[tab] || null, card: cardNow(), both, strip: !$('strip').hidden, xray: xray.state() }),
+    state: () => ({ tab, tool: hand[tab] || null, story: story ? story.state() : null, card: cardNow(), both, strip: !$('strip').hidden, xray: xray.state() }),
     // the X-ray tool: open a picture file, and where its spots are on the page (the checks in a browser use these)
     xray: { open: (file) => xray.open(file), pageOf: (px) => xray.pageOf(px), pixelOf: (x, y) => xray.pixelOf(x, y) },
     // the vertebra under a point of the page, if there is one (the checks in a browser use this)

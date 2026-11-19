@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Spine Builder</title>
+<title>Spine-Design</title>
 <meta name="description" content="Sketch a spine in 3D and shape it to look like your own: curves, fusion, rods, screws and pain points. Free, open source and private. Nothing you build leaves your device.">
 <meta name="theme-color" content="#131419">
 <meta name="referrer" content="no-referrer">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23191a20'/%3E%3Cg fill='%23d9c39a'%3E%3Crect x='20' y='8' width='22' height='9' rx='3.5'/%3E%3Crect x='23' y='20' width='22' height='9' rx='3.5'/%3E%3Crect x='24' y='32' width='22' height='9' rx='3.5'/%3E%3Crect x='21' y='44' width='22' height='10' rx='3.5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23191a20'/%3E%3Crect x='22.5' y='6.2' width='15' height='8.4' rx='3.4' fill='%23d9c39a' transform='rotate%2810 30 10.4%29'/%3E%3Crect x='25.5' y='16.8' width='18' height='8.4' rx='3.4' fill='%23d9c39a' transform='rotate%284 34.5 21%29'/%3E%3Crect x='24.5' y='27.4' width='21' height='8.4' rx='3.4' fill='%239ca3ff' transform='rotate%28-8 35 31.6%29'/%3E%3Crect x='18.5' y='38' width='24' height='8.4' rx='3.4' fill='%23d9c39a' transform='rotate%28-9 30.5 42.2%29'/%3E%3Crect x='14.5' y='48.6' width='27' height='8.4' rx='3.4' fill='%23d9c39a' transform='rotate%283 28 52.8%29'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!--site-->
 <link rel="stylesheet" href="style.css">
 </head>
 <body data-at="shape">
-<noscript><p style="font: 16px system-ui, sans-serif; padding: 24px; color: #eceae5; background: #131419;">Spine Builder draws in your browser and needs JavaScript switched on to do it. Nothing is sent anywhere.</p></noscript>
+<noscript><p style="font: 16px system-ui, sans-serif; padding: 24px; color: #eceae5; background: #131419;">Spine-Design draws in your browser and needs JavaScript switched on to do it. Nothing is sent anywhere.</p></noscript>
 <!-- the pictures on the buttons, drawn once here and used by name -->
 <svg width="0" height="0" style="position: absolute" aria-hidden="true">
   <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.4-2.8 4.2"/><path d="M12 17.6v.2"/></symbol>
@@ -28,6 +28,14 @@
   <symbol id="i-shape" viewBox="0 0 24 24"><path d="M8 3c7 4 7 8 3 11s-2 6 2 7"/></symbol>
   <symbol id="i-screw" viewBox="0 0 24 24"><path d="M8 3.5h8v3.5H8z"/><path d="M10 7v10.5l2 3.5 2-3.5V7"/><path d="M10 10.5l4 1.5M10 14l4 1.5"/></symbol>
   <symbol id="i-pain" viewBox="0 0 24 24"><path d="M13 2.5 5 13.5h6l-1 8 8-11.5h-6l1-7.5Z"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-embed" viewBox="0 0 24 24"><path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 5l-3 14"/></symbol>
+  <symbol id="i-full" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></symbol>
+  <symbol id="i-story" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.2v5.6l4.8-2.8Z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5Z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5.5v13M15.5 5.5v13"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M14.5 5.5 8 12l6.5 6.5"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9.5 5.5 16 12l-6.5 6.5"/></symbol>
   <symbol id="i-look" viewBox="0 0 24 24"><path d="M12 3s6 6.2 6 11a6 6 0 0 1-12 0c0-4.8 6-11 6-11Z"/></symbol>
   <symbol id="i-turn" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4h-4"/></symbol>
   <symbol id="i-draw" viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1Z"/><path d="M14.5 6.5l3 3"/></symbol>
@@ -56,7 +64,7 @@
 
 <header id="topbar">
   <div class="left">
-    <h1>Spine Builder</h1>
+    <h1><svg class="mark" viewBox="14 4 37 56" aria-hidden="true"><rect x="22.5" y="6.2" width="15" height="8.4" rx="3.4" fill="#d9c39a" transform="rotate(10 30 10.4)"/><rect x="25.5" y="16.8" width="18" height="8.4" rx="3.4" fill="#d9c39a" transform="rotate(4 34.5 21)"/><rect x="24.5" y="27.4" width="21" height="8.4" rx="3.4" fill="#9ca3ff" transform="rotate(-8 35 31.6)"/><rect x="18.5" y="38" width="24" height="8.4" rx="3.4" fill="#d9c39a" transform="rotate(-9 30.5 42.2)"/><rect x="14.5" y="48.6" width="27" height="8.4" rx="3.4" fill="#d9c39a" transform="rotate(3 28 52.8)"/></svg>Spine-Design</h1>
     <button id="newBtn" class="tb" aria-label="New sketch"><svg class="i"><use href="#i-new"/></svg><span>New</span></button>
     <button id="openBtn" class="tb roomy">Open</button>
     <button id="saveBtn" class="tb roomy">Save</button>
@@ -65,11 +73,12 @@
     <button id="undoBtn" class="tb icon" aria-label="Undo" disabled><svg class="i"><use href="#i-undo"/></svg></button>
     <button id="redoBtn" class="tb icon" aria-label="Redo" disabled><svg class="i"><use href="#i-redo"/></svg></button>
   </div>
-  <!-- the four things to work on: a bar along the bottom of a phone, a switch in the middle of the top bar on a wide screen -->
+  <!-- the five things to work on: a bar along the bottom of a phone, a switch in the middle of the top bar on a wide screen -->
   <nav id="modes" aria-label="What to work on">
     <button data-tab="shape" aria-current="true"><svg class="i"><use href="#i-shape"/></svg><span>Shape</span></button>
     <button data-tab="parts"><svg class="i"><use href="#i-screw"/></svg><span>Hardware</span></button>
     <button data-tab="marks"><svg class="i"><use href="#i-pain"/></svg><span>Pain</span></button>
+    <button data-tab="story"><svg class="i"><use href="#i-story"/></svg><span>Story</span></button>
     <button data-tab="look"><svg class="i"><use href="#i-look"/></svg><span>Look</span></button>
   </nav>
   <div class="right">
@@ -109,7 +118,7 @@
     <svg id="tagLines" aria-hidden="true"></svg>
     <div id="tags" aria-hidden="true"></div>
     <div id="drawPad" hidden><svg id="drawSvg"><polyline id="drawLine" fill="none"></polyline><polyline id="anchorPath"></polyline><polyline id="anchorHit"></polyline><g id="anchorDots"></g></svg></div>
-    <svg id="xrayMarks" class="xmarks" aria-hidden="true" hidden><polyline class="xstroke"></polyline><polyline class="xpath"></polyline><g class="xdots"></g></svg>
+    <svg id="xrayMarks" class="xmarks" aria-hidden="true" hidden><polyline class="xstroke"></polyline><polyline class="xpath"></polyline><line class="xrule"></line><g class="xdots"></g></svg>
     <!-- the two tools of the X-ray, afloat over the model so they are not missed: what a drag does -->
     <div id="xrayBar" role="toolbar" aria-label="X-ray tools: what a drag does" hidden>
       <button data-xmode="trace" aria-pressed="true"><svg class="i"><use href="#i-draw"/></svg>Trace</button>
@@ -122,6 +131,25 @@
     <div id="problemBox" class="warn" role="alert" hidden><strong>This file has problems</strong><ul id="problems"></ul><button id="problemsOk">OK</button></div>
     <button id="stripBtn" aria-pressed="false" hidden><svg class="i"><use href="#i-map"/></svg><span>Map</span></button>
     <button id="cleanOff" hidden>Tap the model to show the tools</button>
+    <!-- the viewer (view.html): the name of the sketch, a few buttons and the way to the whole app. Hidden in the app itself. -->
+    <div id="viewer" hidden>
+      <p id="viewerHead"><b id="viewerName"></b><span>A sketch, not a medical image and not a measurement</span></p>
+      <div id="viewerBar" role="group" aria-label="The view">
+        <label class="tb names"><input type="checkbox" id="viewerNames"><span>Names</span></label>
+        <button id="viewerFit" class="tb icon" aria-label="Fit the spine in the picture"><svg class="i"><use href="#i-fit"/></svg></button>
+        <button id="viewerFull" class="tb icon" aria-label="Fill the screen" hidden><svg class="i"><use href="#i-full"/></svg></button>
+      </div>
+      <p id="viewerNone" role="status" hidden></p>
+      <p id="viewerFoot"><a id="viewerOpen" target="_blank" rel="noopener">Open in Spine-Design</a><span>Bone shapes: BodyParts3D, CC BY 4.0</span></p>
+    </div>
+    <!-- the steps of the sketch, when it has more than one: which is open, and the way to the others -->
+    <div id="pairCaps" aria-hidden="true" hidden><span></span><span></span></div>
+    <div id="storyBar" role="group" aria-label="The steps of this sketch" hidden>
+      <button id="stepPrev" class="icon" aria-label="The step before"><svg class="i"><use href="#i-prev"/></svg></button>
+      <p role="status"><b id="stepNo"></b><span id="stepWords"></span></p>
+      <button id="stepNext" class="icon" aria-label="The next step"><svg class="i"><use href="#i-next"/></svg></button>
+      <button id="stepPlay" class="icon" aria-label="Play the steps"><svg class="i"><use href="#i-play"/></svg></button>
+    </div>
   </section>
 
   <!-- the flat view beside the model: the map of the hardware, or the blocks of the shape -->
@@ -136,7 +164,7 @@
       <p class="small">Drag a block sideways and its neighbours follow.</p>
     </div>
     <div id="xrayBox" hidden>
-      <div id="xrayWrap"><svg id="xraySvg" class="xmarks" role="img" aria-label="The picture of the X-ray. Drag a line up the spine on it, or tap spots along it."><polyline class="xstroke"></polyline><polyline class="xpath"></polyline><g class="xdots"></g></svg></div>
+      <div id="xrayWrap"><svg id="xraySvg" class="xmarks" role="img" aria-label="The picture of the X-ray. Drag a line up the spine on it, or tap spots along it."><polyline class="xstroke"></polyline><polyline class="xpath"></polyline><line class="xrule"></line><g class="xdots"></g></svg></div>
     </div>
   </aside>
 
@@ -216,15 +244,19 @@
           <div class="pair" id="xrayEnds"><label for="xrayBottom">Trace from</label><select id="xrayBottom" aria-label="The lowest vertebra of the trace"></select><label for="xrayTop">up to</label><select id="xrayTop" aria-label="The highest vertebra of the trace"></select></div>
           <div class="row xfit"><button id="xrayFit" class="main">Fit the spine to the trace</button><button id="xrayPointGone" hidden>Remove the spot</button><button id="xrayClear" class="quiet">Clear the trace</button></div>
           <p class="small" id="xraySay" role="status"></p>
+          <div class="row" id="xrayNextRow" hidden><button id="xrayNext">Next: a picture from the side</button></div>
           <details class="fold" id="xrayPlace">
             <summary>X-ray position</summary>
-            <div class="row"><button id="xFlip" class="toggle" aria-pressed="false"><svg class="i"><use href="#i-flip"/></svg>Flip left to right</button><button id="xrayBack">Put it back on the spine</button></div>
-            <label class="dial">Turn<b id="xTurnSay"></b><span><input type="range" id="xTurn" min="-45" max="45" step="0.5" value="0"></span></label>
+            <div class="row"><button id="xFlip" class="toggle" aria-pressed="false"><svg class="i"><use href="#i-flip"/></svg>Flip left to right</button><button id="xQuarter"><svg class="i"><use href="#i-turn"/></svg>Turn a quarter</button><button id="xrayBack">Put it back on the spine</button></div>
+            <label class="dial">Fine turn<b id="xTurnSay"></b><span><input type="range" id="xTurn" min="-45" max="45" step="0.5" value="0"></span></label>
             <p class="small">To move it, take Move X-ray in hand on the model and drag the picture. Films are often shown as if you face the person: if the side marked L is not on the left when the model is seen from the back, flip it.</p>
           </details>
           <details class="fold" id="xrayTone">
             <summary>X-ray adjustment</summary>
             <label class="dial">Size<b id="xSizeSay"></b><span><input type="range" id="xSize" min="30" max="300" value="100"></span></label>
+            <div class="row"><button id="xRule" class="toggle" aria-pressed="false">Set the size from a known length</button></div>
+            <div class="pair" id="xRuleSet" hidden><label for="xRuleMm">That line is</label><input type="number" id="xRuleMm" min="1" max="2000" step="0.5" inputmode="decimal" aria-label="How long the line is, in millimetres"><span>mm</span><button id="xRuleGo" class="main">Set the size</button></div>
+            <p class="small" id="xRuleSay">If the picture shows something whose size you know, such as a marker ball, a screw or a rod, draw a line along it and give its length. The size of the picture is then set by that, and the trace needs only its lowest vertebra named.</p>
             <label class="dial">Brightness<span><input type="range" id="xBright" min="-100" max="100" value="0"></span></label>
             <label class="dial">Contrast<span><input type="range" id="xContrast" min="-100" max="100" value="0"></span></label>
             <label class="dial">Black, solid to see-through<span><input type="range" id="xCut" min="0" max="100" value="0"></span></label>
@@ -324,6 +356,29 @@
         <div class="row"><button id="markLabelBack" hidden>Put the label back on its spot</button></div>
       </section>
 
+      <section data-card="story" hidden>
+        <h3>Steps</h3>
+        <p class="small" id="storyNone">A sketch can hold the same spine at several moments, such as before and after an operation, each with a few words. Add a step to begin. It starts as a copy of the spine as it is now.</p>
+        <ol id="stepList" hidden></ol>
+        <div class="row"><button id="stepAdd" class="main">Add a step</button></div>
+        <p class="small" id="storySay" role="status"></p>
+        <div id="storyMore" hidden>
+          <h3>Compare</h3>
+          <div class="seg" role="group" aria-label="Compare two steps"><button data-compare="off" aria-pressed="true">One step</button><button data-compare="side" aria-pressed="false">Side by side</button><button data-compare="blend" aria-pressed="false">Blend</button></div>
+          <div id="compareBox" hidden>
+            <div class="pair"><label for="cmpFrom">From</label><select id="cmpFrom"></select><label for="cmpTo">to</label><select id="cmpTo"></select></div>
+            <div id="blendBox" hidden>
+              <label class="dial">Blend<b id="blendSay"></b><span><input type="range" id="blend" min="0" max="100" value="0"></span></label>
+              <div class="row"><button id="blendPlay">Play</button></div>
+            </div>
+          </div>
+        </div>
+        <h3>Notes</h3>
+        <p class="small">A note is a few words pinned to a spot of the spine. Each step has its own.</p>
+        <div class="row"><button id="noteGo"><svg class="i"><use href="#i-note"/></svg>Add a note</button></div>
+        <h3>Take it with you</h3>
+        <p class="small">Share has a link that holds every step, a moving picture of the steps or of the model turning, and a page to print.</p>
+      </section>
       <section data-card="look" hidden>
         <h3>Shading</h3>
         <div class="thumbs" id="shades" role="group" aria-label="Shading"><button data-shade="soft"><img alt=""><span>Soft</span></button><button data-shade="clay"><img alt=""><span>Clay</span></button><button data-shade="drawing"><img alt=""><span>Drawing</span></button><button data-shade="xray"><img alt=""><span>X-ray</span></button><button data-shade="plain"><img alt=""><span>Plain</span></button><button data-shade="matte"><img alt=""><span>Matte</span></button><button data-shade="chrome"><img alt=""><span>Chrome</span></button><button data-shade="gold"><img alt=""><span>Gold</span></button><button data-shade="candy"><img alt=""><span>Candy</span></button><button data-shade="rainbow"><img alt=""><span>Rainbow</span></button><button data-shade="neon"><img alt=""><span>Neon</span></button></div>
@@ -401,6 +456,23 @@
   <button id="linkBtn" class="big"><svg class="i"><use href="#i-chain"/></svg><span><strong>Copy a link</strong><em>The link itself holds the whole sketch</em></span></button>
   <input id="linkText" type="text" readonly hidden aria-label="The link to this sketch">
   <button id="shSave" class="big"><svg class="i"><use href="#i-file"/></svg><span><strong>Save the file</strong><em>To open again later, on any device</em></span></button>
+  <button id="clipBtn" class="big" aria-expanded="false"><svg class="i"><use href="#i-story"/></svg><span><strong>Save a moving picture</strong><em>The model turning, or its steps one after the other</em></span></button>
+  <div id="clipBox" hidden>
+    <label class="pair">Shows<select id="clipWhat"><option value="turn">the model turning once round</option><option value="steps" id="clipSteps">the steps, one after the other</option></select></label>
+    <label class="pair">Kind<select id="clipKind"><option value="video">video</option><option value="gif">GIF</option></select></label>
+    <div class="row"><button id="clipGo" class="main">Make it</button></div>
+    <p class="small" id="clipSay" role="status"></p>
+  </div>
+  <button id="embedBtn" class="big" aria-expanded="false"><svg class="i"><use href="#i-embed"/></svg><span><strong>Put it on a web page</strong><em>A few lines of code that show this sketch in 3D on your own site</em></span></button>
+  <div id="embedBox" hidden>
+    <div class="row"><label class="check"><input type="checkbox" id="embedNames">Bone names</label><label class="check"><input type="checkbox" id="embedTurn" checked>Turn slowly until touched</label></div>
+    <label class="pair">Height<select id="embedTall"><option value="420">short (420)</option><option value="520" selected>medium (520)</option><option value="680">tall (680)</option></select></label>
+    <textarea id="embedText" readonly rows="4" aria-label="The code to paste into your page" spellcheck="false"></textarea>
+    <div class="row"><button id="embedCopy" class="main">Copy the code</button><a id="embedSee" class="btn" target="_blank" rel="noopener">See it</a></div>
+    <p class="small">It shows the sketch as it looks now: this shading, this background and this side. Visitors can turn it, go through its steps and open it in Spine-Design. They cannot change your copy.</p>
+    <p class="small" id="embedSay" role="status"></p>
+  </div>
+  <button id="sheetBtn" class="big"><svg class="i"><use href="#i-file"/></svg><span><strong>Print a page</strong><em>Two views, what is on the spine and your notes. Or save it as a PDF.</em></span></button>
   <button id="printBtn" class="big" aria-expanded="false"><svg class="i"><use href="#i-view"/></svg><span><strong>Print it in 3D</strong><em>A model file for a 3D printer</em></span></button>
   <div id="printBox" hidden>
     <label class="pair">Size<select id="stlScale"><option value="1">full size</option><option value="0.5" selected>half size</option><option value="0.3333">a third</option><option value="0.25">a quarter</option></select></label>
@@ -414,9 +486,12 @@
   <p class="small" id="shSay" role="status">Nothing is uploaded. The sketch stays on this device unless you send it.</p>
 </dialog>
 
+<!-- the page that is printed (Share, Print a page). It is filled in when asked for and is not shown on screen. -->
+<article id="printPage" aria-hidden="true"></article>
+
 <dialog id="welcome" aria-labelledby="welcomeTitle">
   <h2 id="welcomeTitle">Before you start</h2>
-  <p><strong>This is a sketching tool.</strong> Spine Builder is not a medical device and gives no medical advice. What you build here is a picture to think and talk with. It is not a measurement and not a diagnosis. Take questions about your own spine to the people who treat you.</p>
+  <p><strong>This is a sketching tool.</strong> Spine-Design is not a medical device and gives no medical advice. What you build here is a picture to think and talk with. It is not a measurement and not a diagnosis. Take questions about your own spine to the people who treat you.</p>
   <p><strong>Your sketch stays with you.</strong> There are no accounts and no tracking. This page does not send what you build anywhere, and it carries a rule that stops it from contacting any server once it is open. Files you open are read by your own browser, and so is a picture of an X-ray you trace over: it is not kept and not part of the sketch. A share link carries the sketch inside the link itself, so it goes only where you send it.</p>
   <p><strong>What is kept on this device.</strong> Two small settings: how you set the look, and whether you ticked the box below. Nothing about your spine is kept. Close the page without saving and the sketch is gone.</p>
   <p class="small" id="welcomeHost" hidden>Like any website, the service that hosts this page can see that a device asked for the page. It does not see what you do here.</p>

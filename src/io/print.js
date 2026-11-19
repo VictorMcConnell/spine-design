@@ -51,7 +51,7 @@ export function stlOf(items, scale = 1, note = '') {
 // in other programs: up stays up and the front of the spine faces the viewer.
 // Returns { obj, mtl } as text. Every item is an object of its own, named after what it is.
 export function objOf(items, scale = 1, note = '', mtlName = 'spine.mtl') {
-  const obj = ['# ' + note, '# Units: millimetres. Made with Spine Builder.', 'mtllib ' + mtlName], mtl = ['# ' + note], seen = new Map(), names = new Map();
+  const obj = ['# ' + note, '# Units: millimetres. Made with Spine-Design.', 'mtllib ' + mtlName], mtl = ['# ' + note], seen = new Map(), names = new Map();
   const f3 = (v) => (Math.round(v * 1000) / 1000).toString();
   let base = 1;
   for (const it of items) {

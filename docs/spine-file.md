@@ -21,6 +21,7 @@ app needs to draw one spine. This page describes format 1.
 | `fused` | Stretches that are fused, each written as `[top, bottom]`, for example `["T4", "L2"]`. |
 | `hardware` | Rods, screws, hooks and cross-links. |
 | `marks` | Things the person wants to point at, such as where it hurts. |
+| `steps` | Optional. The same spine at other moments, such as before and after an operation. See below. |
 | `pictures` | Reserved for X-rays and their scale. Empty for now: a picture traced over in the app is not kept in the file. |
 
 ## A vertebra
@@ -107,6 +108,22 @@ A pain mark is either a spot (`at`) or a stretch (`from` and `to`). Its `strengt
 as 5. A note is a pin with a few words. Either can carry a `label`: the place its words were
 moved to, away from the mark. The app joins the two with a line.
 
+## Steps
+
+A sketch can hold the same spine at several moments, each with a few words. The step that
+is open stays where a spine always is, at the top level of the file, so a reader that knows
+nothing of steps still shows a spine. The other steps are in `steps`, in their order, each
+with its own `levels`, `fused`, `hardware` and `marks`. The place of the open step is held
+by an entry that says `"here": true`:
+
+    "steps": [ { "caption": "Before", "levels": [...], "fused": [], "hardware": {...}, "marks": [] },
+               { "caption": "After", "here": true } ]
+
+- There are 2 to 12 entries, and exactly one of them says `here`.
+- `caption` is up to 80 characters. It can be empty.
+- The steps need not have the same vertebrae: one can be drawn without its neck.
+- A file without `steps` is a sketch with one step.
+
 ## A spine in a link
 
 The Share menu makes a link that holds a whole spine file. The file goes into the part of
@@ -117,6 +134,7 @@ kind that is safe in addresses, without padding):
 - `j`: the JSON text as it is, for a browser that cannot squeeze.
 
 A plain spine makes a link of about 1,100 characters, one with rods and screws about 3,500.
+Every step of a sketch is in the link, so each step adds about as much again.
 The app refuses a link that unpacks to more than 2 MB, checks the result like any opened
 file and then takes the link out of the address bar. `src/io/share.js` does the packing.
 
