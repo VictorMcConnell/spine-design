@@ -12,7 +12,7 @@ import { ANATOMY } from '../src/core/anatomy.js';
 import { LEVEL_ORDER } from '../src/core/spinefile.js';
 import { vAdd, vSub, vScale, vDot, vCross, vUnit } from '../src/core/vec.js';
 import { rayMesh } from '../src/core/pick.js';
-import { typicalScrew, screwLean } from '../src/core/hardware.js';
+import { typicalScrew, screwLean } from '../src/parts/sizes.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const folder = process.argv[2], showTable = process.argv.includes('--table');

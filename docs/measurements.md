@@ -6,7 +6,7 @@ a spine or of an implant was used to make them.
 The starting point is three spreadsheets of general, typical measurements put together for
 this project: vertebra sizes, disc heights and the usual side curves, and generic sizes for
 screws, rods, hooks and cross-links. The numbers the app uses are in `src/core/anatomy.js` and
-`src/core/hardware.js`.
+`src/parts/sizes.js`.
 
 ## Changes made to the vertebra table
 
@@ -188,7 +188,7 @@ A longer written report on open spine data was checked against this table on 14 
 - Its text gives pedicle widths of 8.1 mm at T1 and 6.5 mm at T2 from a published study. That
   matches the corrected values used here (8 and 6.5), not the sheet (6.0 and 6.2).
 - Its text gives the wedge of the lumbar bodies. L1 and L5 were changed to follow it (above).
-- Its hardware figures by region are now in `src/core/hardware.js` as the sizes the builder
+- Its hardware figures by region are now in `src/parts/sizes.js` as the sizes the builder
   starts from when a piece is added.
 - Its list of open data sets, with the licences as checked on that day, is in `docs/sources.md`.
 

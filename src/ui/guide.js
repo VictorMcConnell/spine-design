@@ -46,12 +46,15 @@ export function setupGuide(app, host) {
       ['X-ray', 'shape:xray', 'Lay a picture of an X-ray over the model or beside it, trace the spine on it and the model takes that shape. Do it from the back and from the side for both directions. The picture stays on this device.'],
     ] },
     { id: 'parts', name: 'Hardware', says: 'Put screws, hooks, rods and cross-links on the spine. The map beside the model has a row for every vertebra.', tools: [
-      ['Turn', 'parts:turn', 'Pick a part to change it: drag a screw to another vertebra, set its length and thickness, or remove it.'],
-      ['Screw', 'parts:screw', 'Put a screw on a dot of the model or of the map. Drag down the map to place several.'],
-      ['Hook', 'parts:hook', 'The same for hooks, pointing up or down.'],
-      ['Link', 'parts:link', 'A cross-link between the two rods, in the gap below a vertebra.'],
-      ['Rod', 'parts:rod', 'Rods run through all the parts of a side. Pick two parts to run a rod between only those. Drag a rod to bend it.'],
-      ['Erase', 'parts:erase', 'Take single parts off.'],
+      ['Select', 'parts:turn', 'With nothing in hand, pick a part to change it: drag a screw to another vertebra, set its length and thickness, or pick another picture in the catalogue to make it a hook. Adjust by hand on its card opens sliders for its angle and its place on the bone, with a button that puts it back.'],
+      ['Screw', 'parts:screw', 'A picture in the catalogue beside the model. Take it in hand and put a screw on a dot of the model or of the map. Drag down the map to place several.'],
+      ['Hook', 'parts:hook', 'The same for hooks, pointing down or up.'],
+      ['Cross-link', 'parts:link', 'In the Cross-links category: a cross-link between the two rods, in the gap below a vertebra. There are three looks: arched, flat and straight. Select one that is on and pick another picture to change it.'],
+      ['Rod', 'parts:rod', 'Rods run through all the parts of a side. Pick two parts to run a rod between only those. Drag a rod to bend it. The pictures set how thick: of the selected rod, or of all of them.'],
+      ['Discs', 'parts:disc', 'The Discs category of the catalogue. Select a disc on the model, then pick what it is: thin, bulging, herniated, dried out or gone, or an implant: an artificial disc, a cage, a cage with its own screws, a plate on the front or a spacer at the back. Plates on discs next to each other join into one long plate. A bulge can point to the back, a side or the front. Turn the model to see the discs from the front or the side.'],
+      ['Vertebrae', 'parts:bone', 'The Vertebrae category of the catalogue. Select a vertebra, then pick how it is broken: a wedge, crush or burst fracture, squashed on one side, a hairline crack, a split or a chipped corner. A slider sets how much. Further down are the looks of the bone: aged or porous, with bone spurs, hardened or sore, and what was done to the back of it.'],
+      ['Move, Rotate, Size', 'parts:bone', 'Three buttons beside the model. They put handles on a selected vertebra: arrows to move it, rings to turn it, knobs to resize it. Select takes the handles away.'],
+      ['None', 'parts:erase', 'Take single parts off: in hand, each part pressed goes. Pressed while a part is selected, it takes that part off.'],
       ['Fill it in for me', '#fillBtn', 'Three questions (from where, to where, which parts) and a whole set is put on at once.'],
     ] },
     { id: 'marks', name: 'Pain', says: 'Mark where it hurts and write short notes on the model.', tools: [
@@ -99,9 +102,11 @@ export function setupGuide(app, host) {
     if (el.scrollIntoView && el.closest('#card, #side')) el.scrollIntoView({ block: 'nearest' });
     if (forMs) litTimer = setTimeout(unlight, forMs);
   }
+  // (the tools of the hardware are the pictures of the catalogue, and Select beside the model)
+  const PART_TARGET = { turn: '#fineSelect', screw: '#catTiles [data-tile="screw"]', hook: '#catTiles [data-tile="hook-down"]', link: '#catTiles [data-tile="link"]', rod: '#catTiles [data-tile="rod"]', erase: '#catTiles [data-tile="none"]', disc: '#cats [data-cat="discs"]', bone: '#cats [data-cat="bones"]' };
   // open the place a tool is in, take it in hand and show it
   function showTool(part, where) {
-    if (/^[a-z]+:[a-z]+$/.test(where)) { const [tab, tool] = where.split(':'); go(tab, tool); return '#tray [data-tools="' + tab + '"] [data-t="' + tool + '"]'; }
+    if (/^[a-z]+:[a-z]+$/.test(where)) { const [tab, tool] = where.split(':'); go(tab, tool); return tab === 'parts' ? PART_TARGET[tool] : '#tray [data-tools="' + tab + '"] [data-t="' + tool + '"]'; }
     if (part.id === 'look') go('look'); else if (part.id === 'story') go('story'); else if (part.id === 'parts') go('parts', 'turn');
     return where;
   }
@@ -122,8 +127,8 @@ export function setupGuide(app, host) {
         pick('gTop', 'T4'); pick('gBottom', 'L1'); click('[data-gkind="screws"]'); click('[data-glinks="1"]'); await wait(500);
         click('#gBuild'); await wait(400);
       } },
-    { part: 'parts', title: 'Change one part', target: '#tray [data-tools="parts"] [data-t="turn"]', at: () => go('parts', 'turn'),
-      text: () => 'With Turn in hand, ' + Press().toLowerCase() + ' any part to change it. A screw can be dragged to another vertebra, made longer or thicker, or removed.',
+    { part: 'parts', title: 'Change one part', target: '#fineSelect', at: () => go('parts', 'turn'),
+      text: () => 'With Select, ' + Press().toLowerCase() + ' any part to change it. A screw can be dragged to another vertebra, made longer or thicker, or changed into a hook with the pictures of the catalogue. None takes it off.',
       doIt: async () => {
         const screws = app.spine.hardware.screws;
         if (!screws.length) { app.say('There is no screw to change yet. Add the hardware first.'); return; }

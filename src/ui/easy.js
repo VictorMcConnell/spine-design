@@ -10,9 +10,10 @@
 import { followLine, toLocal } from '../core/shape.js';
 import { levelFrame } from '../core/bones.js';
 import { slot, fitOut, fitRods, cellOf, hookFaces, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, linkSpot, linkGap, gapsOf, setRodCut, drawRod, cutAll, rodsThroughAll, cutRodAt, rodSets } from '../core/place.js';
-import { FINISHES, PALETTES, USUAL_FINISH, colorOf } from '../core/hardware.js';
+import { FINISHES, PALETTES, colorOf } from '../core/finish.js';
+import { PART_KINDS, USUAL_FINISH } from '../parts/kinds.js';
 
-const KINDS = [['rods', 'Rods'], ['screws', 'Screws'], ['hooks', 'Hooks'], ['crosslinks', 'Cross-links']];
+const KINDS = PART_KINDS.map((p) => [p.kind, p.names]);
 
 // A row of round colour buttons.
 //   chosen: the name of the colour that is on now      pick(name): called with the new one
@@ -136,14 +137,14 @@ export function setupEasy(app, kit) {
   const carried = (id, side) => { const kind = cellOf(app.spine, id, side); return kind === 'hook' ? 'hook-' + hookFaces(app.spine, id, side) : kind; };
   each('[data-gput]', (b) => b.addEventListener('click', () => {
     const id = app.picked && app.picked.kind === 'level' ? app.picked.id : null, side = b.parentElement.dataset.gside, [kind, faces] = b.dataset.gput.split('-');
-    if (id) app.change(() => setCell(app.spine, id, side, kind, faces || 'down'), { ride: false });
+    if (id) app.change(() => setCell(app.spine, id, side, kind, faces || 'down', kit.look()), { ride: false });
   }));
   $('gFused').addEventListener('change', () => { const id = app.picked && app.picked.id; if (id) app.change(() => setFusedBelow(app.spine, id, $('gFused').checked), { ride: false }); });
   $('gLink').addEventListener('change', () => {
     const id = app.picked && app.picked.id;
     if (!id) return;
     let fits = true;
-    app.change(() => { fits = setLinkBelow(app.spine, id, $('gLink').checked); }, { ride: false });
+    app.change(() => { fits = setLinkBelow(app.spine, id, $('gLink').checked, kit.linkLook()); }, { ride: false });
     app.say(fits ? '' : NEEDS_RODS);
   });
   const step = (by) => () => { const list = ids(), i = list.indexOf(app.picked && app.picked.id) + by; if (i >= 0 && i < list.length) app.pick({ kind: 'level', id: list[i] }); };
@@ -307,7 +308,7 @@ export function setupEasy(app, kit) {
     const sides = [side, ...(kit.both() && mapTool !== 'erase' ? [other] : [])].filter((sd) => carried(id, sd) !== want);
     if (!sides.length) return false;
     let done = false;
-    live(() => { rodsWait(); for (const sd of sides) done = setCell(app.spine, id, sd, kind, faces || 'down') || done; });
+    live(() => { rodsWait(); for (const sd of sides) done = setCell(app.spine, id, sd, kind, faces || 'down', kit.look()) || done; });
     if (!done) tell('That part is frozen. Select it and untick "Frozen" to change it.');
     return done;
   }
@@ -318,7 +319,7 @@ export function setupEasy(app, kit) {
       if (run.on === undefined) run.on = mapTool === 'link' && !linkBelow(app.spine, id);
       if (linkBelow(app.spine, id) === run.on) return false;
       let fits = true;
-      live(() => { fits = setLinkBelow(app.spine, id, run.on); });
+      live(() => { fits = setLinkBelow(app.spine, id, run.on, kit.linkLook()); });
       if (!fits) tell(NEEDS_RODS);
       return fits;
     }

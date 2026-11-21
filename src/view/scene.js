@@ -1,11 +1,17 @@
 // Turns a spine file into the list of things the renderer draws.
 
 import { sortedLevels, isFused } from '../core/spinefile.js';
-import { vertebraShape, levelFrame, discMesh } from '../core/bones.js';
-import { rodMesh, screwParts, hookParts, crosslinkMesh, rodDirectionNear, colorOf, USUAL_FINISH, HARDWARE } from '../core/hardware.js';
+import { crackMarks, boneMarks } from '../core/fractures.js';
+import { vertebraShape, levelFrame, discMesh, discParts, plateRun, archMarks } from '../core/bones.js';
+import { colorOf, DISC, discTint } from '../core/finish.js';
+import { USUAL_FINISH } from '../parts/kinds.js';
+import { PARTS } from '../parts/catalogue.js';
+import { HARDWARE } from '../parts/sizes.js';
+import { crosslinkMesh } from '../parts/crosslink.js';
+import { rodDirectionNear } from '../parts/rod.js';
 import { tube, ball } from '../core/mesh.js';
 
-const COLORS = { bone: [0.78, 0.68, 0.52], disc: [0.33, 0.52, 0.74], fusedDisc: [0.6, 0.56, 0.48], picked: [1, 0.78, 0.3], between: [0.93, 0.8, 0.55], spot: [0.45, 0.75, 1], note: [0.55, 0.8, 1] };
+const COLORS = { bone: [0.78, 0.68, 0.52], disc: DISC, fusedDisc: [0.6, 0.56, 0.48], picked: [1, 0.78, 0.3], between: [0.93, 0.8, 0.55], spot: [0.45, 0.75, 1], note: [0.55, 0.8, 1] };
 // a colour for the hardware of each level, from violet at the top to red at the bottom
 const BY_LEVEL = [[0.52, 0.34, 0.86], [0.39, 0.41, 0.9], [0.27, 0.51, 0.92], [0.18, 0.62, 0.87], [0.15, 0.71, 0.76], [0.17, 0.75, 0.61], [0.31, 0.77, 0.42], [0.53, 0.78, 0.26], [0.74, 0.76, 0.19], [0.89, 0.69, 0.18], [0.94, 0.57, 0.18], [0.93, 0.42, 0.21], [0.89, 0.28, 0.25]];
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -26,10 +32,13 @@ export function levelMatrix(level) {
 }
 
 const SPOT = ball([0, 0, 0], 3.2);
+// What the renderer needs to draw the dark line of a break: the kind (1 wedge, 2 crush, 3 burst), then half the
+// depth, half the width and half the height of the body.
+const crackOf = (level) => crackMarks(level.fracture, level.size);
 
 //   detail: size of the grid the bones are sampled on, in millimetres (smaller = smoother, slower)
 //   extras: for the builder and the look of things
-//     picked: { kind: 'level', id, mates } | { kind: 'stretch', top, bottom } | { kind: 'screws' ..., index }
+//     picked: { kind: 'level', id, mates } | { kind: 'stretch', top, bottom } | { kind: 'screws' ..., index } | { kind: 'discs', id: 'L4/L5' }
 //             (mates: the vertebrae that move with the picked one, drawn paler)
 //     also:   more parts that are selected along with the picked one: [{ kind, index }]
 //     locked: ids of the vertebrae that are locked in place while the curve is shaped, drawn darker
@@ -60,29 +69,31 @@ export function buildScene(spine, detail, extras = {}) {
   const ownBone = (id) => { const l = levels.find((x) => x.id === id); return (l && l.color && colorOf(l.color)) || look.bone || COLORS.bone; };
   const boneColor = (id, i) => lit(id, (picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : locked.includes(id) ? dim(ownBone(id)) : stiff.includes(id) ? cool(ownBone(id)) : ownBone(id));
   // a vertebra is drawn once in its own axes and then placed, so bending the spine only moves it
-  levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level), name: level.id }));
+  levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail, level.fracture, level.bone === 'spurs'), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level), name: level.id, ...(level.wear ? { wear: level.wear } : {}), ...(level.fracture ? { crack: crackOf(level) } : {}), ...(boneMarks(level) ? { bone: boneMarks(level) } : {}), ...(level.arch ? archMarks(level) || {} : {}) }));
   for (let i = 0; i < levels.length - 1; i++) {
     if (levels[i].id === 'C1') continue;          // the atlas sits on the axis without a disc
     const fused = isFused(spine, levels[i].id) && isFused(spine, levels[i + 1].id);
-    add('discs', discMesh(levels[i], levels[i + 1]), fused ? COLORS.fusedDisc : look.disc || COLORS.disc, 1, { name: 'disc_' + levels[i].id + '_' + levels[i + 1].id });
+    // a disc is drawn as the file describes it (standard when it says nothing). The selected one glows,
+    // and one that is gone shows as a ghost while it is selected, so there is something to see.
+    const key = levels[i].id + '/' + levels[i + 1].id, base = fused ? COLORS.fusedDisc : look.disc || COLORS.disc, chosen = picked.kind === 'discs' && picked.id === key, name = 'disc_' + levels[i].id + '_' + levels[i + 1].id;
+    // (plates on discs next to each other are drawn as one long plate, with the first of them)
+    const parts = discParts(levels[i], levels[i + 1], (spine.discs || {})[key], plateRun(levels, spine.discs, i));
+    // (an implant keeps its own colour, whatever colour the discs were given)
+    for (const part of parts) { const own = part.color || discTint(base, part.tint); add('discs', part.mesh, chosen ? mix(own, COLORS.picked, 0.6) : own, 1, { name, ...(part.metal ? { metal: true } : {}) }); }
+    if (chosen && !parts.length) add('discs', discMesh(levels[i], levels[i + 1]), COLORS.picked, 0.3, { name });
   }
   const rodSize = (id) => ((hw.rods || []).find((r) => r.id === id) || {}).diameter || HARDWARE.rodDiameter;
-  // (rods that have not been put on yet, at the Easy level, are in the file but are not drawn)
-  (hw.norods ? [] : hw.rods || []).forEach((rod, i) => add('rods', rodMesh(rod), finish('rods', rod, i), 1, { name: 'rod_' + (rod.id || i + 1) }));
-  // the head of a screw or hook is one shape drawn once and placed, like a vertebra
-  (hw.screws || []).forEach((screw, i) => {
-    const parts = screwParts(screw, rodDirectionNear(hw.rods, screw.head), rodSize(screw.rod)), color = finish('screws', screw, i), opacity = 1;
-    const name = 'screw_' + (screw.level || i + 1) + '_' + (screw.side || '');
-    add('screws', parts.shaft, color, opacity, { name }); add('screws', parts.head.mesh, color, opacity, { matrix: parts.head.matrix, name });
-  });
-  (hw.hooks || []).forEach((hook, i) => {
-    const parts = hookParts(hook, rodDirectionNear(hw.rods, hook.at), rodSize(hook.rod)), color = finish('hooks', hook, i), opacity = 1;
-    const name = 'hook_' + (hook.level || i + 1) + '_' + (hook.side || '');
-    add('hooks', parts.blade, color, opacity, { name }); add('hooks', parts.head.mesh, color, opacity, { matrix: parts.head.matrix, name });
-  });
   // a cross-link arches away from the spine: backward as the vertebra next to it sees it
   const backAt = (p) => levelFrame(levels.reduce((best, l) => (Math.hypot(p[0] - l.centre[0], p[1] - l.centre[1], p[2] - l.centre[2]) < Math.hypot(p[0] - best.centre[0], p[1] - best.centre[1], p[2] - best.centre[2]) ? l : best))).back;
-  (hw.crosslinks || []).forEach((link, i) => add('crosslinks', crosslinkMesh(link, rodDirectionNear(hw.rods, link.from), rodDirectionNear(hw.rods, link.to), backAt(link.from)), finish('crosslinks', link, i), 1, { name: 'crosslink_' + (i + 1) }));
+  // Every kind of part, in the order of the catalogue. Each kind says what to draw for one of
+  // its pieces (src/parts): one shape, or more when a part of it is drawn once and placed, the
+  // way the head of a screw or a hook is.
+  const around = { rods: hw.rods, rodSize, backAt };
+  for (const part of PARTS) {
+    // (rods that have not been put on yet, at the Easy level, are in the file but are not drawn)
+    const pieces = part.kind === 'rods' && hw.norods ? [] : hw[part.kind] || [];
+    pieces.forEach((piece, i) => { const color = finish(part.kind, piece, i); for (const { mesh, ...more } of part.items(piece, i, around)) add(part.kind, mesh, color, 1, more); });
+  }
   // the bends put into a rod by hand show as small knobs while that rod is picked
   if (picked.kind === 'rods' && (hw.rods || [])[picked.index]) for (const p of hw.rods[picked.index].via || []) add('spots', SPOT, COLORS.picked, 1, { matrix: new Float32Array([1.15, 0, 0, 0, 0, 1.15, 0, 0, 0, 0, 1.15, 0, p[0], p[1], p[2], 1]) });
   // pain points glow stronger the worse they are; notes are small pins

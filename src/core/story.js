@@ -12,9 +12,12 @@
 import { carry } from './shape.js';
 import { fitRods } from './place.js';
 import { MOST_STEPS, LEVEL_ORDER } from './spinefile.js';
+import { KINDS } from '../parts/kinds.js';
 
 // what differs from step to step
-const BODY = ['levels', 'fused', 'hardware', 'marks'];
+const BODY = ['levels', 'fused', 'hardware', 'marks', 'discs'];
+// (what a part of the body is when a step does not have it: a list, or a list by name)
+const bare = (key) => (key === 'hardware' || key === 'discs' ? {} : []);
 const copy = (x) => JSON.parse(JSON.stringify(x));
 const round2 = (v) => Math.round(v * 100) / 100;
 
@@ -30,7 +33,7 @@ export function stepSpine(spine, i) {
   for (const key of BODY) out[key] = s[key];
   out.fused = out.fused || []; out.marks = out.marks || [];
   out.hardware = out.hardware || {};
-  for (const key of ['rods', 'screws', 'hooks', 'crosslinks']) out.hardware[key] = out.hardware[key] || [];
+  for (const key of KINDS) out.hardware[key] = out.hardware[key] || [];
   return out;
 }
 
@@ -40,7 +43,7 @@ export function addStep(spine, caption) {
   if (stepCount(spine) >= MOST_STEPS) return false;
   if (!Array.isArray(spine.steps) || !spine.steps.length) spine.steps = [{ caption: 'Step 1', here: true }];
   const i = stepHere(spine), was = { caption: spine.steps[i].caption || '' };
-  for (const key of BODY) was[key] = copy(spine[key] === undefined ? (key === 'hardware' ? {} : []) : spine[key]);
+  for (const key of BODY) was[key] = copy(spine[key] === undefined ? bare(key) : spine[key]);
   spine.steps[i] = was;
   spine.steps.splice(i + 1, 0, { caption: caption || 'Step ' + (spine.steps.length + 1), here: true });
   return true;
@@ -52,7 +55,7 @@ export function goStep(spine, to) {
   if (!Array.isArray(spine.steps) || to === i || to < 0 || to >= spine.steps.length) return false;
   const away = { caption: spine.steps[i].caption || '' }, next = spine.steps[to];
   for (const key of BODY) away[key] = spine[key];
-  for (const key of BODY) spine[key] = next[key] === undefined ? (key === 'hardware' ? {} : []) : next[key];
+  for (const key of BODY) spine[key] = next[key] === undefined ? bare(key) : next[key];
   spine.steps[i] = away;
   spine.steps[to] = { caption: next.caption || '', here: true };
   return true;

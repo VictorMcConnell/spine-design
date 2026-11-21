@@ -308,19 +308,26 @@ those scripts. [CONTRIBUTING.md](CONTRIBUTING.md) has the few house rules.
 
 ## How the code is laid out
 
-    src/core/    spine maths, size tables, the shapes of bones and hardware, the numbers,
-                 bending the spine (shape.js), placing hardware (place.js) and the stand for
-                 a print (stand.js). No screen code.
+    src/core/    spine maths, size tables, the shapes of bones and discs, what each disc
+                 is (discs.js), broken vertebrae and worn bone (fractures.js), the numbers, the colours (finish.js), bending the spine (shape.js), placing hardware (place.js) and
+                 the stand for a print (stand.js). No screen code.
+    src/parts/   the hardware, one file for each kind of part (rod.js, screw.js, hook.js,
+                 crosslink.js), the head that screws and hooks share, their typical sizes
+                 (sizes.js), the list of kinds, of the types a placed part can be changed to
+                 and of the categories and tiles of the catalogue (kinds.js), and the code that
+                 joins each kind to its drawing and draws one of each for its tile
+                 (catalogue.js). kinds.js says how to add a kind.
     src/shapes/  the real bone shapes, written by tools/make-shapes.mjs
-    src/view/    a small WebGL renderer with its shadings, the scene built from a spine file
-                 and the handles drawn on the model (gizmo.js)
+    src/view/    a small WebGL renderer (renderer.js) and its shader programs (shaders.js),
+                 the scene built from a spine file and the handles drawn on the model
+                 (gizmo.js)
     src/io/      opening and saving spine files, share links, the STL and OBJ files, the zip
                  they are saved in
     src/ui/      the page, its sheets and the look (app.js), the steps of a sketch and the
                  ways to show them (story.js), the five things to work on with
                  their tools and cards (build.js), the tools that draw and tap and the map
                  of the hardware (easy.js), the blocks, the line with points and the locks
-                 (chart.js)
+                 (chart.js), the catalogue of picture tiles on the Hardware place (grid.js)
     src/page.html, src/style.css   the page and its looks, as written
     examples/    the presets: spine files that ship with the app
     docs/        the spine file format, the measurements, the open data sets, getting the
@@ -336,8 +343,8 @@ those scripts. [CONTRIBUTING.md](CONTRIBUTING.md) has the few house rules.
 
 The bones are real shapes from BodyParts3D, which is under CC Attribution 4.0 and asks to be
 named. [NOTICE.md](NOTICE.md) says where the files came from and what was done to them. The
-simple bones, the discs and all the hardware are drawn by the code in `src/core` from the
-size tables in `anatomy.js` and `hardware.js`. The hardware is generic: a screw is a screw and
+simple bones, the discs and all the hardware are drawn by the code in `src/core` and
+`src/parts` from the size tables in `core/anatomy.js` and `parts/sizes.js`. The hardware is generic: a screw is a screw and
 a hook is a hook, in a choice of colours, with no maker's product copied.
 
 The renderer is a small one written for this project. It draws the picture, then draws the

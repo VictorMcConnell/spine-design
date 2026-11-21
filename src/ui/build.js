@@ -8,32 +8,36 @@
 // keeps the history for Undo. The tools that draw and tap are in easy.js and chart.js.
 
 import { sortedLevels } from '../core/spinefile.js';
-import { vertebraShape, levelFrame } from '../core/bones.js';
+import { vertebraShape, levelFrame, discParts, discMesh } from '../core/bones.js';
+import { setDisc, discAt, discKeys, discWords, DISC_SIZED, DISC_AIMED } from '../core/discs.js';
+import { setFracture, canBreak, fractureWords, setWear, wearWords, setArch, archWords, setBoneLook, boneLookWords, squashes } from '../core/fractures.js';
 import { ANATOMY } from '../core/anatomy.js';
 import { pullLevel, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, blockOf, pivotAt } from '../core/shape.js';
-import { slot, resizeScrew, screwLength, fitRods, fusedBelow, setFusedBelow, placePiece, faceHook, bendRod, unbendRod, shiftParts, rodSets } from '../core/place.js';
+import { handSet, setByHand, isUsual, backToUsual, HAND_LIMITS, slot, resizeScrew, screwLength, fitRods, fusedBelow, setFusedBelow, placePiece, retypePiece, bendRod, unbendRod, shiftParts, rodSets } from '../core/place.js';
 import { measureSpine } from '../core/measures.js';
 import { rayMesh, rayPoint } from '../core/pick.js';
 import { gizmoHit, dragAlong, dragAround } from '../view/gizmo.js';
 import { vAdd, vSub, vScale, vLerp, vDist, vDot } from '../core/vec.js';
 import { setupEasy, swatches } from './easy.js';
-import { PALETTES, FINISHES } from '../core/hardware.js';
+import { PALETTES, FINISHES } from '../core/finish.js';
+import { PART_KINDS, KINDS, FREEZING, kindOf, typeOf, CATEGORIES, categoryOf, tilesOf } from '../parts/kinds.js';
+import { catalogue, icon } from './grid.js';
 import { setupChart } from './chart.js';
 import { setupXray } from './xray.js';
 
-const PART_NAMES = { screws: 'Screw', hooks: 'Hook', crosslinks: 'Cross-link', rods: 'Rod' };
+const PART_NAMES = Object.fromEntries(PART_KINDS.map((p) => [p.kind, p.name]));
 const AXES = { left: [1, 0, 0], back: [0, 1, 0], up: [0, 0, 1] };
 const DEG = 180 / Math.PI;
 // the parts of the spine that can be picked as a whole: the letters their vertebrae start with
 const REGIONS = { neck: /^C/, chest: /^T/, low: /^L/ };
 // which tool of the hardware is which tool of the map (see easy.js)
-const MAP_TOOL = { turn: 'none', screw: 'screw', link: 'link', rod: 'rod', erase: 'erase' };
+const MAP_TOOL = { turn: 'none', screw: 'screw', link: 'link', rod: 'rod', erase: 'erase', disc: 'none', bone: 'none' };
 
 export function setupBuilder(app) {
   const { $, renderer } = app;
   // tab:  what is being worked on ('shape', 'parts' for the hardware, 'marks' for pain and notes, 'look')
   // hand: the tool in hand for each of them        how: what the handles on the model do for one bone and for a stretch
-  let tab = 'shape', marking = null, drag = null, pending = null, hot = null, hookFace = 'down', both = true, filling = false, stripWas = '', cardWas = null;
+  let tab = 'shape', marking = null, drag = null, pending = null, hot = null, hookFace = 'down', screwLook = 'standard', linkLook = 'arch', rodTile = 'rod', discTile = 'disc-bulging', boneTile = 'bone-wedge', fine = 'select', both = true, filling = false, stripWas = '', cardWas = null, cat = 'side', shots = null;
   const hand = { shape: 'draw', parts: 'screw', marks: 'pain' }, how = { one: 'move', stretch: 'bow' };
   const stripOn = { shape: false, parts: true };
   const levels = () => sortedLevels(app.spine), ids = () => levels().map((l) => l.id);
@@ -49,6 +53,9 @@ export function setupBuilder(app) {
 
   // what is selected, in the builder's own words
   const one = () => (app.picked && app.picked.kind === 'level' ? levelOf(app.picked.id) : null);
+  // What the handles on a selected vertebra do, or null for no handles: 'move', 'turn' or 'size'. They show on Shape with
+  // "One vertebra" in hand, and on Hardware in the Vertebrae category when Move, Rotate or Size was taken beside the model.
+  const boneTool = () => (tab === 'shape' && hand.shape === 'one' ? how.one : tab === 'parts' && cat === 'bones' && hand.parts === 'turn' && fine !== 'select' ? fine : null);
   const stretch = () => (app.picked && app.picked.kind === 'stretch' && app.picked.top && app.picked.bottom ? app.picked : null);
   const markOf = () => (app.picked && app.picked.kind === 'marks' ? app.spine.marks[app.picked.index] : null);
   const pieceOf = () => (app.picked && PART_NAMES[app.picked.kind] ? hw()[app.picked.kind][app.picked.index] : null);
@@ -90,6 +97,7 @@ export function setupBuilder(app) {
     // the hardware goes on from the back: turn the model that way if it is seen from somewhere else
     if (name === 'parts' && was !== 'parts') { const a = Math.atan2(Math.sin(renderer.camera.around), Math.cos(renderer.camera.around)); if (Math.abs(a) > 1 || Math.abs(renderer.camera.tilt) > 0.9) renderer.look(0); }
     if (name === 'look') app.thumbs();
+    if (name === 'parts') picturesSoon();
     // (what was compared on the Story place is over when it is left)
     if (was === 'story' && name !== 'story' && story) story.left();
     app.redraw(); sync();
@@ -248,9 +256,9 @@ export function setupBuilder(app) {
   // ---------------------------------------------------------------- hardware: the selected parts
   $('hwClear').addEventListener('click', () => {
     // (frozen parts stay, with the rods that still have two parts to hold them)
-    const kept = [...hw().screws, ...hw().hooks, ...hw().crosslinks].filter((p) => p.locked).length;
+    const kept = FREEZING.flatMap((k) => hw()[k]).filter((p) => p.locked).length;
     app.pick(null);
-    app.change(() => { const h = hw(); app.spine.hardware = { ...(h.colors ? { colors: h.colors } : {}), rods: [], screws: h.screws.filter((p) => p.locked), hooks: h.hooks.filter((p) => p.locked), crosslinks: h.crosslinks.filter((p) => p.locked) }; fitRods(app.spine, true); }, { ride: false });
+    app.change(() => { const h = hw(); app.spine.hardware = { ...(h.colors ? { colors: h.colors } : {}), ...Object.fromEntries(KINDS.map((k) => [k, FREEZING.includes(k) ? h[k].filter((p) => p.locked) : []])) }; fitRods(app.spine, true); }, { ride: false });
     app.say(kept ? 'The frozen parts were kept: ' + kept + '.' : '');
   });
   function removePicked() {
@@ -272,7 +280,7 @@ export function setupBuilder(app) {
     if (!go.length) { app.say(all.length ? FROZEN : ''); return; }
     app.pick(null);
     app.change(() => {
-      for (const kind of ['screws', 'hooks', 'crosslinks']) { const gone = new Set(go.filter((c) => c.kind === kind).map((c) => c.piece)); if (gone.size) hw()[kind] = hw()[kind].filter((p) => !gone.has(p)); }
+      for (const kind of FREEZING) { const gone = new Set(go.filter((c) => c.kind === kind).map((c) => c.piece)); if (gone.size) hw()[kind] = hw()[kind].filter((p) => !gone.has(p)); }
       fitRods(app.spine);
     }, { ride: false });
     app.say(go.length < all.length ? 'The frozen parts were kept.' : '');
@@ -284,17 +292,268 @@ export function setupBuilder(app) {
   const again = (settle) => app.change(() => {}, { settle, ride: false });
   const thick = dial('pieceThick', 'pieceThickN', (v) => { const s = pieceOf(); if (s && app.picked.kind === 'screws') { resizeScrew(s, v, 0); again(false); } });
   const long = dial('pieceLong', 'pieceLongN', (v) => { const s = pieceOf(); if (s && app.picked.kind === 'screws') { resizeScrew(s, 0, v); again(false); } });
+  // ---- by hand: the numbers of one screw or hook (see place.js). The area is closed until it is asked for.
+  let handOn = false;
+  const handPiece = () => { const all = chosen(), p = pieceOf(); return all.length === 1 && p && ['screws', 'hooks'].includes(app.picked.kind) && !p.locked ? p : null; };
+  const handDial = (key, range) => dial(range, range + 'N', (v) => { const p = handPiece(); if (p) app.change(() => { setByHand(app.spine, app.picked.kind, p, { [key]: v }); }, { settle: false, ride: false }); });
+  const handDials = { lean: handDial('lean', 'handLean'), rise: handDial('rise', 'handRise'), up: handDial('up', 'handUp'), out: handDial('out', 'handOut'), proud: handDial('proud', 'handProud') };
+  function handBox() {
+    const p = handPiece(), kind = p && app.picked.kind;
+    $('hand').hidden = !p;
+    if (!p) return;
+    $('handOpen').setAttribute('aria-expanded', handOn ? 'true' : 'false'); $('handBox').hidden = !handOn;
+    const now = handSet(app.spine, kind, p), lim = HAND_LIMITS[kind === 'screws' ? 'screw' : 'hook'];
+    each('#handBox [data-hand="screw"]', (row) => { row.hidden = kind !== 'screws'; });
+    $('handProudLabel').textContent = kind === 'screws' ? 'Head off the bone' : 'Lifted off the bone';
+    // (a slider that is being dragged is left alone, the others follow)
+    for (const k in lim) if (now) { const step = k === 'lean' || k === 'rise' ? 1 : 0.5; handDials[k](Math.max(lim[k][0], Math.min(lim[k][1], Math.round(now[k] / step) * step)), lim[k][0], lim[k][1]); }
+    $('handReset').disabled = isUsual(app.spine, kind, p);
+  }
+  $('handOpen').addEventListener('click', () => { handOn = !handOn; handBox(); });
+  $('handReset').addEventListener('click', () => { const p = handPiece(); if (p) { app.change(() => { backToUsual(app.spine, app.picked.kind, p); }, { ride: false }); app.say('It is back where one usually goes.'); } });
   const rodThick = dial('rodThick', 'rodThickN', (v) => { const r = pieceOf(); if (r && app.picked.kind === 'rods') { r.diameter = v; again(false); } });
-  each('[data-face]', (b) => b.addEventListener('click', () => {
-    const hooks = chosen().filter((c) => c.kind === 'hooks' && !c.piece.locked);
-    if (hooks.length) app.change(() => hooks.forEach((c) => faceHook(app.spine, c.piece, b.dataset.face)), { ride: false });
+  // ---- the catalogue: the categories, and the tiles of the open one
+  // A tile does one of two things. While parts of its category are selected, they become
+  // what the tile shows (None takes them off). Otherwise the tile is taken in hand, and a
+  // press on the spine puts that part there. Pressing the tile in hand puts it down again.
+  const CAT_OF_TOOL = { screw: 'side', hook: 'side', link: 'links', rod: 'rods', disc: 'discs', bone: 'bones' };
+  const tileInHand = () => ({ screw: screwLook === 'standard' ? 'screw' : 'screw-' + screwLook, hook: 'hook-' + hookFace, link: linkLook === 'arch' ? 'link' : 'link-' + linkLook, rod: rodTile, erase: 'none', disc: discTile, bone: boneTile }[hand.parts] || '');
+  // (the tile nearest to the thickness of the selected rods, when they all come to the same one. The slider on the card sets any thickness in between.)
+  const rodNear = (d) => (d < 5 ? 'rod-thin' : d > 6 ? 'rod-thick' : 'rod');
+  const rodTileOf = (rods) => { const id = rodNear(rods[0].piece.diameter || 5.5); return rods.every((c) => rodNear(c.piece.diameter || 5.5) === id) ? id : ''; };
+  const picked = () => { const all = chosen(); return all.length && all.every((c) => categoryOf(c.kind) === cat) ? all : []; };
+  let tiles = null, drawing = false;
+  const waiting = [];          // (the tiles whose pictures are still to be drawn, see picturesSoon)
+  function retype(all, to) {
+    const now = [];
+    if (all.every((c) => c.piece.locked)) { app.say(FROZEN); return; }
+    app.change(() => {
+      for (const c of all) now.push(retypePiece(app.spine, c.kind, c.piece, to) || c);
+      // (a part that changed kind is in another list now: the selection follows it there before the page is drawn again)
+      const refs = now.map((c) => ({ kind: c.kind, index: hw()[c.kind].indexOf(c.piece) })).filter((r) => r.index >= 0);
+      app.picked = refs[0] || null; app.also = refs.slice(1);
+    }, { ride: false });
+    app.say(all.some((c) => c.piece.locked) ? 'The frozen parts were kept as they were.' : '');
+  }
+  function tilePressed(id) {
+    const tile = tilesOf(cat).find((t) => t.id === id), all = picked();
+    if (!tile) return;
+    if (cat === 'bones') {
+      // the same for a vertebra
+      const bone = bonePick(), down = hand.parts === 'bone' && tileInHand() === id;
+      boneTile = id;
+      if (bone) putOnBone(bone, tile); else pickTool(down ? 'turn' : 'bone');
+      return;
+    }
+    if (cat === 'discs') {
+      // a selected disc becomes what the tile shows. With none selected the tile is taken in hand, and each disc pressed becomes that.
+      const key = discPick(), down = hand.parts === 'disc' && tileInHand() === id;
+      discTile = id;
+      if (key) putOnDisc(key, tile, true); else pickTool(down ? 'turn' : 'disc');
+      return;
+    }
+    if (cat === 'rods') {
+      // a thickness: for the selected rods, or with none selected for every rod and the ones still to come
+      const rods = all.length ? all.map((c) => c.piece) : hw().rods || [], down = !all.length && hand.parts === 'rod' && rodTile === id;
+      if (down) { pickTool('turn'); return; }
+      rodTile = id;
+      if (rods.some((r) => !r.locked && (r.diameter || 5.5) !== tile.diameter) || (!all.length && (hw().rodSize || 5.5) !== tile.diameter)) app.change(() => {
+        for (const r of rods) if (!r.locked) r.diameter = tile.diameter;
+        if (!all.length) { if (tile.diameter === 5.5) delete hw().rodSize; else hw().rodSize = tile.diameter; }
+      }, { ride: false });
+      if (all.length) sync(); else pickTool('rod');
+      return;
+    }
+    if (all.length) {
+      if (id === 'none') { removeChosen(); return; }
+      // the selected parts become this, and it is also what goes on the next spot that is pressed
+      if (tile.tool === 'hook') hookFace = tile.face;
+      if (tile.tool === 'screw') screwLook = tile.look;
+      if (tile.tool === 'link') linkLook = tile.style;
+      hand.parts = tile.tool; filling = false; arm();
+      retype(all, id);
+      return;
+    }
+    const down = tileInHand() === id;
+    if (tile.tool === 'hook') hookFace = tile.face;
+    if (tile.tool === 'screw') screwLook = tile.look;
+    if (tile.tool === 'link') linkLook = tile.style;
+    pickTool(down ? 'turn' : tile.tool);
+  }
+  function showCategory() {
+    tiles = catalogue($('catTiles'), CATEGORIES.find((c) => c.id === cat).groups, tilePressed);
+    tiles.pictures(shots);
+    picturesSoon();
+  }
+  for (const c of CATEGORIES) {
+    const btn = document.createElement('button'), name = document.createElement('span');
+    btn.type = 'button'; btn.dataset.cat = c.id; btn.dataset.tip = c.name; btn.setAttribute('aria-label', c.name); btn.setAttribute('aria-pressed', 'false');
+    name.textContent = c.name; btn.append(icon(c.icon), name);
+    // (opening a category takes its usual part in hand, so the next press on the spine already does something)
+    btn.addEventListener('click', () => { cat = c.id; showCategory(); $('cats').classList.remove('named'); $('catsOpen').setAttribute('aria-expanded', 'false'); pickTool(c.tool); });
+    $('cats').insertBefore(btn, $('catsOpen'));
+  }
+  $('catsOpen').addEventListener('click', () => { const on = !$('cats').classList.contains('named'); $('cats').classList.toggle('named', on); $('catsOpen').setAttribute('aria-expanded', on ? 'true' : 'false'); });
+  showCategory();
+  // The small pictures on the tiles are drawn from the real parts, each one once: the tiles of a category when it
+  // is first opened, one picture at a time with a pause between, so a slow device does not stand still while they
+  // are made. A tile shows its line drawing until its picture is there.
+  function picturesSoon() {
+    if (!app.partPictures) return;
+    for (const t of tilesOf(cat)) if (t.shot && !(shots && shots[t.id]) && !waiting.includes(t.id)) waiting.push(t.id);
+    if (!drawing) nextPicture();
+  }
+  function nextPicture() {
+    drawing = waiting.length > 0;
+    if (!drawing) return;
+    setTimeout(() => {
+      // (not now: the catalogue is not in view, or the model is showing something else. The next visit asks again.)
+      if (tab !== 'parts' || !app.spine) { drawing = false; return; }
+      const id = waiting.shift(), made = app.partPictures([id]);
+      if (!made[id]) { waiting.push(id); drawing = false; return; }
+      shots = { ...(shots || {}), [id]: made[id] };
+      tiles.pictures(shots);
+      nextPicture();
+    }, 50);
+  }
+  function catalogBox() {
+    // the open category follows what is selected, and else the tool in hand
+    const all = chosen(), disc = discPick(), want = all.length ? categoryOf(all[0].kind) : disc ? 'discs' : CAT_OF_TOOL[hand.parts];
+    if (want && want !== cat) { cat = want; showCategory(); }
+    pressed('#cats [data-cat]', 'cat', cat);
+    const mine = picked(), types = mine.map((c) => typeOf(c.kind, c.piece)), inHand = tilesOf(cat).find((t) => t.id === tileInHand());
+    const bone = bonePick();
+    const dNow = disc && discAt(app.spine, disc);
+    const lit = bone ? ['bone-' + ((levelOf(bone).fracture || {}).kind || 'healthy'), wearTile(levelOf(bone).wear), 'look-' + (levelOf(bone).bone || 'plain'), 'arch-' + (levelOf(bone).arch || 'whole')] : disc ? ['disc-' + dNow.state, dNow.spacer ? 'disc-spacer' : '', dNow.plate ? 'disc-plate' : ''] : mine.length ? (cat === 'rods' ? rodTileOf(mine) : types[0] && types.every((t) => t === types[0]) ? types[0].id : '') : inHand ? inHand.id : '';
+    tiles.mark(lit);
+    const p = mine.length ? mine[0] : null;
+    $('catKind').textContent = CATEGORIES.find((c) => c.id === cat).name;
+    $('catNow').textContent = bone ? bone + ': ' + fractureWords(levelOf(bone).fracture) + ', ' + wearWords(levelOf(bone).wear) + (levelOf(bone).bone ? ', ' + boneLookWords(levelOf(bone).bone) : '') + (levelOf(bone).arch ? ', ' + archWords(levelOf(bone).arch) : '') + '. ' + Press() + ' a picture to change it.'
+      : cat === 'bones' && hand.parts !== 'bone' ? Press() + ' a vertebra on the spine, then a picture to change it.'
+      : disc ? 'Disc ' + disc + ': ' + discWords(discAt(app.spine, disc)) + '. ' + Press() + ' a picture to change it.'
+      : cat === 'discs' && hand.parts !== 'disc' ? Press() + ' a disc on the spine, then a picture to change it. Turn the model to see the discs from the front or the side.'
+      : mine.length > 1 ? mine.length + ' parts selected. ' + Press() + ' a picture to change them all.'
+      : p ? PART_NAMES[p.kind] + (p.piece.level ? ' at ' + p.piece.level : '') + (p.piece.side ? ', ' + p.piece.side + (p.kind === 'rods' ? ' side' : '') : '') + (cat === 'side' ? '. ' + Press() + ' a picture to change it.' : '')
+        : inHand ? inHand.name + ': ' + inHand.say + '.'
+          : 'Nothing in hand. ' + Press() + ' a picture to take it in hand, or a part on the spine to change it.';
+    $('fineSelect').setAttribute('aria-pressed', hand.parts === 'turn' && !filling && !boneTool() ? 'true' : 'false');
+    pressed('[data-fine]', 'fine', boneTool() || 'none');
+    $('fineRemove').classList.toggle('idle', !all.filter((c) => c.kind !== 'rods').length);
+  }
+  // ---- vertebrae: whole or broken
+  const bonePick = () => (cat === 'bones' && app.picked && app.picked.kind === 'level' && levelOf(app.picked.id) ? app.picked.id : null);
+  function changeBone(id, change, moving) {
+    let now = null;
+    app.change(() => { now = setFracture(app.spine, app.rig, id, change); }, moving ? { settle: false } : {});
+    app.say(!now ? (id === 'S1' ? 'The sacrum is left as it is.' : id + ' has no body that breaks this way.') : now.kind.startsWith('wedge') && !now.lean ? id + ' is in a fused stretch that is held stiff, so the spine above did not tip.' : '');
+  }
+  // The look of the bone: nothing moves, so nothing has to ride along.
+  const changeWear = (ids, wear, moving) => app.change(() => { for (const id of ids) setWear(app.spine, id, wear); }, { ride: false, ...(moving ? { settle: false } : {}) });
+  // (the tile of the Bone group nearest to a wear)
+  const wearTile = (w) => (!w || w < 0.25 ? 'bone-clean' : w < 0.75 ? 'bone-aged' : 'bone-porous');
+  // What a tile of the Vertebrae does to one vertebra: its shape, or the look of its bone.
+  const changeArch = (id, arch) => { let now = null; app.change(() => { now = setArch(app.spine, id, arch); }, { ride: false }); app.say(now ? '' : id === 'S1' ? 'The sacrum is left as it is.' : 'The back of ' + id + ' is left as it is.'); };
+  const changeLook = (id, look) => app.change(() => { setBoneLook(app.spine, id, look); }, { ride: false });
+  const putOnBone = (id, tile) => ('wear' in tile ? changeWear([id], tile.wear) : 'bone' in tile ? changeLook(id, tile.bone) : 'arch' in tile ? changeArch(id, tile.arch) : changeBone(id, { kind: tile.state }));
+  const boneHas = (l, tile) => ('wear' in tile ? wearTile(l.wear) === tile.id : 'bone' in tile ? (l.bone || '') === tile.bone : 'arch' in tile ? (l.arch || '') === tile.arch : ((l.fracture || {}).kind || 'healthy') === tile.state);
+  // A press on the model while the Vertebrae are open. True if it was about a vertebra.
+  function boneTap(e) {
+    const hit = hitLevel(e), id = hit && hit.level.id, part = hitThing(e, false);
+    // (a screw or a hook in front of the bone is what was pressed. One behind the bone is not.)
+    if (part) { const ray = renderer.ray(e.clientX, e.clientY); if (!hit || rayPoint(ray.origin, ray.direction, part.at).along < hit.t + 4) return false; }
+    if (!id) { if (hand.parts !== 'bone') return false; app.pick(null); return true; }
+    app.flash(id, true);
+    const tile = tilesOf('bones').find((t) => t.id === boneTile);
+    if (hand.parts === 'bone' && !boneHas(hit.level, tile)) putOnBone(id, tile);
+    app.pick({ kind: 'level', id });
+    return true;
+  }
+  const BONE_SAYS = Object.fromEntries(tilesOf('bones').filter((t) => t.state).map((t) => [t.state, t.say]));
+  const fracWear = dial('fracWear', 'fracWearN', (v) => { const id = bonePick(); if (id) changeWear([id], v / 100, true); });
+  $('fracWearAll').addEventListener('click', () => { const id = bonePick(); if (id) { changeWear(ids(), levelOf(id).wear || 0); app.say('Every vertebra now has ' + wearWords(levelOf(id).wear) + '.'); } });
+  const fracAmount = dial('fracAmount', 'fracAmountN', (v) => { const id = bonePick(); if (id) changeBone(id, { amount: v / 100 }, true); });
+  function fracBox() {
+    const id = bonePick(), f = id && levelOf(id).fracture;
+    if (!id) return;
+    $('fracName').textContent = id;
+    $('fracHow').textContent = BONE_SAYS[f ? f.kind : 'healthy'].replace(/^./, (c) => c.toUpperCase()) + '.';
+    $('fracReset').hidden = $('fracAmountRow').hidden = !f;
+    $('fracAmountLabel').textContent = f && !squashes(f.kind) ? (f.kind === 'chip' ? 'How big the chip is' : f.kind === 'hairline' ? 'How far the crack runs' : 'How wide the split is') : 'How much it is broken';
+    fracAmount(Math.round(((f && f.amount) || 0.5) * 100));
+    fracWear(Math.round((levelOf(id).wear || 0) * 100));
+  }
+  $('fracReset').addEventListener('click', () => { const id = bonePick(); if (id) changeBone(id, { kind: 'healthy' }); });
+  // ---- discs
+  const discPick = () => (app.picked && app.picked.kind === 'discs' && discKeys(app.spine).includes(app.picked.id) ? app.picked.id : null);
+  // Change a disc, as one step for Undo (or "moving": while a slider is dragged). The hardware and the marks ride along.
+  function changeDisc(key, change, moving) {
+    let now = null;
+    app.change(() => { now = setDisc(app.spine, app.rig, key, change); }, moving ? { settle: false } : {});
+    app.say(now && now.state === 'thin' && !now.drop ? 'That disc is in a fused stretch that is held stiff, so its space did not close.' : '');
+  }
+  // The disc under the pointer, by name, or null. A bone in front of it hides it.
+  function hitDisc(e) {
+    const ray = renderer.ray(e.clientX, e.clientY), ls = levels(), bone = hitLevel(e);
+    let best = null;
+    for (let i = 0; i < ls.length - 1; i++) {
+      if (ls[i].id === 'C1' || rayPoint(ray.origin, ray.direction, vLerp(ls[i].centre, ls[i + 1].centre, 0.5)).off > 70) continue;
+      const key = ls[i].id + '/' + ls[i + 1].id, parts = discParts(ls[i], ls[i + 1], discAt(app.spine, key));
+      for (const mesh of parts.length ? parts.map((p) => p.mesh) : [discMesh(ls[i], ls[i + 1])]) { const t = rayMesh(ray.origin, ray.direction, mesh); if (t !== null && (!best || t < best.t)) best = { key, t }; }
+    }
+    return best && !(bone && bone.t < best.t - 0.5) ? best.key : null;
+  }
+  // A press on the model while the Discs are open. True if it was about a disc.
+  function discTap(e) {
+    const key = hitDisc(e);
+    if (!key) { if (hand.parts !== 'disc') return false; app.pick(null); return true; }
+    if (hand.parts === 'disc') putOnDisc(key, tilesOf('discs').find((t) => t.id === discTile), false);
+    app.pick({ kind: 'discs', id: key });
+    return true;
+  }
+  // What a tile of the Discs does to one disc: what it is, or the spacer at its back, or the plate on its front.
+  // On a selected disc those two tiles put the part there or take it away. With the tile in hand a press only puts one there.
+  function putOnDisc(key, tile, toggle) {
+    const d = discAt(app.spine, key);
+    if (tile.plate) { if (!d.plate || toggle) changeDisc(key, { plate: !d.plate }); }
+    else if (tile.spacer) {
+      if (d.spacer && !toggle) return;
+      changeDisc(key, { spacer: !d.spacer });
+      if (!d.spacer && !discAt(app.spine, key).spacer) app.say('There is no room for a spacer at the back of ' + key + '.');
+    } else if (d.state !== tile.state) changeDisc(key, { state: tile.state });
+  }
+  const DISC_SAYS = Object.fromEntries(tilesOf('discs').filter((t) => t.state).map((t) => [t.state, t.say]));
+  const discAmount = dial('discAmount', 'discAmountN', (v) => { const key = discPick(); if (key) changeDisc(key, { amount: v / 100 }, true); });
+  function discBox() {
+    const key = discPick(), d = key && discAt(app.spine, key);
+    if (!d) return;
+    $('discName').textContent = 'Disc ' + key;
+    $('discHow').textContent = DISC_SAYS[d.state].replace(/^./, (c) => c.toUpperCase()) + '.';
+    $('discReset').hidden = d.state === 'standard';
+    $('discAmountRow').hidden = !DISC_SIZED.includes(d.state);
+    $('discSideRow').hidden = !DISC_AIMED.includes(d.state);
+    discAmount(Math.round((d.amount || 0.5) * 100));
+    pressed('[data-discside]', 'discside', d.toward || 'back');
+  }
+  each('[data-discside]', (b) => b.addEventListener('click', () => { const key = discPick(); if (key) changeDisc(key, { toward: b.dataset.discside }); }));
+  $('discReset').addEventListener('click', () => { const key = discPick(); if (key) changeDisc(key, { state: 'standard' }); });
+  $('fineSelect').addEventListener('click', () => { fine = 'select'; pickTool('turn'); });
+  // Move, Rotate and Size work on a vertebra, by handles on the model. They open the Vertebrae and keep one that is selected.
+  each('[data-fine]', (b) => b.addEventListener('click', () => {
+    const keep = cat === 'bones' ? one() : null;
+    fine = b.dataset.fine;
+    if (cat !== 'bones') { cat = 'bones'; showCategory(); }
+    hand.parts = 'turn'; filling = false; arm();
+    app.pick(keep ? { kind: 'level', id: keep.id } : null);
+    app.say(keep ? '' : Press() + ' a vertebra, then drag its handles.');
+    sync();
   }));
+  $('fineRemove').addEventListener('click', () => { if (chosen().some((c) => c.kind !== 'rods')) removeChosen(); else app.say('Select a part first. To take off several, pick None in the catalogue and ' + press() + ' them.'); });
   $('rodUnbend').addEventListener('click', () => { const r = pieceOf(); if (r && app.picked.kind === 'rods') app.change(() => unbendRod(app.spine, r), { ride: false }); });
   $('pieceLocked').addEventListener('change', () => { const all = chosen(); for (const c of all) { if ($('pieceLocked').checked) c.piece.locked = true; else delete c.piece.locked; } again(true); });
 
   function pieceBox() {
     const all = chosen(), p = pieceOf(), kind = p ? app.picked.kind : '', many = all.length > 1, lone = many ? null : p;
-    const word = (k) => PART_NAMES[k].toLowerCase(), plural = { screws: 'screws', hooks: 'hooks', crosslinks: 'cross-links', rods: 'rods' };
+    const word = (k) => kindOf(k).word, plural = Object.fromEntries(PART_KINDS.map((p) => [p.kind, p.words]));
     if (!p) return;
     if (kind === 'rods' && !many) {
       const bends = (p.via || []).length;
@@ -304,13 +563,14 @@ export function setupBuilder(app) {
       return;
     }
     const frozen = all.some((c) => c.piece.locked);
+    handBox();
     $('pieceName').textContent = many ? all.length + ' parts' : PART_NAMES[kind] + (p.level ? ' at ' + p.level : '') + (p.side ? ', ' + p.side : '');
     $('pieceHow').textContent = many ? 'What you set here goes for all of them. Drag one of the screws or hooks along the spine and the others move with it.' : frozen ? 'Frozen: it stays as it is until the box below is unticked.' : kind === 'crosslinks' ? 'It sits between the two rods.' : 'Drag it over the bone to move it.';
     $('pieceThickRow').hidden = $('pieceLongRow').hidden = !lone || kind !== 'screws';
     if (lone && kind === 'screws') { thick(p.diameter || 5); long(screwLength(p)); }
-    const hooks = all.filter((c) => c.kind === 'hooks');
-    $('pieceFaceRow').hidden = hooks.length !== all.length;
-    pressed('[data-face]', 'face', hooks.length && hooks.every((c) => (c.piece.faces || 'down') === (hooks[0].piece.faces || 'down')) ? hooks[0].piece.faces || 'down' : 'none');
+    const types = all.map((c) => typeOf(c.kind, c.piece)), type = types[0] && types.every((t) => t === types[0]) ? types[0] : null;
+    $('pieceIcon').firstElementChild.setAttribute('href', '#' + (type ? type.icon : kind === 'crosslinks' && !many ? 'i-link' : 'i-screw'));
+    $('pieceIcon').classList.toggle('flip', !!(type && type.flip));
     // (parts can be frozen in a spine file. The switch shows for those, so they can be let go.)
     $('pieceLockedRow').hidden = !frozen;
     $('pieceLocked').checked = all.every((c) => c.piece.locked); $('pieceLocked').indeterminate = frozen && !$('pieceLocked').checked;
@@ -426,6 +686,11 @@ export function setupBuilder(app) {
     const count = (n, one, many) => (n ? [n + ' ' + (n === 1 ? one : many)] : []), parts = [...count(h.screws.length, 'screw', 'screws'), ...count(h.hooks.length, 'hook', 'hooks'), ...count(h.crosslinks.length, 'cross-link', 'cross-links')];
     if (parts.length) add('Hardware', parts.join(', '), () => { showTab('parts'); pickTool('turn'); });
     if (!h.norods) for (const [top, bottom] of rodSets(app.spine)) add('Hardware', 'Rods from ' + top + ' to ' + bottom, () => { showTab('parts'); pickTool('rod'); });
+    const worn = levels().filter((l) => l.wear);
+    if (worn.length) add('Vertebrae', (worn.length === levels().length ? 'The whole spine' : worn.length === 1 ? worn[0].id : worn.length + ' vertebrae') + ': ' + wearWords(Math.max(...worn.map((l) => l.wear))), () => { showTab('parts'); cat = 'bones'; showCategory(); app.pick({ kind: 'level', id: worn[0].id }); });
+    for (const l of levels()) if (l.arch) add('Vertebrae', l.id + ': ' + archWords(l.arch), () => { showTab('parts'); cat = 'bones'; showCategory(); app.pick({ kind: 'level', id: l.id }); });
+    for (const l of levels()) if (l.fracture) add('Vertebrae', l.id + ': ' + fractureWords(l.fracture), () => { showTab('parts'); cat = 'bones'; showCategory(); app.pick({ kind: 'level', id: l.id }); });
+    for (const key of discKeys(app.spine)) if ((app.spine.discs || {})[key]) add('Discs', key + ': ' + discWords(discAt(app.spine, key)), () => { showTab('parts'); cat = 'discs'; showCategory(); app.pick({ kind: 'discs', id: key }); });
     app.spine.marks.forEach((mark, index) => add('Pain and notes', (mark.text || (mark.kind === 'note' ? 'Note' : 'Pain')) + (mark.kind === 'pain' ? ', ' + (mark.strength || 5) + ' out of 10' : ''), () => { if (tab !== 'marks') showTab('marks'); app.pick({ kind: 'marks', index }); }));
     // (the same list, as one line of words, is what describes the 3D picture to a screen reader)
     $('sketchSays').textContent = (app.spine.name || 'A spine') + '. ' + (rows.length ? rows.map((r) => r.head + ': ' + r.text).join('. ') : 'No curve of 10° or more, no hardware and no pain points yet') + '.';
@@ -456,11 +721,12 @@ export function setupBuilder(app) {
     if (!app.spine) return null;
     const set = (at, kinds) => ({ spec: { at, handles: Object.entries(kinds).map(([name, kind]) => ({ name, kind, axis: AXES[name] })) }, active: (drag && drag.name) || hot });
     const l = one(), s = stretch(), m = markOf();
-    if (tab === 'shape' && hand.shape === 'one' && l) {
+    const tool = boneTool();
+    if (tool && l) {
       // (no up arrow where there is no space to change: the bottom vertebra, and one fused to the one below)
       const block = blockOf(app.spine, app.rig, l.id), lift = ids().indexOf(l.id) < ids().length - 1 && !(block && block.bottom !== l.id);
-      if (how.one === 'move') return set(l.centre, { left: 'double', back: 'double', ...(lift ? { up: 'arrow' } : {}) });
-      if (how.one === 'turn') return set(l.centre, { left: 'ring', back: 'ring', up: 'ring' });
+      if (tool === 'move') return set(l.centre, { left: 'double', back: 'double', ...(lift ? { up: 'arrow' } : {}) });
+      if (tool === 'turn') return set(l.centre, { left: 'ring', back: 'ring', up: 'ring' });
       const f = levelFrame(l);
       return { spec: { at: l.centre, handles: [{ name: 'left', kind: 'knob', axis: f.left }, { name: 'back', kind: 'knob', axis: f.back }, { name: 'up', kind: 'knob', axis: f.up }] }, active: (drag && drag.name) || hot };
     }
@@ -476,14 +742,16 @@ export function setupBuilder(app) {
     if (tab === 'marks' && m) {
       const j = { left: 0, back: 1, up: 2 }[name];
       live(() => { for (const key of ['at', 'from', 'to']) if (m[key]) m[key][j] = round1(m[key][j] + by); }, false);
-    } else if (tab !== 'shape') return;
-    else if (l && how.one === 'move') {
+    } else if (tab !== 'shape' && !boneTool()) return;
+    else if (l && boneTool() === 'move') {
       live(() => { if (name === 'up') liftLevel(spine, rig, l.id, by); else pullLevel(spine, rig, l.id, name === 'left' ? by : 0, name === 'back' ? by : 0); });
-    } else if (l && how.one === 'turn') {
+    } else if (l && boneTool() === 'turn') {
       live(() => turned(l, (x) => { if (name === 'up') x.turn += turn; else if (name === 'back') x.tilt[0] = Math.max(-80, Math.min(80, x.tilt[0] + turn)); else x.tilt[1] = Math.max(-80, Math.min(80, x.tilt[1] - turn)); }));
-    } else if (l && how.one === 'size') {
-      const j = { left: 0, back: 1, up: 2 }[name], typ = typicalSize(l.id);
+    } else if (l && boneTool() === 'size') {
+      const j = { left: 0, back: 1, up: 2 }[name], typ = typicalSize(l.id), was = l.size[j];
       l.size[j] = Math.max(typ[j] * 0.5, Math.min(typ[j] * 1.8, l.size[j] + 2 * by));
+      // (a broken body is resized whole: the height it had goes with the height it has)
+      if (j === 2 && l.fracture) l.fracture.was = Math.round(l.fracture.was * (l.size[j] / was) * 100) / 100;
       live(() => restack(spine, rig));
     } else if (s && how.stretch === 'bow') {
       // pulling the middle out by so many millimetres makes an arc of this many degrees
@@ -501,7 +769,7 @@ export function setupBuilder(app) {
     let best = null;
     for (const l of levels()) {
       if (rayPoint(ray.origin, ray.direction, l.centre).off > 75) continue;
-      const f = levelFrame(l), d = ray.direction, t = rayMesh(toLocal(ray.origin, l.centre, f), [d[0] * f.left[0] + d[1] * f.left[1] + d[2] * f.left[2], d[0] * f.back[0] + d[1] * f.back[1] + d[2] * f.back[2], d[0] * f.up[0] + d[1] * f.up[1] + d[2] * f.up[2]], vertebraShape(l.id, l.size, app.DETAIL));
+      const f = levelFrame(l), d = ray.direction, t = rayMesh(toLocal(ray.origin, l.centre, f), [d[0] * f.left[0] + d[1] * f.left[1] + d[2] * f.left[2], d[0] * f.back[0] + d[1] * f.back[1] + d[2] * f.back[2], d[0] * f.up[0] + d[1] * f.up[1] + d[2] * f.up[2]], vertebraShape(l.id, l.size, app.DETAIL, l.fracture));
       if (t !== null && (!best || t < best.t)) best = { level: l, t, point: vAdd(ray.origin, vScale(d, t)) };
     }
     return best;
@@ -539,6 +807,8 @@ export function setupBuilder(app) {
     }
     if (tab === 'parts') {
       if (easy.picking()) { easy.tap(e); sync(); return; }
+      if (cat === 'discs' && discTap(e)) return;
+      if (cat === 'bones' && boneTap(e)) return;
       const t = hand.parts, what = hitThing(e, false), hit = what ? null : hitLevel(e);
       // with the rod tool in hand, a tap on a screw or a hook starts or ends a rod there, and a tap on a rod ends it there
       if (easy.rodTap(what)) return;
@@ -727,6 +997,11 @@ export function setupBuilder(app) {
     app.point(kb.id); kbTell();
   });
   $('view').addEventListener('blur', () => { if (kb) { kb = null; app.point(null); } });
+  // A tap on the model can open a card, and on a small screen that moves the catalogue up under the finger.
+  // The click that the browser sends after the tap would then land on whatever arrived there, so it is dropped.
+  let viewUp = 0;
+  $('view').addEventListener('pointerup', () => { viewUp = performance.now(); }, true);
+  document.addEventListener('click', (e) => { if (e.isTrusted && performance.now() - viewUp < 350 && e.target !== $('view') && !$('view').contains(e.target)) { e.preventDefault(); e.stopPropagation(); } }, true);
   // (the number on a tool is its key: said as a shortcut, not as part of its name)
   each('#tray kbd', (k) => { k.setAttribute('aria-hidden', 'true'); k.parentElement.setAttribute('aria-keyshortcuts', k.textContent); });
 
@@ -769,6 +1044,12 @@ export function setupBuilder(app) {
         : kind === 'rods' && chosen().length < 2 ? 'Drag the rod between two of its parts to bend it.'
           : kind === 'screws' || kind === 'hooks' ? 'Drag it over the bone to move it.'
             : kind === 'crosslinks' ? 'It sits between the two rods.'
+              : kind === 'level' && boneTool() ? (boneTool() === 'size' ? 'Drag a knob to resize it.' : boneTool() === 'turn' ? 'Drag a ring to turn it.' : 'Drag an arrow to move it. Its neighbours follow.')
+              : boneTool() ? Press() + ' a vertebra, then drag its handles.'
+              : kind === 'level' && cat === 'bones' ? 'Pick a picture to change this vertebra.'
+              : t === 'bone' ? Press() + ' a vertebra to change it.'
+              : kind === 'discs' ? 'Pick a picture to change this disc.'
+              : t === 'disc' ? Press() + ' a disc to change it. Turn the model if a bone is in the way.'
               : kind === 'level' ? 'Choose what ' + app.picked.id + ' carries.'
                 : t === 'turn' ? Press() + ' a part or a vertebra to change it. Drag to turn the model.'
                   : t === 'rod' ? $('rodSay').textContent : $('traySay').textContent;
@@ -788,8 +1069,8 @@ export function setupBuilder(app) {
   // A colour goes on one kind of hardware, on the bone, on the discs, or on one part: with "One part", a tap on the
   // model paints what is under it. The last thing done is what shows: a set of colours, a colour for a kind and
   // "By level" take away the own colours of the parts they are about, so nothing set earlier stays behind unseen.
-  const SAYS = { rods: 'All rods', screws: 'All screws', hooks: 'All hooks', crosslinks: 'All cross-links', bone: 'All vertebrae', disc: 'All discs', one: 'One part' };
-  const KIND_KEYS = Object.keys(PART_NAMES);
+  const SAYS = { ...Object.fromEntries(PART_KINDS.map((p) => [p.kind, 'All ' + p.words])), bone: 'All vertebrae', disc: 'All discs', one: 'One part' };
+  const KIND_KEYS = KINDS;
   let colorWhat = 'screws', brush = 'red';
   const hexOf = (name) => (FINISHES[name] ? '#' + FINISHES[name].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('') : name);
   const owned = () => KIND_KEYS.reduce((n, k) => n + hw()[k].filter((p) => p.color).length, 0) + app.spine.levels.filter((l) => l.color).length;
@@ -850,7 +1131,7 @@ export function setupBuilder(app) {
     if (tab === 'look') return 'look';
     if (tab === 'story') return 'story';
     if (tab === 'shape') return hand.shape === 'curve' ? 'curve' : hand.shape === 'one' ? 'one' : hand.shape === 'xray' ? 'xray' : null;
-    if (tab === 'parts') return filling ? 'fill' : !p ? null : p.kind === 'rods' && chosen().length < 2 ? 'rod' : PART_NAMES[p.kind] ? 'piece' : p.kind === 'level' ? 'bone' : null;
+    if (tab === 'parts') return filling ? 'fill' : !p ? null : p.kind === 'rods' && chosen().length < 2 ? 'rod' : PART_NAMES[p.kind] ? 'piece' : p.kind === 'level' ? (cat === 'bones' ? 'frac' : 'bone') : p.kind === 'discs' ? 'disc' : null;
     return markOf() ? 'mark' : null;
   }
   function sync() {
@@ -859,6 +1140,8 @@ export function setupBuilder(app) {
     // (a card that has just opened starts at its top)
     if (card !== cardWas) { cardWas = card; $('card').scrollTop = 0; $('side').scrollTop = 0; }
     $('card').hidden = !card;
+    $('catalog').hidden = $('fine').hidden = tab !== 'parts';
+    if (tab === 'parts') catalogBox();
     each('#card [data-card]', (s) => { s.hidden = s.dataset.card !== card; });
     document.body.classList.toggle('carded', !!card);
     each('#tray [data-t]', (b) => b.setAttribute('aria-pressed', b.dataset.t === hand[b.parentElement.dataset.tools] ? 'true' : 'false'));
@@ -880,12 +1163,14 @@ export function setupBuilder(app) {
     if (card === 'one') oneBox();
     if (card === 'curve') curveBox();
     if (card === 'piece' || card === 'rod') pieceBox();
+    if (card === 'disc') discBox();
+    if (card === 'frac') fracBox();
     if (card === 'mark') markBox();
     easy.sync(); chart.sync(); xray.sync(); listBox(); if (story) story.sync(); coach();
   }
   WIDE.addEventListener('change', () => { if (app.spine) sync(); });
 
-  const easy = setupEasy(app, { $, each, pressed, options, ids, levelOf, hitLevel, hint: coach, chosen, pickPart, both: () => both, touch,
+  const easy = setupEasy(app, { $, each, pressed, options, ids, levelOf, hitLevel, hint: coach, chosen, pickPart, both: () => both, look: () => screwLook, linkLook: () => linkLook, touch,
     // the three questions were answered: the card closes, and a tap now selects, so the result can be looked at and changed
     filled(text) { filling = false; hand.parts = 'turn'; arm(); app.say(text); sync(); },
     held: () => chart.held(), stopLine: () => { chart.stopLine(); chart.stopPicking(); }, lineOn: () => chart.lineOn() });
@@ -916,6 +1201,7 @@ export function setupBuilder(app) {
     xray: { open: (file) => xray.open(file), pageOf: (px) => xray.pageOf(px), pixelOf: (x, y) => xray.pixelOf(x, y) },
     // the vertebra under a point of the page, if there is one (the checks in a browser use this)
     levelAt(clientX, clientY) { const hit = hitLevel({ clientX, clientY }); return hit ? hit.level.id : null; },
+    discAt(clientX, clientY) { return hitDisc({ clientX, clientY }); },
     // is one of the soft marks under a point of the page?
     markAt(clientX, clientY) { return easy.markAt({ clientX, clientY }); },
     // the kind of part under a point of the page ('screws', 'hooks', 'crosslinks', 'rods'), if there is one

@@ -4,153 +4,8 @@
 // scene.js need to change.
 
 import { computeNormals } from '../core/mesh.js';
-
-const VERTEX = `#version 300 es
-in vec3 aPos; in vec3 aNor;
-uniform mat4 uView, uProj, uModel;
-out vec3 vNor; out vec3 vPos;
-void main() { vec4 p = uView * uModel * vec4(aPos, 1.0); vPos = p.xyz; vNor = mat3(uView) * mat3(uModel) * aNor; gl_Position = uProj * p; }`;
-
-// How a surface is lit. uKind says what it is made of (0 bone, 1 disc, 2 metal, 3 anything
-// else) and uMode which of the shadings below is in use (the numbers are in SHADINGS).
-const FRAGMENT = `#version 300 es
-precision highp float;
-in vec3 vNor; in vec3 vPos;
-uniform vec3 uColor; uniform float uAlpha; uniform int uMode, uKind;
-out vec4 outColor;
-const vec3 KEY = vec3(0.404, 0.557, 0.725), FILL = vec3(-0.782, 0.112, 0.613), BACK = vec3(0.101, 0.556, -0.825);
-float wrap(vec3 n, vec3 l, float w) { return max((dot(n, l) + w) / (1.0 + w), 0.0); }
-// a made-up studio for metal to mirror: a bright ceiling, a soft box to one side, a dark floor
-vec3 studio(vec3 r) {
-  return vec3(0.05) + vec3(0.5, 0.55, 0.62) * smoothstep(-0.3, 0.8, r.y) + vec3(1.25) * smoothstep(0.55, 0.92, dot(r, vec3(0.71, 0.35, 0.61))) + vec3(0.8) * smoothstep(0.86, 0.97, r.y);
-}
-// a colour made stronger: further from grey, and as bright as it can be
-vec3 strong(vec3 c, float much) {
-  vec3 s = clamp(mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, much), 0.0, 1.0);
-  return s / max(max(s.r, max(s.g, s.b)), 0.2);
-}
-void main() {
-  vec3 n = normalize(vNor); if (!gl_FrontFacing) n = -n;
-  vec3 v = normalize(-vPos), h = normalize(KEY + v);
-  float nv = max(dot(n, v), 0.0), rim = pow(1.0 - nv, 3.0);
-  vec3 c;
-  if (uMode == 4) {                                // plain: one light, quick
-    c = uColor * (0.20 + 0.20 * (0.5 + 0.5 * n.y) + 0.66 * max(dot(n, KEY), 0.0)) + 0.05 * rim;
-    outColor = vec4(pow(c, vec3(1.0 / 2.2)), uAlpha); return;
-  }
-  if (uMode == 3) {                                // X-ray: bone glows where it is seen edge on, metal is white
-    if (uKind == 2) c = vec3(0.86, 0.9, 0.95) * (0.5 + 0.5 * nv);
-    else if (uKind == 3) c = uColor * (0.5 + 0.5 * nv);
-    else c = mix(vec3(0.8, 0.9, 1.0), uColor, 0.35) * (0.06 + (uKind == 1 ? 0.12 : 0.42) * pow(1.0 - nv, 2.5)) * uAlpha;
-    outColor = vec4(c, uAlpha); return;
-  }
-  if (uMode == 9) {                                // neon: dark, with an edge that glows like a tube sign
-    vec3 tube = uKind == 0 ? vec3(0.15, 1.0, 0.92) : uKind == 1 ? vec3(1.0, 0.2, 0.78) : uKind == 2 ? vec3(1.0, 0.86, 0.2) : strong(uColor, 2.2);
-    float edge = pow(1.0 - nv, 2.2);
-    c = tube * (0.05 + 0.1 * wrap(n, KEY, 0.6) + 1.25 * edge) + vec3(1.0) * 0.55 * pow(1.0 - nv, 7.0);
-    outColor = vec4(c, uAlpha); return;
-  }
-  vec3 base = pow(uColor, vec3(2.2));
-  if (uMode == 2) {                                // drawing: a few flat tones, the ink lines are added afterwards
-    float d = wrap(n, KEY, 0.5), tone = d > 0.72 ? 1.0 : d > 0.4 ? 0.8 : 0.58;
-    c = base * tone * 1.25 + (uKind == 2 ? step(0.93, dot(n, h)) * 0.35 : 0.0);
-    outColor = vec4(pow(c, vec3(1.0 / 2.2)), uAlpha); return;
-  }
-  vec3 sky = mix(vec3(0.1, 0.09, 0.085), vec3(0.23, 0.245, 0.27), 0.5 + 0.5 * n.y);
-  if (uMode == 5 || uMode == 6) {                  // chrome and gold: the whole model is polished metal
-    vec3 metal = uMode == 5
-      ? (uKind == 0 ? vec3(0.9, 0.91, 0.93) : uKind == 1 ? mix(base, vec3(0.3, 0.33, 0.4), 0.5) : mix(base, vec3(0.9), 0.35))
-      : (uKind == 0 ? vec3(1.0, 0.69, 0.27) : uKind == 1 ? vec3(0.62, 0.3, 0.13) : mix(base, vec3(1.0, 0.82, 0.55), 0.4));
-    vec3 f = metal + (1.0 - metal) * pow(1.0 - nv, 5.0);
-    vec3 room = studio(reflect(-v, n));
-    room = room * room * 0.9 + 0.02;               // (a harder mirror than the hardware has: darker darks, brighter lights)
-    c = room * f * 1.25 + metal * (0.03 + 0.14 * wrap(n, KEY, 0.25)) + pow(max(dot(n, h), 0.0), 90.0) * 1.2;
-  } else if (uMode == 7) {                         // matte: chalk, no shine anywhere, the colours a little paler
-    vec3 chalk = mix(base, vec3(0.85), 0.42);
-    c = chalk * (sky * 1.7 + vec3(1.0, 0.97, 0.93) * 0.95 * wrap(n, KEY, 0.75) + vec3(0.8, 0.88, 1.0) * 0.3 * wrap(n, FILL, 0.75));
-  } else if (uMode == 8) {                         // candy: strong colour under a hard clear glaze
-    vec3 sweet = pow(strong(uColor, 1.9), vec3(2.2));
-    c = sweet * (sky * 1.2 + vec3(1.0, 0.97, 0.92) * 1.2 * wrap(n, KEY, 0.5) + vec3(0.8, 0.88, 1.0) * 0.25 * wrap(n, FILL, 0.5)) + sweet * 0.5 * rim;
-    c += studio(reflect(-v, n)) * (0.05 + 0.95 * pow(1.0 - nv, 5.0)) * 0.7 + pow(max(dot(n, h), 0.0), 140.0) * 1.6;
-  } else if (uMode == 10) {                        // rainbow: the colour runs round the form like oil on water
-    float t = nv * 1.15 + n.y * 0.22 + n.x * 0.1 + (uKind == 1 ? 0.5 : uKind == 2 ? 0.25 : 0.0);
-    vec3 oil = 0.5 + 0.5 * cos(6.2832 * (t + vec3(0.0, 0.33, 0.67)));
-    oil = mix(oil, vec3(0.9, 0.88, 0.95), 0.25);
-    c = oil * (sky + vec3(1.0, 0.97, 0.92) * 1.05 * wrap(n, KEY, 0.4) + vec3(0.8, 0.88, 1.0) * 0.25 * wrap(n, FILL, 0.5));
-    c += studio(reflect(-v, n)) * (0.06 + 0.5 * pow(1.0 - nv, 4.0)) + pow(max(dot(n, h), 0.0), 60.0) * 0.8;
-  } else if (uMode == 1) {                                // clay: everything matte, like a model in grey clay
-    if (uKind < 2) base = mix(base, vec3(0.52, 0.45, 0.38), 0.65);
-    c = base * (sky * 1.3 + vec3(1.0, 0.97, 0.92) * 1.15 * wrap(n, KEY, 0.45) + vec3(0.8, 0.88, 1.0) * 0.22 * wrap(n, FILL, 0.5));
-  } else if (uKind == 2) {                         // soft light, metal: mostly a mirror of the studio
-    vec3 f = base + (1.0 - base) * pow(1.0 - nv, 5.0);
-    c = studio(reflect(-v, n)) * f * 0.8 + base * (0.12 + 0.55 * wrap(n, KEY, 0.2)) + pow(max(dot(n, h), 0.0), 70.0) * 1.1;
-  } else {                                         // soft light, bone and disc: three lights that wrap round the form
-    float gloss = uKind == 1 ? 0.3 : uKind == 0 ? 0.1 : 0.05;
-    c = base * (sky + vec3(1.0, 0.96, 0.9) * 1.3 * wrap(n, KEY, 0.22) + vec3(0.8, 0.88, 1.0) * 0.24 * wrap(n, FILL, 0.5) + 0.3 * max(dot(n, BACK), 0.0));
-    c += gloss * pow(max(dot(n, h), 0.0), uKind == 1 ? 45.0 : 22.0) + 0.1 * rim * (base + 0.2);
-  }
-  c = c * 1.15 / (1.0 + 0.4 * c);                  // keep bright spots from burning out
-  outColor = vec4(pow(c, vec3(1.0 / 2.2)), uAlpha);
-}`;
-
-// The second pass. After the picture is drawn, the scene is drawn once more, this time
-// keeping only how far away each pixel is and which way its surface faces. From those two
-// this shader works out, for every pixel, how closed in the surface is by what is around it
-// (corners and gaps get darker) and where an edge runs (for ink lines).
-const FACING = `#version 300 es
-precision highp float;
-in vec3 vNor;
-out vec4 outColor;
-void main() { vec3 n = normalize(vNor); if (!gl_FrontFacing) n = -n; outColor = vec4(n * 0.5 + 0.5, 1.0); }`;
-const SCREEN = `#version 300 es
-out vec2 vUv;
-void main() { vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)); vUv = p; gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }`;
-const SHADE = `#version 300 es
-precision highp float;
-in vec2 vUv;
-uniform sampler2D uDepth, uFacing;
-uniform vec4 uLens;                                // near, far, half the view across and up (as tangents)
-uniform vec2 uTexel; uniform float uReach;
-out vec4 outColor;
-float deep(vec2 uv) { float d = texture(uDepth, uv).r * 2.0 - 1.0; return 2.0 * uLens.x * uLens.y / (uLens.y + uLens.x - d * (uLens.y - uLens.x)); }
-vec3 place(vec2 uv) { float z = deep(uv); return vec3((uv * 2.0 - 1.0) * uLens.zw * z, -z); }
-vec3 facing(vec2 uv) { return normalize(texture(uFacing, uv).xyz * 2.0 - 1.0); }
-void main() {
-  vec2 steps[4] = vec2[4](vec2(uTexel.x, 0.0), vec2(-uTexel.x, 0.0), vec2(0.0, uTexel.y), vec2(0.0, -uTexel.y));
-  if (texture(uDepth, vUv).r >= 1.0) {
-    // empty background: only an ink line where it borders something
-    float edge = 0.0;
-    for (int i = 0; i < 4; i++) if (texture(uDepth, vUv + steps[i]).r < 1.0) edge = 1.0;
-    outColor = vec4(1.0, edge, 0.0, 1.0); return;
-  }
-  vec3 p = place(vUv), n = facing(vUv);
-  float z = -p.z, turn = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.2832, shut = 0.0;
-  vec2 across = uReach / (2.0 * z * uLens.zw);
-  for (int i = 0; i < 14; i++) {
-    float a = turn + float(i) * 2.39996, k = sqrt((float(i) + 0.5) / 14.0);
-    vec3 q = place(vUv + across * k * vec2(cos(a), sin(a))) - p;
-    float qq = dot(q, q), f = max(uReach * uReach - qq, 0.0);
-    shut += f * f * f * max((dot(q, n) - 0.35) / (qq + 0.6), 0.0);
-  }
-  shut = max(0.0, 1.0 - shut * 2.6 / pow(uReach, 6.0));
-  // an edge: a neighbouring pixel lies off this surface, or faces quite another way
-  float pixel = 2.0 * z * uLens.w * uTexel.y, off = 0.0, bend = 1.0;
-  for (int i = 0; i < 4; i++) { off = max(off, abs(dot(place(vUv + steps[i]) - p, n))); bend = min(bend, dot(facing(vUv + steps[i]), n)); }
-  float edge = max(smoothstep(1.6, 4.0, off / pixel), smoothstep(0.35, 0.75, 1.0 - bend));
-  outColor = vec4(shut, edge, 0.0, 1.0);
-}`;
-// Lays the result over the picture: darker where closed in, an ink line along the edges.
-const MIX = `#version 300 es
-precision highp float;
-in vec2 vUv;
-uniform sampler2D uShade; uniform vec2 uTexel; uniform float uShadow, uInk;
-out vec4 outColor;
-void main() {
-  float shut = 0.0;
-  for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) shut += texture(uShade, vUv + (vec2(float(i), float(j)) - 1.5) * uTexel).r;
-  float k = mix(1.0, shut / 16.0, uShadow) * (1.0 - uInk * texture(uShade, vUv).g * 0.85);
-  outColor = vec4(vec3(clamp(k, 0.0, 1.0)), 1.0);
-}`;
+import { KINDS } from '../parts/kinds.js';
+import { VERTEX, FRAGMENT, FACING, SCREEN, SHADE, MIX } from './shaders.js';
 
 // The shadings a person can choose from.
 //   mode: which branch of the surface shader, shadow: how dark closed-in places get, ink: edge lines,
@@ -169,7 +24,8 @@ export const SHADINGS = {
   rainbow: { mode: 10, shadow: 0.8, ink: 0 },
   neon: { mode: 9, shadow: 0, ink: 0, night: true },
 };
-const KINDS = { vertebrae: 0, discs: 1, rods: 2, screws: 2, hooks: 2, crosslinks: 2 };
+// What a thing is made of, for the surface shader: bone, disc or metal (every kind of part). Anything else is 3.
+const MADE_OF = { vertebrae: 0, discs: 1, ...Object.fromEntries(KINDS.map((k) => [k, 2])) };
 
 function matMul(a, b) {
   const o = new Float32Array(16);
@@ -192,6 +48,7 @@ const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], 
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const norm3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
+const NO_CRACK = new Float32Array(4);
 const FOV = 0.5;          // how wide the view is, top to bottom, in radians
 
 export function createRenderer(canvas) {
@@ -214,7 +71,7 @@ export function createRenderer(canvas) {
     for (const name of names) at[name] = gl.getUniformLocation(made, name);
     return at;
   }
-  const loc = { pos: 0, nor: 1, ...programOf(VERTEX, FRAGMENT, ['uView', 'uProj', 'uModel', 'uColor', 'uAlpha', 'uMode', 'uKind']) }, program = loc.program;
+  const loc = { pos: 0, nor: 1, ...programOf(VERTEX, FRAGMENT, ['uView', 'uProj', 'uModel', 'uColor', 'uAlpha', 'uMode', 'uKind', 'uWear', 'uCrack', 'uCut', 'uSnap', 'uBone']) }, program = loc.program;
 
   // The second pass needs two pictures to draw into: the depth of the scene and the shading
   // worked out from it. If this device cannot provide them, the second pass is left out.
@@ -224,7 +81,7 @@ export function createRenderer(canvas) {
     if (second && second.w === w && second.h === h) return second;
     try {
       if (second) { gl.deleteTexture(second.depth); gl.deleteTexture(second.facing); gl.deleteTexture(second.shade); gl.deleteFramebuffer(second.depthTo); gl.deleteFramebuffer(second.shadeTo); }
-      else second = { only: programOf(VERTEX, FACING, ['uView', 'uProj', 'uModel']), work: programOf(SCREEN, SHADE, ['uDepth', 'uFacing', 'uLens', 'uTexel', 'uReach']), lay: programOf(SCREEN, MIX, ['uShade', 'uTexel', 'uShadow', 'uInk']) };
+      else second = { only: programOf(VERTEX, FACING, ['uView', 'uProj', 'uModel', 'uCut']), work: programOf(SCREEN, SHADE, ['uDepth', 'uFacing', 'uLens', 'uTexel', 'uReach']), lay: programOf(SCREEN, MIX, ['uShade', 'uTexel', 'uShadow', 'uInk']) };
       const picture = (inner, format, type, smooth) => {
         const t = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, inner, w, h, 0, format, type, null);
@@ -302,7 +159,8 @@ export function createRenderer(canvas) {
     gl.enable(gl.DEPTH_TEST); gl.useProgram(program);
     gl.uniformMatrix4fv(loc.uView, false, view); gl.uniformMatrix4fv(loc.uProj, false, proj); gl.uniform1i(loc.uMode, shading.mode);
     const shown = items.filter((it) => it.visible !== false && it.opacity > 0.01 && !(bare && it.hint));
-    const kind = (it) => (it.group in KINDS ? KINDS[it.group] : 3);
+    // (a thing can say it is metal whatever group it is in: an implant among the discs)
+    const kind = (it) => (it.metal ? 2 : it.group in MADE_OF ? MADE_OF[it.group] : 3);
     // on an X-ray, bone and disc are a glow that adds up; everywhere else they are solid unless made see-through
     const glows = (it) => xray && kind(it) < 2, solid = (it) => !it.overlay && !glows(it) && it.opacity >= 0.995;
     // solid things first, see-through things after them without writing depth
@@ -314,6 +172,7 @@ export function createRenderer(canvas) {
         if (it.overlay || solid(it) === clear) continue;
         if (clear) gl.blendFunc(glows(it) ? gl.ONE : gl.SRC_ALPHA, glows(it) ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
         gl.uniform3fv(loc.uColor, it.color); gl.uniform1f(loc.uAlpha, it.opacity); gl.uniform1i(loc.uKind, kind(it)); gl.uniformMatrix4fv(loc.uModel, false, it.matrix || IDENTITY);
+        gl.uniform1f(loc.uWear, it.wear || 0); gl.uniform4fv(loc.uCrack, it.crack || NO_CRACK); gl.uniform4fv(loc.uBone, it.bone || NO_CRACK); gl.uniform4fv(loc.uCut, it.cut || NO_CRACK); gl.uniform4fv(loc.uSnap, it.snap || NO_CRACK);
         gl.bindVertexArray(it.vao); gl.drawElements(gl.TRIANGLES, it.count, gl.UNSIGNED_INT, 0);
       }
     }
@@ -325,7 +184,7 @@ export function createRenderer(canvas) {
       gl.useProgram(extra.only.program); gl.uniformMatrix4fv(extra.only.uView, false, view); gl.uniformMatrix4fv(extra.only.uProj, false, proj);
       for (const it of shown) {
         if (!solid(it)) continue;
-        gl.uniformMatrix4fv(extra.only.uModel, false, it.matrix || IDENTITY);
+        gl.uniformMatrix4fv(extra.only.uModel, false, it.matrix || IDENTITY); gl.uniform4fv(extra.only.uCut, it.cut || NO_CRACK);
         gl.bindVertexArray(it.vao); gl.drawElements(gl.TRIANGLES, it.count, gl.UNSIGNED_INT, 0);
       }
       gl.bindVertexArray(null); gl.disable(gl.DEPTH_TEST); gl.activeTexture(gl.TEXTURE0);

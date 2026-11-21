@@ -15,6 +15,8 @@ import { setupGuide } from './guide.js';
 import { smoother } from '../core/smooth.js';
 import { rigOf, carry, stiffen, blockOf } from '../core/shape.js';
 import { fitRods } from '../core/place.js';
+import { KINDS, allKinds } from '../parts/kinds.js';
+import { sampleOf } from '../parts/catalogue.js';
 import { setBoneStyle } from '../core/bones.js';
 import { SHAPE_CREDIT } from '../shapes/bodyparts3d.js';
 import { setupBuilder } from './build.js';
@@ -85,6 +87,7 @@ const app = {
   picture: () => pictureOf(),          // the view as a picture, with the names and words that are showing
   setBack: (name) => renderer.setBackground(BACKS[name] || BACKS.dark),   // the background for one picture (applyLook puts the chosen one back)
   applyLook: () => applyLook(false),
+  partPictures: (ids) => partPictures(ids),   // small pictures of single parts, for the catalogue
   thumbs: () => thumbsSoon(),          // draw the small pictures of the shadings again
   clean: (on) => setClean(on),         // put the tools away for a clear picture, or bring them back
   stiff: true,                         // fused stretches move as blocks
@@ -156,7 +159,7 @@ const app = {
   reopen(fn) {
     if (!spine) return;
     fn();
-    for (const key of ['rods', 'screws', 'hooks', 'crosslinks']) { spine.hardware = spine.hardware || {}; spine.hardware[key] = spine.hardware[key] || []; }
+    allKinds(spine);
     spine.marks = spine.marks || []; spine.fused = spine.fused || [];
     app.rig = rigOf(spine, app.stiff); app.picked = null; app.also = []; app.spots = []; app.held.clear();
     if (builder) { builder.reset(); builder.stepped(); }
@@ -243,7 +246,7 @@ function show(next, problems, keep = false) {
   if (!next || !Array.isArray(next.levels) || !next.levels.length) return;
   const before = keep && spine ? past.slice(-60) : [];
   spine = next; app.shown = null; app.pair = null;
-  for (const key of ['rods', 'screws', 'hooks', 'crosslinks']) { spine.hardware = spine.hardware || {}; spine.hardware[key] = spine.hardware[key] || []; }
+  allKinds(spine);
   spine.marks = spine.marks || [];
   $('name').textContent = spine.name || 'A spine';
   $('about').textContent = spine.about || '';
@@ -540,7 +543,7 @@ function pictureOf() {
   return out;
 }
 
-const PRINTED = ['vertebrae', 'discs', 'rods', 'screws', 'hooks', 'crosslinks'], STAND_COLOR = [0.56, 0.58, 0.63];
+const PRINTED = ['vertebrae', 'discs', ...KINDS], STAND_COLOR = [0.56, 0.58, 0.63];
 const CREDIT = 'Bones: BodyParts3D (c) DBCLS, CC BY 4.0';
 const printScale = () => parseFloat($('stlScale').value) || 1;
 // The stand for the spine as it is now, at the print size chosen, or null. Worked out again only when the spine has changed shape.
@@ -654,9 +657,45 @@ function makeThumbs() {
   renderer.setShading(look.shade);
 }
 
+// Small pictures of single parts for the tiles of the catalogue: { id: an address an <img> can show }.
+// Each part is drawn on its own with the renderer of the model, small and in the middle of the
+// canvas, so only that corner of the picture has to be worked out. The view of the spine is put
+// back after. Nothing comes back while the model cannot be drawn or is showing something else.
+function partPictures(ids) {
+  const out = {}, full = renderer && renderer.canvas;
+  if (!spine || !full || full.width < 120 || full.height < 120 || app.shown || app.pair) return out;
+  const c = renderer.camera, was = { around: c.around, tilt: c.tilt, distance: c.distance, target: c.target };
+  const small = document.createElement('canvas'), g = small.getContext('2d'), side = Math.min(full.width, full.height, 200);
+  small.width = small.height = 128;
+  try {
+    renderer.setShading('soft');
+    for (const id of ids) {
+      const items = sampleOf(id);
+      if (!items) continue;
+      // (a sample can say what box to fit in the picture, so that samples of one kind are drawn at one scale)
+      const low = [Infinity, Infinity, Infinity], high = [-Infinity, -Infinity, -Infinity], box = items[0].box;
+      if (box) { low.splice(0, 3, ...box[0]); high.splice(0, 3, ...box[1]); }
+      else for (const it of items) for (let i = 0; i < it.mesh.positions.length; i += 3) for (let j = 0; j < 3; j++) { low[j] = Math.min(low[j], it.mesh.positions[i + j]); high[j] = Math.max(high[j], it.mesh.positions[i + j]); }
+      renderer.setItems(items.map((it) => ({ ...it, opacity: 1, baseOpacity: 1, visible: true })));
+      // seen from behind and a little from the side and from above, far enough away to fit the square
+      // (a sample can ask for a view of its own)
+      const view = items[0].view || [0.95, 0.4];
+      c.target = low.map((v, j) => (v + high[j]) / 2); c.around = view[0]; c.tilt = view[1];
+      c.distance = Math.hypot(high[0] - low[0], high[1] - low[1], high[2] - low[2]) * full.height / (0.86 * side * 2 * Math.tan(0.25));
+      const x = (full.width - side) / 2, y = (full.height - side) / 2;
+      renderer.picture([x - 20, y - 20, side + 40, side + 40]);
+      g.drawImage(full, x, y, side, side, 0, 0, small.width, small.height);
+      out[id] = small.toDataURL('image/jpeg', 0.86);
+    }
+  } catch (e) { for (const k of Object.keys(out)) delete out[k]; }
+  Object.assign(c, was);
+  renderer.setShading(look.shade);
+  app.redraw();
+  return out;
+}
+
 // Reset the view: everything about how the sketch is drawn goes back to how it starts. The shading, the background,
 // what is shown, every colour (the ones kept in the sketch too, so Undo brings those back) and the whole spine in view.
-const KINDS = ['rods', 'screws', 'hooks', 'crosslinks'];
 function resetView() {
   if (!spine) return;
   const hw = spine.hardware, colored = !!hw.colors || KINDS.some((k) => hw[k].some((p) => p.color)) || spine.levels.some((l) => l.color);
