@@ -109,8 +109,8 @@ export const CATEGORIES = [
       { id: 'disc-replacement', tool: 'disc', state: 'replacement', name: 'Artificial disc', say: 'a disc replacement: a plate on each bone and a core that lets them move', icon: 'i-disc', shot: true },
       { id: 'disc-cage', tool: 'disc', state: 'cage', name: 'Fusion cage', say: 'a block in the place of the disc, holding the bones apart while they grow together', icon: 'i-disc', shot: true },
       { id: 'disc-cage-screws', tool: 'disc', state: 'cage-screws', name: 'Cage with screws', say: 'a fusion cage held by its own screws, two into each bone', icon: 'i-disc', shot: true },
-      { id: 'disc-plate', tool: 'disc', plate: true, name: 'Plate on the front', say: 'a plate screwed to the front of the two bones, across the disc. Plates on discs next to each other join into one long plate', icon: 'i-disc', shot: true },
-      { id: 'disc-spacer', tool: 'disc', spacer: true, name: 'Spacer at the back', say: 'a block between the two back processes that holds them apart', icon: 'i-disc', shot: true }] },
+      { id: 'disc-plate', tool: 'disc', plate: true, name: 'Plate on the front', say: 'a plate screwed to the front of the two bones, across the disc. In the neck or the low back. Plates on discs next to each other join into one long plate', icon: 'i-disc', shot: true },
+      { id: 'disc-spacer', tool: 'disc', spacer: true, name: 'Spacer at the back', say: 'a block between the two back processes that holds them apart. In the low back', icon: 'i-disc', shot: true }] },
   ] },
   // (the vertebrae work the way the discs do: one is selected and then changed, or a tile is taken in hand.
   // "state" is the kind of fracture the file keeps, or 'healthy'. A vertebra is selected in other categories

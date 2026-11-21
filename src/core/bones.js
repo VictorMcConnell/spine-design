@@ -423,6 +423,16 @@ function plateParts(levels) {
   });
   return [{ mesh: loft(rings, true), color: DARK, metal: true }, ...heads];
 }
+// Where a mark for a plate goes: on the front of the disc between two vertebrae. And for a spacer:
+// between their two back processes (null where there are none).
+export function plateSpot(upper, lower) {
+  const a = endplateRing(upper, false), b = endplateRing(lower, true), back = levelFrame(lower).back, front = (ring) => ring.reduce((best, p) => (vDot(p, back) < vDot(best, back) ? p : best));
+  return vAdd(vLerp(front(a), front(b), 0.5), vScale(back, -2.5));
+}
+export function spacerSpot(upper, lower) {
+  const pu = backProcess(upper), pl = backProcess(lower);
+  return pu && pl ? vLerp(pu, pl, 0.5) : null;
+}
 // Plates on discs next to each other are one long plate. For the disc under the vertebra at place "i" in a
 // list of vertebrae (top first): the vertebrae its plate lies on if a plate starts here, false if the disc is
 // under a plate that started higher up, and nothing if it has no plate.

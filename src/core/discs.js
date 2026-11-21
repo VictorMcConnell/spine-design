@@ -20,8 +20,16 @@ export function discKeys(spine) {
   for (let i = 0; i < levels.length - 1; i++) if (levels[i].id !== 'C1') out.push(discKey(levels[i].id, levels[i + 1].id));
   return out;
 }
-// Can a spacer sit at the back of this disc? Not above the sacrum, which has no process for it to rest on.
-export const canSpace = (key) => !key.endsWith('/S1');
+// Can a spacer sit at the back of this disc? Between two vertebrae of the low back, where these are
+// used. Not above the sacrum, which has no process for it to rest on. (One that a file already has
+// somewhere else is kept and drawn.)
+export const canSpace = (key) => /^L\d\/L\d$/.test(key);
+// Where a plate on the front can go: in the neck from C2/C3 down to C7/T1, and from T11/T12 down to
+// the sacrum. Higher in the chest the heart and the large vessels lie in front of the spine.
+const PLATED = ['C2/C3', 'C3/C4', 'C4/C5', 'C5/C6', 'C6/C7', 'C7/T1', 'T11/T12', 'T12/L1', 'L1/L2', 'L2/L3', 'L3/L4', 'L4/L5', 'L5/S1'];
+export const canPlate = (key) => PLATED.includes(key);
+// The rule for each of the two in words, for the person who presses somewhere else.
+export const WHERE = { plate: 'A plate on the front goes in the neck (C2 to T1) or the low back (T11 to the sacrum).', spacer: 'A spacer at the back goes between two vertebrae of the low back (L1 to L5).' };
 // What the file says of a disc, or { state: 'standard' }.
 export const discAt = (spine, key) => (spine.discs && spine.discs[key]) || { state: 'standard' };
 
@@ -42,7 +50,7 @@ export function setDisc(spine, rig, key, change) {
   const want = next.state === 'thin' ? Math.max(0.5, natural * (1 - MOST_LOST * amount)) : natural;
   if (Math.abs(want - before) > 0.01) liftLevel(spine, rig, upper, want - before);
   const drop = round3(natural - gapUnder(spine, rig, upper));
-  const now = { state: next.state, ...(DISC_SIZED.includes(next.state) ? { amount } : {}), ...(DISC_AIMED.includes(next.state) ? { toward: DISC_SIDES.includes(next.toward) ? next.toward : 'back' } : {}), ...(drop > 0.04 ? { drop } : {}), ...(next.spacer && canSpace(key) ? { spacer: true } : {}), ...(next.plate ? { plate: true } : {}) };
+  const now = { state: next.state, ...(DISC_SIZED.includes(next.state) ? { amount } : {}), ...(DISC_AIMED.includes(next.state) ? { toward: DISC_SIDES.includes(next.toward) ? next.toward : 'back' } : {}), ...(drop > 0.04 ? { drop } : {}), ...(next.spacer && (canSpace(key) || was.spacer) ? { spacer: true } : {}), ...(next.plate && (canPlate(key) || was.plate) ? { plate: true } : {}) };
   spine.discs = { ...(spine.discs || {}) };
   if (now.state === 'standard' && !now.drop && !now.spacer && !now.plate) delete spine.discs[key]; else spine.discs[key] = now;
   if (!Object.keys(spine.discs).length) delete spine.discs;

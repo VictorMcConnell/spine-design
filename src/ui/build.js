@@ -8,8 +8,8 @@
 // keeps the history for Undo. The tools that draw and tap are in easy.js and chart.js.
 
 import { sortedLevels } from '../core/spinefile.js';
-import { vertebraShape, levelFrame, discParts, discMesh } from '../core/bones.js';
-import { setDisc, discAt, discKeys, discWords, DISC_SIZED, DISC_AIMED } from '../core/discs.js';
+import { vertebraShape, levelFrame, discParts, discMesh, plateSpot, spacerSpot } from '../core/bones.js';
+import { setDisc, discAt, discKeys, discWords, DISC_SIZED, DISC_AIMED, canPlate, canSpace, WHERE } from '../core/discs.js';
 import { setFracture, canBreak, fractureWords, setWear, wearWords, setArch, archWords, setBoneLook, boneLookWords, squashes } from '../core/fractures.js';
 import { ANATOMY } from '../core/anatomy.js';
 import { pullLevel, liftLevel, gapUnder, restack, toLocal, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, straighten, blockOf, pivotAt } from '../core/shape.js';
@@ -349,7 +349,11 @@ export function setupBuilder(app) {
       // a selected disc becomes what the tile shows. With none selected the tile is taken in hand, and each disc pressed becomes that.
       const key = discPick(), down = hand.parts === 'disc' && tileInHand() === id;
       discTile = id;
-      if (key) putOnDisc(key, tile, true); else pickTool(down ? 'turn' : 'disc');
+      if (key) putOnDisc(key, tile, true); else {
+        pickTool(down ? 'turn' : 'disc');
+        // (a plate and a spacer do not go everywhere: say where, and the model shows a mark at each place)
+        if (!down && (tile.plate || tile.spacer)) app.say(WHERE[tile.plate ? 'plate' : 'spacer'] + ' The marks show where.');
+      }
       return;
     }
     if (cat === 'rods') {
@@ -503,8 +507,31 @@ export function setupBuilder(app) {
     return best && !(bone && bone.t < best.t - 0.5) ? best.key : null;
   }
   // A press on the model while the Discs are open. True if it was about a disc.
+  // ---- where a plate or a spacer can go: with one of the two in hand, a soft mark at every disc that can
+  // take one and has none yet. A press on a mark, or on such a disc, puts it there.
+  const placing = () => { const t = cat === 'discs' && hand.parts === 'disc' && tilesOf('discs').find((x) => x.id === discTile); return t && (t.plate || t.spacer) ? t : null; };
+  const PLACE_COLOR = [0.62, 0.8, 1];
+  function discMarks() {
+    const tile = placing(), out = [];
+    if (!tile || !app.spine) return out;
+    const ls = levels();
+    for (let i = 0; i < ls.length - 1; i++) {
+      const key = ls[i].id + '/' + ls[i + 1].id, d = discAt(app.spine, key);
+      if (tile.plate ? !canPlate(key) || d.plate : !canSpace(key) || d.spacer) continue;
+      const at = tile.plate ? plateSpot(ls[i], ls[i + 1]) : spacerSpot(ls[i], ls[i + 1]);
+      if (at) out.push({ key, at });
+    }
+    return out;
+  }
+  const discHints = () => { const marks = discMarks(); return marks.length ? { dots: marks.map((m) => ({ at: m.at, color: PLACE_COLOR, size: 2.1, opacity: 0.55 })) } : null; };
+  function markAt(e) {
+    const ray = renderer.ray(e.clientX, e.clientY); let best = null;
+    for (const m of discMarks()) { const off = rayPoint(ray.origin, ray.direction, m.at).off; if (off < 6 && (!best || off < best.off)) best = { key: m.key, off }; }
+    return best && best.key;
+  }
   function discTap(e) {
-    const key = hitDisc(e);
+    const tile = placing(), key = (tile && markAt(e)) || hitDisc(e);
+    if (tile && key && !(tile.plate ? canPlate(key) : canSpace(key)) && !discAt(app.spine, key)[tile.plate ? 'plate' : 'spacer']) { app.say(WHERE[tile.plate ? 'plate' : 'spacer'] + ' The marks show where.'); return true; }
     if (!key) { if (hand.parts !== 'disc') return false; app.pick(null); return true; }
     if (hand.parts === 'disc') putOnDisc(key, tilesOf('discs').find((t) => t.id === discTile), false);
     app.pick({ kind: 'discs', id: key });
@@ -514,11 +541,13 @@ export function setupBuilder(app) {
   // On a selected disc those two tiles put the part there or take it away. With the tile in hand a press only puts one there.
   function putOnDisc(key, tile, toggle) {
     const d = discAt(app.spine, key);
-    if (tile.plate) { if (!d.plate || toggle) changeDisc(key, { plate: !d.plate }); }
-    else if (tile.spacer) {
+    if (tile.plate) {
+      if (!d.plate && !canPlate(key)) { app.say(WHERE.plate); return; }
+      if (!d.plate || toggle) changeDisc(key, { plate: !d.plate });
+    } else if (tile.spacer) {
       if (d.spacer && !toggle) return;
+      if (!d.spacer && !canSpace(key)) { app.say(WHERE.spacer); return; }
       changeDisc(key, { spacer: !d.spacer });
-      if (!d.spacer && !discAt(app.spine, key).spacer) app.say('There is no room for a spacer at the back of ' + key + '.');
     } else if (d.state !== tile.state) changeDisc(key, { state: tile.state });
   }
   const DISC_SAYS = Object.fromEntries(tilesOf('discs').filter((t) => t.state).map((t) => [t.state, t.say]));
@@ -1187,7 +1216,7 @@ export function setupBuilder(app) {
     // what is on the open spine, as lines of words under headings: [{ head, text }]
     rows: () => lastRows.map((r) => ({ head: r.head, text: r.text })),
     // the soft marks on the model that show where the tool in hand can be used (only with the hardware)
-    hints: () => (tab === 'parts' && !filling ? easy.hints() : null),
+    hints: () => (tab === 'parts' && !filling ? discHints() || easy.hints() : null),
     // a spine was opened: the tools start over for it
     opened() { easy.opened(); if (tab === 'shape' && hand.shape === 'curve') app.picked = firstStretch(); arm(); },
     // Undo went back, or a spine was opened: let go of what was being done to the spine as it was

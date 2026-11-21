@@ -147,7 +147,9 @@ the app before 0.20 ignore the field.
 - `spacer`: `true` for a spacer between the two back processes. It goes with any state, and not
   with the disc above the sacrum. From version 0.24.
 - `amount`: how much, from 0.1 to 1, for a thin, bulging or herniated disc. Without it, 0.5.
-- `plate`: `true` for a plate on the front of the two vertebrae, across the disc. It goes with
+- `plate`: `true` for a plate on the front of the two vertebrae, across the disc. From version
+  0.30 the app puts one only in the neck (C2/C3 to C7/T1) and from T11/T12 down to the sacrum,
+  and a `spacer` only between L1 and L5. One that a file has somewhere else is still drawn. It goes with
   any state. From version 0.26. From version 0.29 plates on discs next to each other are drawn
   as one long plate. Versions 0.26 to 0.28 draw a short plate for each.
 - `toward`: which way a bulging or herniated disc pushes: `back`, `back-left` or `back-right`,
