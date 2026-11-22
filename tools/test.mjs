@@ -15,9 +15,11 @@ import { crosslinkMesh } from '../src/parts/crosslink.js';
 import { TYPICAL, screwRegion, typicalScrew, HEADS, SCREW_LOOKS } from '../src/parts/sizes.js';
 import { CATEGORIES, tilesOf, categoryOf } from '../src/parts/kinds.js';
 import { sampleOf } from '../src/parts/catalogue.js';
-import { setDisc, discAt, discKeys, discWords } from '../src/core/discs.js';
-import { discParts, endplateRing } from '../src/core/bones.js';
-import { setFracture, brokenSize, canBreak, fractureWords, setWear, wearWords, setArch, canArch, archWords } from '../src/core/fractures.js';
+import { setDisc, discAt, discKeys, discWords, canSpace, canPlate, WHERE } from '../src/core/discs.js';
+import { plateSpot, spacerSpot } from '../src/core/bones.js';
+import { discParts, endplateRing, plateRun } from '../src/core/bones.js';
+import { setFracture, brokenSize, canBreak, fractureWords, setWear, wearWords, setArch, canArch, archWords, setBoneLook, boneLookWords, boneMarks, crackMarks, squashes } from '../src/core/fractures.js';
+import { FRACTURES, BONE_LOOKS } from '../src/core/spinefile.js';
 import { archMarks } from '../src/core/bones.js';
 import { FACING } from '../src/view/shaders.js';
 import { FINISHES, PALETTES, colorOf } from '../src/core/finish.js';
@@ -28,6 +30,7 @@ import { ANATOMY } from '../src/core/anatomy.js';
 import { LEVEL_ORDER, MOST_STEPS } from '../src/core/spinefile.js';
 import { measureSpine } from '../src/core/measures.js';
 import { JOINT_MOST, lineOf, slideLevel, rigOf, restack, carry, readShape, applyShape, pullLevel, toLocal, frameOf, bowOf, setBow, offsetOf, setOffset, twistOf, setTwist, moveAlone, liftLevel, gapUnder, straighten, stiffen, blockOf, pivotAt, followLine } from '../src/core/shape.js';
+import { handSet, setByHand, isUsual, backToUsual, HAND_LIMITS } from '../src/core/place.js';
 import { slot, planFor, buildHardware, fitRods, crosslinkAt, freeScrew, resizeScrew, screwLength, cellOf, setCell, fusedBelow, setFusedBelow, linkBelow, setLinkBelow, rodsEndBelow, setRodsEndBelow, gapsOf, setRodCut, drawRod, splitAtGaps, rodSets, retypePiece, cutAll, rodsThroughAll, cutRodAt, linkFits, linkSpot, shiftParts, fitOut, ROD_RULES, strainAt, moveInLine, settleInLine, bendRod, unbendRod, faceHook } from '../src/core/place.js';
 import { rayMesh } from '../src/core/pick.js';
 import { ball } from '../src/core/mesh.js';
@@ -1226,7 +1229,7 @@ ok('a screw or a hook on the spine can become another type and stays where it is
   const s = JSON.parse(JSON.stringify(spine)), hw = s.hardware, count = () => hw.screws.length + hw.hooks.length, all = count();
   assert.deepEqual(typesFor('screws').map((t) => t.id), ['screw', 'screw-tall', 'screw-low', 'hook-down', 'hook-up']);
   assert.deepEqual(typesFor('hooks'), typesFor('screws'));
-  assert.deepEqual(typesFor('rods'), []); assert.equal(typeOf('crosslinks', hw.crosslinks[0]), undefined);
+  assert.deepEqual(typesFor('rods'), []); assert.equal(typeOf('crosslinks', hw.crosslinks[0]).id, 'link');
   for (const t of PART_TYPES) assert.ok(KINDS.includes(t.kind) && t.name && t.icon, t.id);
   // a screw becomes a hook: same vertebra, side and rod, its own colour kept, and the rods still run through it
   const screw = hw.screws.find((p) => p.level === 'T9' && p.side === 'left'); screw.color = 'red';
@@ -1296,8 +1299,8 @@ ok('the catalogue has a tool for every tile, a picture for the ones that ask for
     assert.equal(!!sample, !!t.shot, t.id);
     if (sample) assert.ok(sample.length && sample.every((it) => it.mesh.positions.length && it.color && (KINDS.includes(it.group) || it.group === 'discs' || it.group === 'vertebrae')));
   }
-  // every type a screw or hook can be changed to has its tile
-  for (const t of PART_TYPES) assert.ok(tilesOf('side').some((x) => x.id === t.id), t.id);
+  // every type a screw, a hook or a cross-link can be changed to has its tile
+  for (const t of PART_TYPES) assert.ok(tilesOf(categoryOf(t.kind)).some((x) => x.id === t.id), t.id);
 });
 ok('a disc can be thin, bulging, herniated, dried out or gone, and a thin one brings the spine down', () => {
   const s = JSON.parse(JSON.stringify(spine)), rig = rigOf(s), levels = sortedLevels(s), at = (id) => levels.find((l) => l.id === id);
@@ -1431,7 +1434,7 @@ ok('the bone of a vertebra can look worn, a break shows as a dark line, and neit
   carry(s, () => setFracture(s, rig, 'L3', { kind: 'burst', amount: 0.5 }));
   const bones = buildScene(s, 2.2).filter((it) => it.group === 'vertebrae'), of = (id) => bones.find((it) => it.name === id), l3 = s.levels.find((l) => l.id === 'L3');
   assert.equal(of('L2').wear, 0.5); assert.ok(!('crack' in of('L2')));
-  assert.deepEqual(of('L3').crack, [3, l3.size[1] / 2, l3.size[0] / 2, l3.size[2] / 2]); assert.ok(!('wear' in of('L3')));
+  assert.deepEqual(of('L3').crack, [3.2, l3.size[1] / 2, l3.size[0] / 2, l3.size[2] / 2]); assert.ok(!('wear' in of('L3')));
   assert.ok(!('wear' in of('T5')) && !('crack' in of('T5')));
   // clean again: nothing is written down
   assert.equal(setWear(s, 'L2', 0), 0);
@@ -1480,6 +1483,386 @@ ok('the back of a vertebra can be opened or have a broken process, drawn by leav
   assert.equal(setArch(s, 'T8', ''), 'whole'); assert.ok(!('arch' in at('T8')));
   at('T8').arch = 'missing';
   assert.equal(validateSpine(s).length, 1);
+});
+ok('a disc can be replaced by an artificial disc or a fusion cage, and a spacer can sit at its back', () => {
+  const s = JSON.parse(JSON.stringify(spine)), rig = rigOf(s), levels = sortedLevels(s), at = (id) => levels.find((l) => l.id === id);
+  carry(s, () => restack(s, rig));
+  const was = JSON.stringify(s.levels), up = at('L3'), low = at('L4'), f = levelFrame(low);
+  let now = null;
+  carry(s, () => { now = setDisc(s, rig, 'L3/L4', { state: 'replacement' }); });
+  assert.deepEqual(now, { state: 'replacement' });
+  assert.equal(JSON.stringify(s.levels), was);
+  assert.equal(discWords(now), 'replaced by an artificial disc');
+  // the artificial disc: a metal plate on each bone and a core that is not metal, all inside the outline of the bones
+  const reach = (mesh, axis) => { let lo = Infinity, hi = -Infinity; for (let i = 0; i < mesh.positions.length; i += 3) { const v = (mesh.positions[i] - low.centre[0]) * axis[0] + (mesh.positions[i + 1] - low.centre[1]) * axis[1] + (mesh.positions[i + 2] - low.centre[2]) * axis[2]; lo = Math.min(lo, v); hi = Math.max(hi, v); } return [lo, hi]; };
+  const disc = discParts(up, low, null)[0].mesh, art = discParts(up, low, now);
+  assert.deepEqual(art.map((p) => !!p.metal), [true, true, false]);
+  assert.ok(art.every((p) => p.color && p.mesh.positions.length && !p.tint));
+  for (const p of art) assert.ok(reach(p.mesh, f.left)[1] < reach(disc, f.left)[1] && reach(p.mesh, f.back)[1] < reach(disc, f.back)[1] + 0.5, 'inside the disc it replaces');
+  const high = art.map((p) => reach(p.mesh, f.up));
+  assert.ok(high[0][1] <= high[2][1] && high[2][0] <= high[1][0] + 2 && high[0][1] < high[1][0], 'the core lies between the two plates');
+  // the cage: one metal block, smaller than the disc
+  carry(s, () => { now = setDisc(s, rig, 'L3/L4', { state: 'cage' }); });
+  const cage = discParts(up, low, now);
+  assert.ok(cage.length === 1 && cage[0].metal && reach(cage[0].mesh, f.left)[1] < reach(disc, f.left)[1] * 0.75);
+  assert.equal(discWords(now), 'replaced by a fusion cage');
+  // a spacer goes with any disc, sits behind the canal between the two back processes, and stays when the disc changes
+  carry(s, () => { now = setDisc(s, rig, 'L3/L4', { spacer: true }); });
+  assert.deepEqual(now, { state: 'cage', spacer: true });
+  const withSpacer = discParts(up, low, now), spacer = withSpacer.slice(1);
+  assert.ok(spacer.length === 3 && spacer.every((p) => p.metal && p.color));
+  assert.ok(reach(spacer[0].mesh, f.back)[0] > low.size[1] / 2 + 8, 'behind the canal: ' + reach(spacer[0].mesh, f.back));
+  assert.ok(Math.abs((reach(spacer[0].mesh, f.left)[0] + reach(spacer[0].mesh, f.left)[1]) / 2) < 6, 'on the middle line');
+  carry(s, () => { now = setDisc(s, rig, 'L3/L4', { state: 'standard' }); });
+  assert.deepEqual(now, { state: 'standard', spacer: true });
+  assert.deepEqual(s.discs, { 'L3/L4': { state: 'standard', spacer: true } });
+  assert.equal(discWords(now), 'standard, with a spacer at the back');
+  assert.equal(discParts(up, low, now).length, 4);
+  assert.deepEqual(validateSpine(s), []);
+  // the scene keeps the colours of an implant and says which parts are metal
+  carry(s, () => setDisc(s, rig, 'L3/L4', { state: 'replacement' }));
+  const items = buildScene(s, 2.2, { look: { disc: [1, 0, 0] } }).filter((it) => it.name === 'disc_L3_L4');
+  assert.equal(items.length, 6);
+  assert.ok(items.filter((it) => it.metal).length === 5 && items.every((it) => it.group === 'discs' && it.color[0] !== 1));
+  // taken away again, and above the sacrum there is nowhere for one
+  carry(s, () => { now = setDisc(s, rig, 'L3/L4', { spacer: false, state: 'standard' }); });
+  assert.ok(!('discs' in s) && JSON.stringify(s.levels) === was);
+  assert.ok(canSpace('L4/L5') && !canSpace('L5/S1'));
+  carry(s, () => { now = setDisc(s, rig, 'L5/S1', { spacer: true }); });
+  assert.ok(!now.spacer && !('discs' in s));
+  s.discs = { 'L2/L3': { state: 'cage', spacer: 'yes' } };
+  assert.equal(validateSpine(s).length, 1);
+});
+ok('a disc can push out to the front or straight to a side, and a plate can sit on the front of the two bones', () => {
+  const s = JSON.parse(JSON.stringify(spine)), rig = rigOf(s), levels = sortedLevels(s), at = (id) => levels.find((l) => l.id === id);
+  carry(s, () => restack(s, rig));
+  const was = JSON.stringify(s.levels), up = at('L3'), low = at('L4'), f = levelFrame(low);
+  const reach = (mesh, axis) => { let lo = Infinity, hi = -Infinity; for (let i = 0; i < mesh.positions.length; i += 3) { const v = (mesh.positions[i] - low.centre[0]) * axis[0] + (mesh.positions[i + 1] - low.centre[1]) * axis[1] + (mesh.positions[i + 2] - low.centre[2]) * axis[2]; lo = Math.min(lo, v); hi = Math.max(hi, v); } return [lo, hi]; };
+  const plain = discParts(up, low, null)[0].mesh, all = (parts, axis) => parts.map((p) => reach(p.mesh, axis)).reduce((a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])]);
+  // each way pushes the disc out on its own side far more than on the other (a bulging disc swells a little all round)
+  for (const [toward, axis, sign] of [['front', f.back, -1], ['left', f.left, 1], ['right', f.left, -1], ['back', f.back, 1]]) for (const state of ['bulging', 'herniated']) {
+    const parts = discParts(up, low, { state, amount: 1, toward }), got = all(parts, axis), base = reach(plain, axis);
+    const out = sign > 0 ? got[1] - base[1] : base[0] - got[0], other = sign > 0 ? base[0] - got[0] : got[1] - base[1];
+    assert.ok(out > 1.5 && other < out / 3, state + ' to the ' + toward + ': out ' + out.toFixed(2) + ', other side ' + other.toFixed(2));
+  }
+  let now = null;
+  carry(s, () => { now = setDisc(s, rig, 'L3/L4', { state: 'bulging', toward: 'front' }); });
+  assert.equal(discWords(now), discWords({ state: 'bulging' }).replace('to the back', 'to the front'));
+  assert.deepEqual(validateSpine(s), []);
+  // the plate: metal, on the front of both bodies, across the disc, and it goes with any disc
+  carry(s, () => { now = setDisc(s, rig, 'L3/L4', { state: 'cage', plate: true }); });
+  assert.deepEqual(now, { state: 'cage', plate: true });
+  assert.ok(discWords(now).endsWith(', with a plate on the front'));
+  const parts = discParts(up, low, now), plate = parts.slice(-5);
+  assert.equal(parts.length, discParts(up, low, { state: 'cage' }).length + 5);
+  assert.ok(plate.every((p) => p.metal && p.color && p.mesh.positions.length));
+  sound(plate[0].mesh, 'plate');
+  const deep = reach(plate[0].mesh, f.back), tall = reach(plate[0].mesh, f.up), wide = reach(plate[0].mesh, f.left);
+  // (the bone above leans back a little, so its end of the plate is further back when measured from the lower bone)
+  assert.ok(deep[1] < -low.size[1] / 2 + 8 && deep[0] > -low.size[1] / 2 - 4 && deep[0] < -low.size[1] / 2, 'on the front face: ' + deep);
+  assert.ok(tall[0] < low.size[2] / 2 - 1 && tall[1] > low.size[2] / 2 + 12, 'from one body to the next: ' + tall);
+  assert.ok(Math.abs(wide[0] + wide[1]) < 3 && wide[1] - wide[0] < low.size[0] * 0.7, 'on the middle line and narrower than the bone: ' + wide);
+  assert.equal(JSON.stringify(s.levels), was);
+  assert.deepEqual(validateSpine(s), []);
+  carry(s, () => { now = setDisc(s, rig, 'L3/L4', { state: 'standard' }); });
+  assert.deepEqual(now, { state: 'standard', plate: true });
+  carry(s, () => { now = setDisc(s, rig, 'L3/L4', { plate: false }); });
+  assert.ok(!('discs' in s));
+  // a neck plate is a small one
+  const necks = sortedLevels(copy(average)), c5 = necks.find((l) => l.id === 'C5'), c6 = necks.find((l) => l.id === 'C6'), neck = discParts(c5, c6, { state: 'standard', plate: true })[1].mesh, fc = levelFrame(c6);
+  let lo = Infinity, hi = -Infinity; for (let i = 0; i < neck.positions.length; i += 3) { const v = (neck.positions[i] - c6.centre[0]) * fc.left[0] + (neck.positions[i + 1] - c6.centre[1]) * fc.left[1] + (neck.positions[i + 2] - c6.centre[2]) * fc.left[2]; lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  assert.ok(hi - lo <= c6.size[0] && hi - lo >= 10, 'neck plate width ' + (hi - lo).toFixed(1) + ' on a bone of ' + c6.size[0]);
+  s.discs = { 'L2/L3': { state: 'bulging', toward: 'up' } };
+  assert.equal(validateSpine(s).length, 1);
+  s.discs = { 'L2/L3': { state: 'standard', plate: 1 } };
+  assert.equal(validateSpine(s).length, 1);
+});
+ok('a cross-link has three looks and a rod three thicknesses, and both can be changed once they are on', () => {
+  const s = copy(average), hw = () => s.hardware;
+  s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
+  for (const id of ['T5', 'T6', 'T7', 'T9']) for (const side of ['left', 'right']) setCell(s, id, side, 'screw');
+  // the look in hand goes on a new cross-link. The arched one writes nothing down
+  assert.ok(setLinkBelow(s, 'T5', true) && setLinkBelow(s, 'T6', true, 'plate') && setLinkBelow(s, 'T7', true, 'arch'));
+  assert.deepEqual(hw().crosslinks.map((c) => c.style), [undefined, 'plate', undefined]);
+  assert.deepEqual(hw().crosslinks.map((c) => typeOf('crosslinks', c).id), ['link', 'link-plate', 'link']);
+  assert.deepEqual(typesFor('crosslinks').map((t) => t.id), ['link', 'link-plate', 'link-straight']);
+  // changed where it is: only the look changes
+  const first = hw().crosslinks[0], spot = JSON.stringify([first.from, first.to]);
+  assert.equal(retypePiece(s, 'crosslinks', first, 'link-straight').piece, first);
+  assert.ok(first.style === 'straight' && JSON.stringify([first.from, first.to]) === spot);
+  retypePiece(s, 'crosslinks', first, 'link');
+  assert.ok(!('style' in first));
+  assert.equal(retypePiece(s, 'crosslinks', first, 'hook-up'), null);
+  assert.deepEqual(validateSpine(s), []);
+  // the three shapes: all sound, the arched one stands furthest off the spine, the straight one stays lowest, the flat one is the widest along the rods
+  const link = { from: [-20, 30, 100], to: [22, 30, 100] }, span = (mesh, k) => { let lo = Infinity, hi = -Infinity; for (let i = k; i < mesh.positions.length; i += 3) { lo = Math.min(lo, mesh.positions[i]); hi = Math.max(hi, mesh.positions[i]); } return [lo, hi]; };
+  const made = Object.fromEntries(['arch', 'plate', 'straight'].map((style) => [style, crosslinkMesh(style === 'arch' ? link : { ...link, style }, [0, 0, 1], [0, 0, 1], [0, 1, 0])]));
+  for (const style in made) sound(made[style], style + ' cross-link');
+  // (in the middle, between the clamps)
+  const middle = (mesh) => { let hi = -Infinity; for (let i = 0; i < mesh.positions.length; i += 3) if (Math.abs(mesh.positions[i] - 1) < 6) hi = Math.max(hi, mesh.positions[i + 1]); return hi; };
+  assert.ok(middle(made.arch) > middle(made.plate) + 2 && middle(made.arch) > middle(made.straight) + 2, 'heights in the middle: ' + ['arch', 'plate', 'straight'].map((k) => middle(made[k]).toFixed(1)));
+  const flatWide = (mesh) => { let lo = Infinity, hi = -Infinity; for (let i = 0; i < mesh.positions.length; i += 3) if (Math.abs(mesh.positions[i] - 1) < 6) { lo = Math.min(lo, mesh.positions[i + 2]); hi = Math.max(hi, mesh.positions[i + 2]); } return hi - lo; };
+  assert.ok(flatWide(made.plate) > 8 && flatWide(made.straight) < 8, 'widths along the rods: ' + flatWide(made.plate).toFixed(1) + ', ' + flatWide(made.straight).toFixed(1));
+  for (const style in made) assert.ok(span(made[style], 0)[0] < -20 && span(made[style], 0)[1] > 22, style + ' reaches both rods');
+  s.hardware.crosslinks[0].style = 'wavy';
+  assert.equal(validateSpine(s).length, 1);
+  delete s.hardware.crosslinks[0].style;
+  // rods: the thickness for new rods is kept in the file, and rods that are there keep their own
+  assert.deepEqual(tilesOf('rods').map((t) => t.diameter), [5.5, 6.35, 4.5]);
+  assert.ok(hw().rods.length && hw().rods.every((r) => r.diameter === 5.5));
+  hw().rodSize = 6.35;
+  hw().rods[0].diameter = 4.5;
+  const kept = hw().rods[0].id;
+  setCell(s, 'T10', 'left', 'screw'); setCell(s, 'T10', 'right', 'screw');
+  fitRods(s);
+  assert.equal(hw().rods.find((r) => r.id === kept).diameter, 4.5);
+  s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [], rodSize: 6.35 };
+  for (const id of ['T5', 'T6']) setCell(s, id, 'left', 'screw');
+  assert.ok(hw().rods.length === 1 && hw().rods[0].diameter === 6.35);
+  assert.deepEqual(validateSpine(s), []);
+  hw().rodSize = 40;
+  assert.equal(validateSpine(s).length, 1);
+  // every tile of the two categories has a picture of its own
+  const pics = [...tilesOf('links'), ...tilesOf('rods')].filter((t) => t.shot).map((t) => JSON.stringify(sampleOf(t.id).map((p) => [p.mesh.positions.length, Math.round(p.mesh.positions[0] * 100)])));
+  assert.equal(new Set(pics).size, 6);
+  assert.ok(sampleOf('disc-plate').length === 8 && sampleOf('disc-plate').filter((p) => p.metal).length === 5);
+});
+ok('a body can be squashed to one side, cracked, split or chipped, and bone can grow spurs, harden or be sore', () => {
+  const s = copy(average), rig = rigOf(s), at = (id) => s.levels.find((l) => l.id === id);
+  carry(s, () => restack(s, rig));
+  const was = JSON.stringify(s.levels), l1 = at('L1'), h = l1.size[2], top = () => [...at('T1').centre], t1 = top(), s1 = JSON.stringify(at('S1'));
+  // the new kinds are added after the old ones, so the numbers the renderer gets for those stay
+  assert.deepEqual(FRACTURES.slice(0, 3), ['wedge', 'crush', 'burst']);
+  let now = null;
+  // squashed on the left: lower at the middle by half of what the left side lost, and the spine above goes to the left
+  carry(s, () => { now = setFracture(s, rig, 'L1', { kind: 'wedge-left', amount: 0.6 }); });
+  assert.ok(now.kind === 'wedge-left' && now.was === h && now.lean > 2 && l1.size[2] < h, JSON.stringify(now));
+  const f = levelFrame(at('L2')), moved = (a, b) => (a[0] - b[0]) * f.left[0] + (a[1] - b[1]) * f.left[1] + (a[2] - b[2]) * f.left[2];
+  const leftBy = moved(top(), t1);
+  assert.ok(leftBy > 8, 'the top of the spine went ' + leftBy.toFixed(1) + ' to the left');
+  assert.equal(JSON.stringify(at('S1')), s1);
+  assert.deepEqual(validateSpine(s), []);
+  // its shape: the left side of the body is lower than the right, the back of the bone is as it was
+  const shape = vertebraShape('L1', l1.size, 1.4, l1.fracture), whole = vertebraShape('L1', [l1.size[0], l1.size[1], h]);
+  const high = (mesh, pick) => { let hi = -Infinity; for (let i = 0; i < mesh.positions.length; i += 3) if (pick(mesh.positions[i], mesh.positions[i + 1])) hi = Math.max(hi, mesh.positions[i + 2]); return hi; };
+  const w = l1.size[0], d = l1.size[1], inBody = (y) => y < d / 2 - 3;
+  const lf = high(shape, (x, y) => x > w * 0.3 && inBody(y)), rt = high(shape, (x, y) => x < -w * 0.3 && inBody(y));
+  assert.ok(rt - lf > 2, 'left ' + lf.toFixed(1) + ', right ' + rt.toFixed(1));
+  assert.ok(Math.abs(high(shape, (x, y) => y > d / 2 + 12) - high(whole, (x, y) => y > d / 2 + 12)) < 0.01, 'the back of the bone moved');
+  // to the other side it goes the other way, and healthy brings everything back
+  carry(s, () => { now = setFracture(s, rig, 'L1', { kind: 'wedge-right' }); });
+  assert.ok(now.amount === 0.6 && moved(top(), t1) < -8);
+  carry(s, () => setFracture(s, rig, 'L1', { kind: 'healthy' }));
+  const back = s.levels.map((l, i) => Math.hypot(...l.centre.map((v, k) => v - JSON.parse(was)[i].centre[k])));
+  assert.ok(Math.max(...back) < 1.5 && !('fracture' in l1) && l1.size[2] === h, 'off by ' + Math.max(...back).toFixed(2));
+  // a crack, a split and a chip move nothing: they are a line for the renderer, with how much behind the point
+  const before = JSON.stringify(s.levels.map((l) => [l.centre, l.tilt, l.size]));
+  for (const kind of ['hairline', 'split', 'chip']) {
+    carry(s, () => { now = setFracture(s, rig, 'L1', { kind, amount: 0.5 }); });
+    assert.ok(now.kind === kind && !now.lean && !squashes(kind) && l1.size[2] === h, kind);
+    assert.equal(JSON.stringify(s.levels.map((l) => [l.centre, l.tilt, l.size])), before, kind + ' moved something');
+    const same = vertebraShape('L1', l1.size, 1.4, l1.fracture);
+    assert.ok(same.positions.every((v, i) => Math.abs(v - whole.positions[i]) < 1e-4), kind + ' changed the shape');
+    const marks = crackMarks(l1.fracture, l1.size);
+    assert.ok(Math.floor(marks[0] + 0.01) === FRACTURES.indexOf(kind) + 1 && Math.abs((marks[0] % 1) / 0.4 - 0.5) < 1e-6);
+    assert.ok(fractureWords(l1.fracture) !== 'healthy');
+    assert.deepEqual(validateSpine(s), []);
+  }
+  assert.ok(squashes('wedge') && squashes('wedge-left'));
+  for (let k = 1; k <= FRACTURES.length; k++) assert.ok(Math.floor(k + 0.4 + 0.01) === k, 'kind ' + k + ' with the most behind the point reads as another kind');
+  carry(s, () => setFracture(s, rig, 'L1', { kind: 'healthy' }));
+  // the bone changes: one at a time, nothing moves, and they go with a fracture and with worn bone
+  assert.deepEqual(BONE_LOOKS, ['spurs', 'dense', 'sore']);
+  assert.equal(setBoneLook(s, 'L3', 'spurs'), 'spurs');
+  assert.equal(setBoneLook(s, 'L3', 'moss'), null);
+  assert.ok(at('L3').bone === 'spurs' && boneLookWords('spurs') === 'bone spurs' && boneLookWords(undefined) === '');
+  assert.equal(JSON.stringify(s.levels.map((l) => [l.centre, l.tilt, l.size])), before);
+  assert.deepEqual(validateSpine(s), []);
+  // spurs: the rims of the body reach further out, its middle and the back of the bone do not
+  const l3 = at('L3'), plain = vertebraShape('L3', l3.size), spurred = vertebraShape('L3', l3.size, 1.4, null, true);
+  assert.equal(spurred.positions.length, plain.positions.length);
+  let grew = 0, most = 0, waist = 0, behind = 0;
+  for (let i = 0; i < plain.positions.length; i += 3) {
+    const by = Math.hypot(spurred.positions[i] - plain.positions[i], spurred.positions[i + 1] - plain.positions[i + 1]), z = Math.abs(plain.positions[i + 2]) / (l3.size[2] / 2), y = plain.positions[i + 1];
+    assert.ok(Math.abs(spurred.positions[i + 2] - plain.positions[i + 2]) < 1e-6);
+    if (by > 0.5) grew++; most = Math.max(most, by);
+    if (z < 0.5) waist = Math.max(waist, by);
+    if (y > l3.size[1] / 2 + 2) behind = Math.max(behind, by);
+  }
+  assert.ok(grew > 30 && most > 1.5 && most < 6 && waist < 0.01 && behind < 0.01, JSON.stringify({ grew, most, waist, behind }));
+  // the scene: spurs come as a shape, the other two as marks for the renderer
+  setBoneLook(s, 'L4', 'dense'); setBoneLook(s, 'L5', 'sore');
+  const bones = buildScene(s, 2.2).filter((it) => it.group === 'vertebrae'), of = (id) => bones.find((it) => it.name === id);
+  assert.ok(!('bone' in of('L3')) && of('L3').mesh === vertebraShape('L3', l3.size, 2.2, null, true) && of('L3').mesh !== vertebraShape('L3', l3.size, 2.2) && !('bone' in of('L2')));
+  assert.deepEqual([of('L4').bone[0], of('L5').bone[0]], [1, 2]);
+  assert.equal(boneMarks(at('L3')), null);
+  setBoneLook(s, 'L3', ''); setBoneLook(s, 'L4', ''); setBoneLook(s, 'L5', '');
+  assert.ok(!s.levels.some((l) => 'bone' in l));
+  at('L2').bone = 'rust';
+  assert.equal(validateSpine(s).length, 1);
+  // every new tile has its own picture, and the shader knows the new marks
+  const ids = ['bone-wedge-left', 'bone-wedge-right', 'bone-hairline', 'bone-split', 'bone-chip', 'look-plain', 'look-spurs', 'look-dense', 'look-sore'];
+  for (const id of ids) assert.ok(tilesOf('bones').some((t) => t.id === id) && sampleOf(id), id);
+  assert.ok(sampleOf('look-dense')[0].bone[0] === 1 && sampleOf('look-sore')[0].bone[0] === 2 && sampleOf('bone-chip')[0].crack[0] > 8);
+  assert.ok(FRAGMENT.includes('uBone'));
+});
+ok('a screw or a hook can be set by hand with numbers, and put back where it usually goes', () => {
+  const s = copy(average), hw = () => s.hardware;
+  s.hardware = { rods: [], screws: [], hooks: [], crosslinks: [] };
+  for (const id of ['T9', 'T10', 'T11', 'L2']) for (const side of ['left', 'right']) setCell(s, id, side, 'screw');
+  setCell(s, 'T5', 'left', 'hook'); setCell(s, 'T6', 'left', 'screw');
+  const near = (a, b, t = 0.15) => Math.abs(a - b) <= t;
+  const level = (id) => s.levels.find((l) => l.id === id), dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  for (const [id, side] of [['T10', 'left'], ['T10', 'right'], ['L2', 'right']]) {
+    const screw = hw().screws.find((p) => p.level === id && p.side === side), f = levelFrame(level(id)), was = copy(screw), long = dist(screw.tip, screw.entry);
+    // as it goes on: where one usually goes, nothing moved, a head about 9 mm off the bone
+    const first = handSet(s, 'screws', screw);
+    assert.ok(isUsual(s, 'screws', screw) && near(first.up, 0, 0.05) && near(first.out, 0, 0.05) && Math.abs(first.proud - 9) < 0.2 && first.lean >= 0 && first.lean < 40 && Math.abs(first.rise) < 12, id + ' ' + JSON.stringify(first));
+    // setting one number to what it is changes nothing to speak of
+    setByHand(s, 'screws', screw, { up: 0 });
+    assert.ok(dist(screw.head, was.head) < 0.15 && dist(screw.tip, was.tip) < 0.15 && isUsual(s, 'screws', screw));
+    // up the bone: the point where it goes in moves up the vertebra by that much, the length and the angles stay
+    let now = setByHand(s, 'screws', screw, { up: 4 });
+    const moved = screw.entry.map((v, i) => v - was.entry[i]), upBy = moved[0] * f.up[0] + moved[1] * f.up[1] + moved[2] * f.up[2];
+    assert.ok(Math.abs(upBy - 4) < 0.2 && near(now.up, 4) && Math.abs(now.lean - first.lean) <= 1 && Math.abs(dist(screw.tip, screw.entry) - long) < 0.2 && !isUsual(s, 'screws', screw), id + ' up ' + upBy);
+    // out to the side is away from the middle on either side
+    now = setByHand(s, 'screws', screw, { out: 3 });
+    const out = (screw.entry[0] - was.entry[0]) * f.left[0] + (screw.entry[1] - was.entry[1]) * f.left[1] + (screw.entry[2] - was.entry[2]) * f.left[2];
+    assert.ok(Math.abs(Math.abs(out) - 3) < 0.2 && Math.sign(out) === (side === 'left' ? 1 : -1) && near(now.out, 3) && near(now.up, 4), id + ' ' + side + ' out ' + out + ' ' + JSON.stringify(now));
+    // the angles: toward the middle and up, read back as set, and the head moves while the entry stays
+    const entry = [...screw.entry];
+    now = setByHand(s, 'screws', screw, { lean: 30, rise: 10 });
+    assert.ok(Math.abs(now.lean - 30) <= 1 && Math.abs(now.rise - 10) <= 1 && dist(screw.entry, entry) < 0.05, JSON.stringify(now));
+    const dir = screw.tip.map((v, i) => v - screw.entry[i]), toMiddle = -(dir[0] * f.left[0] + dir[1] * f.left[1] + dir[2] * f.left[2]) * (side === 'left' ? 1 : -1);
+    assert.ok(toMiddle > 0 && dir[0] * f.up[0] + dir[1] * f.up[1] + dir[2] * f.up[2] > 0, 'it points toward the middle and up');
+    now = setByHand(s, 'screws', screw, { proud: 14 });
+    assert.ok(Math.abs(dist(screw.head, screw.entry) - 14) < 0.15 && near(now.proud, 14) && Math.abs(now.lean - 30) <= 1);
+    // the sliders have ends
+    now = setByHand(s, 'screws', screw, { lean: 200, proud: 0, up: -99 });
+    assert.ok(near(now.lean, HAND_LIMITS.screw.lean[1], 1) && near(now.proud, HAND_LIMITS.screw.proud[0]) && near(now.up, HAND_LIMITS.screw.up[0]), JSON.stringify(now));
+    // the rod on its side runs through the head where it is now
+    const rod = hw().rods.find((r) => r.side === side && r.points.some((p) => dist(p, screw.head) < 4));
+    assert.ok(rod, 'no rod through the moved head of ' + id + ' ' + side);
+    // back: where it was, with a length and a thickness it was given kept
+    resizeScrew(screw, 7, 30);
+    assert.ok(backToUsual(s, 'screws', screw) && isUsual(s, 'screws', screw));
+    assert.ok(dist(screw.head, was.head) < 0.05 && dist(screw.entry, was.entry) < 0.05 && screw.diameter === 7 && Math.abs(dist(screw.tip, screw.entry) - 30) < 0.15);
+    assert.deepEqual(validateSpine(s), []);
+  }
+  // a hook: up the bone and out, its foot comes along and still points the way it did
+  const hook = hw().hooks[0], f = levelFrame(level('T5')), was = copy(hook), h0 = handSet(s, 'hooks', hook);
+  assert.ok(near(h0.up, 0, 0.05) && near(h0.out, 0, 0.05) && near(h0.proud, 0, 0.05), JSON.stringify(h0)); assert.ok(isUsual(s, 'hooks', hook));
+  let now = setByHand(s, 'hooks', hook, { up: 5, out: -2 });
+  const by = hook.at.map((v, i) => v - was.at[i]), upBy = by[0] * f.up[0] + by[1] * f.up[1] + by[2] * f.up[2];
+  assert.ok(Math.abs(upBy - 5) < 0.2 && near(now.up, 5) && near(now.out, -2) && !isUsual(s, 'hooks', hook), JSON.stringify(now));
+  const foot = (h) => (h.tip[0] - h.at[0]) * f.up[0] + (h.tip[1] - h.at[1]) * f.up[1] + (h.tip[2] - h.at[2]) * f.up[2];
+  assert.ok(Math.sign(foot(hook)) === Math.sign(foot(was)) && Math.abs(Math.abs(foot(hook)) - 11) < 0.3 && hook.faces === was.faces);
+  now = setByHand(s, 'hooks', hook, { proud: 3 });
+  assert.ok(Math.abs(now.proud - 3) < 0.15 && near(now.up, 5));
+  assert.ok(backToUsual(s, 'hooks', hook) && isUsual(s, 'hooks', hook) && dist(hook.at, was.at) < 0.05 && dist(hook.tip, was.tip) < 0.05);
+  // a frozen part is left alone, and so is anything that is not a screw or a hook
+  hook.locked = true;
+  assert.ok(setByHand(s, 'hooks', hook, { up: 5 }) === null && !backToUsual(s, 'hooks', hook) && dist(hook.at, was.at) < 0.05);
+  assert.equal(handSet(s, 'rods', hw().rods[0]), null);
+  // it rides along when the spine is bent: the numbers stay what they were
+  const screw = hw().screws.find((p) => p.level === 'T11' && p.side === 'left'), rig = rigOf(s);
+  setByHand(s, 'screws', screw, { up: 3, lean: 25 });
+  const before = handSet(s, 'screws', screw);
+  carry(s, () => { setBow(s, rig, [18, 0]); });
+  const after = handSet(s, 'screws', screw);
+  assert.ok(Math.abs(after.up - before.up) < 0.3 && Math.abs(after.lean - before.lean) <= 1 && Math.abs(after.out - before.out) < 0.3, JSON.stringify([before, after]));
+});
+ok('plates on discs next to each other are one long plate, and a cage can have its own screws', () => {
+  const s = copy(average), rig = rigOf(s), levels = sortedLevels(s), at = (id) => levels.find((l) => l.id === id), i = (id) => levels.findIndex((l) => l.id === id);
+  carry(s, () => restack(s, rig));
+  for (const key of ['L2/L3', 'L3/L4', 'L4/L5', 'T12/L1']) carry(s, () => setDisc(s, rig, key, { plate: true }));
+  // the run: starts at the first plated disc, the ones under it draw none, a lone plate is a run of two bones
+  assert.deepEqual(plateRun(levels, s.discs, i('L2')).map((l) => l.id), ['L2', 'L3', 'L4', 'L5']);
+  assert.equal(plateRun(levels, s.discs, i('L3')), false); assert.equal(plateRun(levels, s.discs, i('L4')), false);
+  assert.equal(plateRun(levels, s.discs, i('L1')), undefined); assert.equal(plateRun(levels, null, i('L2')), undefined);
+  assert.deepEqual(plateRun(levels, s.discs, i('T12')).map((l) => l.id), ['T12', 'L1']);
+  // the long plate: one strap and two screws for each of its four bones, from L2 down to L5, on the front
+  const long = discParts(at('L2'), at('L3'), s.discs['L2/L3'], plateRun(levels, s.discs, i('L2'))).slice(1);
+  assert.equal(long.length, 1 + 8); assert.ok(long.every((p) => p.metal && p.color));
+  sound(long[0].mesh, 'long plate');
+  const zs = []; for (let k = 2; k < long[0].mesh.positions.length; k += 3) zs.push(long[0].mesh.positions[k]);
+  assert.ok(Math.max(...zs) > at('L2').centre[2] && Math.max(...zs) < at('L2').centre[2] + at('L2').size[2] / 2 && Math.min(...zs) < at('L5').centre[2] && Math.min(...zs) > at('L5').centre[2] - at('L5').size[2] / 2, 'it runs from ' + Math.max(...zs).toFixed(0) + ' to ' + Math.min(...zs).toFixed(0));
+  // each bone has its pair of heads at its own height
+  for (const [k, id] of ['L2', 'L3', 'L4', 'L5'].entries()) for (const head of long.slice(1 + 2 * k, 3 + 2 * k)) {
+    let z = 0; for (let q = 2; q < head.mesh.positions.length; q += 3) z += head.mesh.positions[q]; z /= head.mesh.positions.length / 3;
+    assert.ok(Math.abs(z - at(id).centre[2]) < at(id).size[2] * 0.42, 'a head for ' + id + ' is ' + (z - at(id).centre[2]).toFixed(1) + ' from its middle');
+  }
+  // the discs under it draw their disc and no second plate. Left to itself a disc draws its own short plate (that is what a press is tested against)
+  assert.equal(discParts(at('L3'), at('L4'), s.discs['L3/L4'], false).length, 1);
+  assert.equal(discParts(at('L3'), at('L4'), s.discs['L3/L4']).length, 1 + 5);
+  // the scene does the same: 9 plate parts with the first disc, none with the next two, 5 for the lone one
+  const scene = buildScene(s, 2.2).filter((it) => it.group === 'discs'), count = (a, b) => scene.filter((it) => it.name === 'disc_' + a + '_' + b && it.metal).length;
+  assert.deepEqual([count('L2', 'L3'), count('L3', 'L4'), count('L4', 'L5'), count('T12', 'L1')], [9, 0, 0, 5]);
+  // take the middle one off and it is two plates again
+  carry(s, () => setDisc(s, rig, 'L3/L4', { plate: false }));
+  assert.deepEqual([plateRun(levels, s.discs, i('L2')).length, plateRun(levels, s.discs, i('L3')), plateRun(levels, s.discs, i('L4')).length], [2, undefined, 2]);
+  // a cage with its own screws: the cage, a face plate on its front and four heads, two over each bone
+  let now = null;
+  carry(s, () => { now = setDisc(s, rig, 'L2/L3', { state: 'cage-screws', plate: false }); });
+  assert.deepEqual(now, { state: 'cage-screws' });
+  assert.equal(discWords(now), 'replaced by a fusion cage with its own screws');
+  assert.deepEqual(validateSpine(s), []);
+  const up = at('L2'), low = at('L3'), f = levelFrame(low), parts = discParts(up, low, now), plain = discParts(up, low, { state: 'cage' });
+  assert.equal(parts.length, plain.length + 5); assert.ok(parts.every((p) => p.metal && p.color));
+  sound(parts[1].mesh, 'cage face');
+  const mid = (mesh) => { const c = [0, 0, 0], n = mesh.positions.length / 3; for (let q = 0; q < mesh.positions.length; q++) c[q % 3] += mesh.positions[q] / n; return c; };
+  const rel = (p, axis) => (p[0] - low.centre[0]) * axis[0] + (p[1] - low.centre[1]) * axis[1] + (p[2] - low.centre[2]) * axis[2];
+  const face = mid(parts[1].mesh), heads = parts.slice(2).map((p) => mid(p.mesh)), top = low.size[2] / 2, gapMid = rel(mid(plain[0].mesh), f.up);
+  assert.ok(rel(face, f.back) < -low.size[1] / 2 + 6 && Math.abs(rel(face, f.left)) < 2 && Math.abs(rel(face, f.up) - gapMid) < 2.5, 'the face is on the front of the cage');
+  assert.equal(heads.filter((h) => rel(h, f.up) > gapMid).length, 2); assert.equal(heads.filter((h) => rel(h, f.left) > 0).length, 2);
+  assert.ok(heads.every((h) => rel(h, f.back) < rel(face, f.back) + 1 && Math.abs(rel(h, f.up) - gapMid) > 2 && Math.abs(rel(h, f.up) - gapMid) < 14));
+  assert.ok(tilesOf('discs').some((t) => t.id === 'disc-cage-screws' && t.state === 'cage-screws') && sampleOf('disc-cage-screws').length === 2 + 6);
+  s.discs['L2/L3'].state = 'cage-nails';
+  assert.equal(validateSpine(s).length, 1);
+});
+ok('a plate goes in the neck or the low back and a spacer in the low back, and each has a spot for its mark', () => {
+  const s = copy(average), rig = rigOf(s), levels = sortedLevels(s), keys = discKeys(s);
+  carry(s, () => restack(s, rig));
+  assert.deepEqual(keys.filter(canPlate), ['C2/C3', 'C3/C4', 'C4/C5', 'C5/C6', 'C6/C7', 'C7/T1', 'T11/T12', 'T12/L1', 'L1/L2', 'L2/L3', 'L3/L4', 'L4/L5', 'L5/S1']);
+  assert.deepEqual(keys.filter(canSpace), ['L1/L2', 'L2/L3', 'L3/L4', 'L4/L5']);
+  assert.ok(/neck/.test(WHERE.plate) && /low back/.test(WHERE.plate) && /low back/.test(WHERE.spacer));
+  // elsewhere neither goes on, and the disc is left as it was
+  let now = null;
+  carry(s, () => { now = setDisc(s, rig, 'T5/T6', { plate: true, spacer: true }); });
+  assert.deepEqual(now, { state: 'standard' }); assert.ok(!('discs' in s));
+  carry(s, () => { now = setDisc(s, rig, 'T12/L1', { plate: true, spacer: true }); });
+  assert.deepEqual(now, { state: 'standard', plate: true });
+  carry(s, () => { now = setDisc(s, rig, 'L5/S1', { plate: true, spacer: true }); });
+  assert.deepEqual(now, { state: 'standard', plate: true });
+  // one that a file already has somewhere else is kept through other changes, drawn, and can be taken off
+  s.discs['T5/T6'] = { state: 'standard', plate: true, spacer: true };
+  assert.deepEqual(validateSpine(s), []);
+  carry(s, () => { now = setDisc(s, rig, 'T5/T6', { state: 'dried' }); });
+  assert.deepEqual(now, { state: 'dried', spacer: true, plate: true });
+  const t5 = levels.find((l) => l.id === 'T5'), t6 = levels.find((l) => l.id === 'T6');
+  assert.ok(discParts(t5, t6, now).filter((p) => p.metal).length >= 5);
+  carry(s, () => { now = setDisc(s, rig, 'T5/T6', { plate: false, spacer: false, state: 'standard' }); });
+  assert.ok(!('T5/T6' in s.discs));
+  carry(s, () => { now = setDisc(s, rig, 'T5/T6', { plate: true }); });
+  assert.ok(!('T5/T6' in s.discs));
+  // the spots for the marks: a plate's in front of the disc, a spacer's behind the bodies, both between the two bones and on the middle line
+  for (const key of keys.filter(canPlate)) {
+    const [a, b] = key.split('/').map((id) => levels.find((l) => l.id === id)), f = levelFrame(b), p = plateSpot(a, b), rel = (q, axis) => (q[0] - b.centre[0]) * axis[0] + (q[1] - b.centre[1]) * axis[1] + (q[2] - b.centre[2]) * axis[2];
+    assert.ok(rel(p, f.back) < -b.size[1] / 2 + 4 && rel(p, f.back) > -b.size[1] / 2 - 12 && Math.abs(rel(p, f.left)) < 4 && p[2] > b.centre[2] && p[2] < a.centre[2], key + ' ' + p.map((v) => v.toFixed(0)));
+  }
+  for (const key of keys.filter(canSpace)) {
+    const [a, b] = key.split('/').map((id) => levels.find((l) => l.id === id)), f = levelFrame(b), p = spacerSpot(a, b);
+    assert.ok(p && (p[0] - b.centre[0]) * f.back[0] + (p[1] - b.centre[1]) * f.back[1] + (p[2] - b.centre[2]) * f.back[2] > b.size[1] / 2 + 8, key);
+  }
+  assert.equal(spacerSpot(levels.find((l) => l.id === 'L5'), levels.find((l) => l.id === 'S1')), null);
+});
+ok('every source file parses on its own (a name declared twice stops the whole page from starting)', async () => {
+  const { execFileSync } = await import('node:child_process'), fs = await import('node:fs'), path = await import('node:path');
+  const root = new URL('../src/', import.meta.url).pathname, files = [];
+  const walk = (dir) => { for (const f of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, f.name); if (f.isDirectory()) walk(p); else if (f.name.endsWith('.js')) files.push(p); } };
+  walk(root);
+  assert.ok(files.length > 30, 'found ' + files.length + ' files');
+  for (const f of files) { try { execFileSync(process.execPath, ['--check', f], { stdio: 'pipe' }); } catch (e) { assert.fail(path.relative(root, f) + ': ' + String(e.stderr).split('\n').filter((l) => /Error/.test(l))[0]); } }
 });
 for (const [name, fn] of later) { await fn(); checks++; console.log('ok   ' + name); }
 console.log(checks + ' checks passed');

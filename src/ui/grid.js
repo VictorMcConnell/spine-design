@@ -19,6 +19,7 @@ export function icon(name, flip) {
 export function catalogue(box, groups, pick) {
   box.textContent = '';
   const tiles = [];
+  let marked = '';
   groups.forEach((g, n) => {
     const wrap = make('div', 'catGroup'), head = make('button', 'catHead', g.name), grid = make('div', 'catGrid');
     head.type = 'button'; head.setAttribute('aria-expanded', 'true');
@@ -37,7 +38,13 @@ export function catalogue(box, groups, pick) {
   });
   return {
     // (a list of ids lights several, for a thing that has one tile in each of two groups)
-    mark: (id) => tiles.forEach((b) => b.setAttribute('aria-pressed', (Array.isArray(id) ? id.includes(b.dataset.tile) : b.dataset.tile === id) ? 'true' : 'false')),
+    mark: (id) => {
+      tiles.forEach((b) => b.setAttribute('aria-pressed', (Array.isArray(id) ? id.includes(b.dataset.tile) : b.dataset.tile === id) ? 'true' : 'false'));
+      // (where the pictures scroll in their box, the first lit one is brought into sight when what is lit changes)
+      const key = String(id), lit = tiles.find((t) => t.getAttribute('aria-pressed') === 'true');
+      if (key !== marked && lit && box.scrollHeight > box.clientHeight + 4) { const top = lit.offsetTop - box.offsetTop; if (top < box.scrollTop || top + lit.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = Math.max(0, top - 8); }
+      marked = key;
+    },
     pictures: (map) => tiles.forEach((b) => { const src = map && map[b.dataset.tile], img = b.querySelector('img'); if (!src) return; img.src = src; img.hidden = false; b.querySelector('svg').style.display = 'none'; }),
   };
 }

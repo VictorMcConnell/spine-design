@@ -45,7 +45,7 @@ const keepLook = () => { if (VIEWER) return; try { localStorage.setItem('spineBu
 
 // What the builder works with. "rig" is the spine as a chain (see core/shape.js). "picked" is
 // what is selected, "spots" the dots shown while a part is being placed.
-let glowTimer = null, sayTimer = null;
+let glowTimer = null, sayTimer = null, calm = 0, calmTimer = null;
 // Mark the blocks of the vertebra that glows (the map and the chart draw themselves again often, so they ask for this too).
 function showGlow(scroll) {
   document.querySelectorAll('#map .glow, #blocks .glow, #map .peek, #blocks .peek').forEach((e) => { e.classList.remove('glow'); e.classList.remove('peek'); });
@@ -65,6 +65,8 @@ const app = {
   setLook(patch) { look = { ...look, ...patch }; for (const k of ['bone', 'disc']) if (!look[k]) look[k] = USUAL[k]; applyLook(); if (builder) builder.sync(); },
   frames: [],                          // things to do after every drawn frame (lines over the picture follow the view)
   held: new Set(),                     // the vertebrae locked in place while the curve is drawn or the blocks are slid
+  // Draw what is selected without its highlight for a moment, so that a new color on it can be seen.
+  calm(ms = 1400) { calm = performance.now() + ms; app.redraw(); clearTimeout(calmTimer); calmTimer = setTimeout(() => { calm = 0; app.redraw(); }, ms + 30); },
   glow: null,                          // the vertebra that was just clicked: its block on the map and the chart lights up for a moment
   lit: null,                           // the vertebra that lights up on the model for a moment: its block was tapped
   // Light up the block of a vertebra on the map and on the chart of blocks for a moment, so a
@@ -119,7 +121,7 @@ const app = {
       items = buildScene(seen, DETAIL, { look: lookNow });
       const fade = app.shown.fade;
       if (fade < 1) items = items.filter((it) => !KINDS.includes(it.group) || fade > 0.02).map((it) => (KINDS.includes(it.group) ? { ...it, opacity: fade, baseOpacity: fade } : it));
-    } else items = buildScene(spine, DETAIL, { picked: block ? { ...app.picked, mates: block.ids } : app.picked, also: app.also, stiff, locked: app.showStiff ? [...app.held] : [], spots: app.spots, lit: app.lit, pointed: app.pointed, hints: builder ? builder.hints() : null, look: lookNow });
+    } else items = buildScene(spine, DETAIL, { picked: calm > performance.now() ? null : block ? { ...app.picked, mates: block.ids } : app.picked, also: calm > performance.now() ? [] : app.also, stiff, locked: app.showStiff ? [...app.held] : [], spots: app.spots, lit: app.lit, pointed: app.pointed, hints: builder ? builder.hints() : null, look: lookNow });
     // the stand chosen for printing is shown with the spine, so that what is saved is what is seen
     const stand = app.shown || app.pair ? null : standNow();
     if (stand) for (const [list, name] of [[stand.onSpine, 'stand_fitting_on_spine'], [stand.stand, 'stand']]) for (const mesh of list) items.push({ group: 'stand', mesh, color: STAND_COLOR, opacity: 1, baseOpacity: 1, visible: true, name });
@@ -208,10 +210,17 @@ function boundsNow() {
   return { low, high };
 }
 
+// the name of the sketch and the line about it, on the page and on the tab of the browser
+function named() {
+  $('name').textContent = spine.name || 'A spine'; $('about').textContent = spine.about || '';
+  document.title = (spine.name ? spine.name + ' | ' : '') + 'Spine-Design';
+  if ($('shName') && document.activeElement !== $('shName')) $('shName').value = spine.name || '';
+  if ($('shAbout') && document.activeElement !== $('shAbout')) $('shAbout').value = spine.about || '';
+}
 function restore(text) {
   spine = JSON.parse(text);
   app.shown = null; app.pair = null;
-  $('name').textContent = spine.name || 'A spine'; $('about').textContent = spine.about || '';
+  named();
   // a picked vertebra or stretch stays picked; a picked part may no longer exist
   const p = app.picked, has = (id) => spine.levels.some((l) => l.id === id);
   app.rig = rigOf(spine, app.stiff); app.picked = p && ((p.kind === 'level' && has(p.id)) || (p.kind === 'stretch' && has(p.top) && (!p.bottom || has(p.bottom)))) ? p : null; app.also = []; app.spots = [];
@@ -229,12 +238,14 @@ function undo() {
   if (past.length < 2) return;
   future.push(past.pop());
   restore(past[past.length - 1]);
+  app.say('');      // (a remark about the change that was just undone would be stale)
 }
 
 function redo() {
   if (!future.length) return;
   past.push(future.pop());
   restore(past[past.length - 1]);
+  app.say('');
 }
 
 // Show a spine: check it, build its shapes, bring the page up to date.
@@ -248,8 +259,7 @@ function show(next, problems, keep = false) {
   spine = next; app.shown = null; app.pair = null;
   allKinds(spine);
   spine.marks = spine.marks || [];
-  $('name').textContent = spine.name || 'A spine';
-  $('about').textContent = spine.about || '';
+  named();
   app.say('Drawing the bones');
   // give the notice a moment to appear before the shapes are worked out
   setTimeout(() => {
@@ -776,7 +786,16 @@ if (!renderer) {
   const SHARE_SAYS = $('shSay').textContent;
   sheet('start', 'startClose'); sheet('share', 'shareClose');
   $('newBtn').addEventListener('click', openStart);
+  // The name of the sketch and a line about it: they head the printed page and name the saved files. A sketch that
+  // was started from one of the shapes keeps that shape's name and words until they are changed here.
+  for (const [id, key] of [['shName', 'name'], ['shAbout', 'about']]) $(id).addEventListener('change', () => {
+    const text = $(id).value.trim();
+    if (!spine || (spine[key] || '') === text) return;
+    app.change(() => { if (text) spine[key] = text; else delete spine[key]; }, { ride: false });
+    named();
+  });
   $('shareBtn').addEventListener('click', () => {
+    $('shName').value = (spine && spine.name) || ''; $('shAbout').value = (spine && spine.about) || '';
     $('linkText').hidden = true; $('shSay').textContent = SHARE_SAYS;
     $('clipBox').hidden = true; $('clipBtn').setAttribute('aria-expanded', 'false'); $('clipSay').textContent = '';
     $('embedBox').hidden = true; $('embedBtn').setAttribute('aria-expanded', 'false');

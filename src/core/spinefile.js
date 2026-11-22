@@ -7,11 +7,16 @@ export const SCHEMA_VERSION = 1;
 // the looks the head of a screw can have in a file (their shapes are in parts/sizes.js)
 const SCREW_HEADS = ['standard', 'tall', 'low'];
 // What a disc can be, and which way a bulging or herniated one pushes. A disc the file says
-// nothing about is 'standard'.
-export const DISC_STATES = ['standard', 'thin', 'bulging', 'herniated', 'dried', 'none'];
-export const DISC_SIDES = ['back', 'back-left', 'back-right'];
+// nothing about is 'standard'. The last two are implants in the place of the disc: an artificial
+// disc and a fusion cage. Any disc can also carry "spacer": a block between the two back processes.
+export const DISC_STATES = ['standard', 'thin', 'bulging', 'herniated', 'dried', 'none', 'replacement', 'cage', 'cage-screws'];
+export const DISC_SIDES = ['back', 'back-left', 'back-right', 'left', 'front', 'right'];
+// The looks a cross-link can have: the arched bar (nothing is written down), a flat strap or a straight bar.
+export const LINK_STYLES = ['arch', 'plate', 'straight'];
 // The ways the body of a vertebra can be broken. A vertebra the file says nothing about is whole.
-export const FRACTURES = ['wedge', 'crush', 'burst'];
+export const FRACTURES = ['wedge', 'crush', 'burst', 'wedge-left', 'wedge-right', 'hairline', 'split', 'chip'];
+// What else the bone of a vertebra can show ("bone" of a level): spurs at its rims, hardened bone, or sore end plates.
+export const BONE_LOOKS = ['spurs', 'dense', 'sore'];
 // What can be different about the back of a vertebra: the bone over the canal taken away, or one of its
 // processes broken (the one at the back, or the one on the left or the right side).
 export const ARCHES = ['laminectomy', 'spinous', 'tp-left', 'tp-right'];
@@ -74,6 +79,7 @@ export function validateSpine(spine) {
     if (!isPoint(l.size) || l.size.some((v) => v <= 0)) problems.push(name + ' has no usable size.');
     if (l.arch !== undefined && !ARCHES.includes(l.arch)) problems.push(name + ' has something at its back the app does not know: ' + l.arch + '.');
     if (l.wear !== undefined && !(l.wear >= 0 && l.wear <= 1)) problems.push(name + ' has a wear the app cannot use.');
+    if (l.bone !== undefined && !BONE_LOOKS.includes(l.bone)) problems.push(name + ' has a bone look the app does not know: ' + l.bone + '.');
     if (l.fracture !== undefined) { const f = l.fracture; if (!f || !FRACTURES.includes(f.kind) || !(f.amount > 0 && f.amount <= 1) || !(f.was > 0 && f.was < 80) || (f.lean !== undefined && !(Math.abs(f.lean) <= 45))) problems.push(name + ' has a fracture the app cannot use.'); }
     if (l.source && !SOURCES.includes(l.source)) problems.push(name + ' has an unknown source: ' + l.source + '.');
   }
@@ -85,7 +91,7 @@ export function validateSpine(spine) {
     const [up, low] = key.split('/'), i = LEVEL_ORDER.indexOf(up);
     if (i < 1 || LEVEL_ORDER[i + 1] !== low) { problems.push('There is no disc named ' + key + '.'); continue; }
     if (!d || !DISC_STATES.includes(d.state)) problems.push('The disc ' + key + ' has a state the app does not know.');
-    else if ((d.amount !== undefined && !(d.amount >= 0 && d.amount <= 1)) || (d.toward !== undefined && !DISC_SIDES.includes(d.toward)) || (d.drop !== undefined && !(d.drop >= 0 && d.drop < 30))) problems.push('The disc ' + key + ' has a number or a side the app cannot use.');
+    else if ((d.amount !== undefined && !(d.amount >= 0 && d.amount <= 1)) || (d.toward !== undefined && !DISC_SIDES.includes(d.toward)) || (d.drop !== undefined && !(d.drop >= 0 && d.drop < 30)) || (d.spacer !== undefined && d.spacer !== true) || (d.plate !== undefined && d.plate !== true)) problems.push('The disc ' + key + ' has a number or a side the app cannot use.');
   }
   const hw = spine.hardware || {};
   for (const r of hw.rods || []) {
@@ -100,7 +106,11 @@ export function validateSpine(spine) {
     if (!isPoint(h.at) || !isPoint(h.tip)) problems.push('A hook at ' + (h.level || '?') + ' has no usable position.');
     if (h.faces !== undefined && h.faces !== 'up' && h.faces !== 'down') problems.push('A hook at ' + (h.level || '?') + ' faces neither up nor down.');
   }
-  for (const c of hw.crosslinks || []) if (!isPoint(c.from) || !isPoint(c.to)) problems.push('A cross-link has no usable position.');
+  for (const c of hw.crosslinks || []) {
+    if (!isPoint(c.from) || !isPoint(c.to)) problems.push('A cross-link has no usable position.');
+    if (c.style !== undefined && !LINK_STYLES.includes(c.style)) problems.push('A cross-link has a look the app does not know: ' + c.style + '.');
+  }
+  if (hw.rodSize !== undefined && !(hw.rodSize >= 3 && hw.rodSize <= 8)) problems.push('The thickness for new rods is not one the app can use.');
   if (hw.norods !== undefined && typeof hw.norods !== 'boolean') problems.push('The file says whether the rods are on in a way the app cannot read.');
   for (const m of spine.marks || []) if (m && m.label !== undefined && !isPoint(m.label)) problems.push('A label of a pain point or a note has no usable position.');
   for (const kind of FREEZING) for (const piece of hw[kind] || []) if (piece.locked !== undefined && typeof piece.locked !== 'boolean') problems.push('A part says it is frozen in a way the app cannot read.');

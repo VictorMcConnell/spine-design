@@ -43,13 +43,21 @@ app needs to draw one spine. This page describes format 1.
   over the canal and the process at the back are taken away), `spinous` (the process at the
   back is broken), `tp-left` or `tp-right` (the side process on that side is broken). It changes
   what is drawn, not where anything is. Versions of the app before 0.23 ignore it.
+- `bone`: optional, what else the bone shows: `spurs` (bony lips at the rims of the body),
+  `dense` (hardened, chalky bone) or `sore` (the bone next to the discs is inflamed). It changes
+  the look only. From version 0.27. Earlier versions ignore it.
 - `fracture`: optional, for a vertebra whose body is broken:
   `{ "kind": "wedge", "amount": 0.5, "was": 28.4, "lean": 8.3 }`. `kind` is `wedge` (the front
   of the body is squashed), `crush` (the whole body) or `burst` (squashed and spread outward).
   `amount` runs from 0.1 to 1. `was` is the height the body had. `size` holds the height it
   has now, for a wedge at the middle of the body, and the vertebrae in the file are already
   where that leaves them. `lean` is by how many degrees a wedge tipped the vertebra and the
-  spine above it forward. Versions of the app before 0.21 ignore the field and draw the whole
+  spine above it forward. From version 0.27 `kind` can also be `wedge-left` or `wedge-right`
+  (that side of the body is squashed, and `lean` is to that side), `hairline` (a fine crack),
+  `split` (a break straight across the body and the back of the bone) or `chip` (a corner off
+  the front of the body). The last three squash nothing, and `amount` is how far the line runs,
+  how wide it is or how big the chip is. Versions 0.21 to 0.26 do not know these five and say so
+  when the file is opened. Versions of the app before 0.21 ignore the field and draw the whole
   vertebra at the lower height. These are general pictures of their kind, not a reading of a
   scan.
 - `source`: `measured` (from a scan), `traced` (from an X-ray), `guessed` or `typical` (the
@@ -66,7 +74,8 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
                      "entry": [x, y, z], "tip": [x, y, z], "diameter": 5.0 }]
     "hooks":      [{ "level": "T4", "side": "left", "rod": "left", "kind": "transverse process",
                      "at": [x, y, z], "mid": [x, y, z], "tip": [x, y, z], "faces": "down" }]
-    "crosslinks": [{ "level": "T8", "from": [x, y, z], "to": [x, y, z] }]
+    "crosslinks": [{ "level": "T8", "from": [x, y, z], "to": [x, y, z], "style": "plate" }]
+    "rodSize":    6.35
     "splits":     ["T10", "T7:left"]
     "colors":     { "rods": "blue", "screws": "titanium", "hooks": "purple", "crosslinks": "gold" }
 
@@ -80,6 +89,11 @@ that order keeps a strongly tilted vertebra from looking turned when it is not.
   usual one. Versions of the app before 0.19 draw every screw with the usual head.
 - A hook has the point where it grips the rod (`at`), the middle of its blade (`mid`) and the
   `tip` of the blade.
+- A cross-link can carry a `style` for its bar: `plate` (a flat strap) or `straight` (a straight
+  bar). Without it, or with `arch`, the bar arches away from the spine. From version 0.26.
+  Earlier versions draw every cross-link arched.
+- `rodSize` is optional: the thickness in millimetres (3 to 8) that new rods get. Without it
+  they are 5.5 thick. Every rod in the file still has its own `diameter`. From version 0.26.
 - Every piece can carry a `source`, the same way a vertebra does.
 - A hook's `faces` is `down` or `up`: the way its blade points along the spine. Without it the
   blade points down.
@@ -125,9 +139,22 @@ A disc is named by the two vertebrae it sits between, the upper one first. Only 
 not standard are listed. A file without `discs` has standard discs throughout, and versions of
 the app before 0.20 ignore the field.
 
-- `state`: `standard`, `thin`, `bulging`, `herniated`, `dried` or `none` (the disc is gone).
+- `state`: `standard`, `thin`, `bulging`, `herniated`, `dried`, `none` (the disc is gone),
+  `replacement` (an artificial disc in its place), `cage` (a fusion cage in its place) or
+  `cage-screws` (a fusion cage held by its own screws). `replacement` and `cage` are from
+  version 0.24 and `cage-screws` from 0.29. Earlier versions do not know them and say so when
+  the file is opened.
+- `spacer`: `true` for a spacer between the two back processes. It goes with any state, and not
+  with the disc above the sacrum. From version 0.24.
 - `amount`: how much, from 0.1 to 1, for a thin, bulging or herniated disc. Without it, 0.5.
-- `toward`: which way a bulging or herniated disc pushes: `back`, `back-left` or `back-right`.
+- `plate`: `true` for a plate on the front of the two vertebrae, across the disc. From version
+  0.30 the app puts one only in the neck (C2/C3 to C7/T1) and from T11/T12 down to the sacrum,
+  and a `spacer` only between L1 and L5. One that a file has somewhere else is still drawn. It goes with
+  any state. From version 0.26. From version 0.29 plates on discs next to each other are drawn
+  as one long plate. Versions 0.26 to 0.28 draw a short plate for each.
+- `toward`: which way a bulging or herniated disc pushes: `back`, `back-left` or `back-right`,
+  and from version 0.26 also `left`, `front` or `right`. Earlier versions do not know those
+  three and say so when the file is opened.
 - `drop`: for a thin disc, by how many millimetres its space was closed. The vertebrae in the
   file are already where that leaves them. The app uses the number to open the space again
   when the disc is made something else.

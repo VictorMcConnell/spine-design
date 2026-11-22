@@ -1,7 +1,8 @@
 // Turns a spine file into the list of things the renderer draws.
 
-import { FRACTURES, sortedLevels, isFused } from '../core/spinefile.js';
-import { vertebraShape, levelFrame, discMesh, discParts, archMarks } from '../core/bones.js';
+import { sortedLevels, isFused } from '../core/spinefile.js';
+import { crackMarks, boneMarks } from '../core/fractures.js';
+import { vertebraShape, levelFrame, discMesh, discParts, plateRun, archMarks } from '../core/bones.js';
 import { colorOf, DISC, discTint } from '../core/finish.js';
 import { USUAL_FINISH } from '../parts/kinds.js';
 import { PARTS } from '../parts/catalogue.js';
@@ -33,7 +34,7 @@ export function levelMatrix(level) {
 const SPOT = ball([0, 0, 0], 3.2);
 // What the renderer needs to draw the dark line of a break: the kind (1 wedge, 2 crush, 3 burst), then half the
 // depth, half the width and half the height of the body.
-const crackOf = (level) => [FRACTURES.indexOf(level.fracture.kind) + 1, level.size[1] / 2, level.size[0] / 2, level.size[2] / 2];
+const crackOf = (level) => crackMarks(level.fracture, level.size);
 
 //   detail: size of the grid the bones are sampled on, in millimetres (smaller = smoother, slower)
 //   extras: for the builder and the look of things
@@ -68,15 +69,17 @@ export function buildScene(spine, detail, extras = {}) {
   const ownBone = (id) => { const l = levels.find((x) => x.id === id); return (l && l.color && colorOf(l.color)) || look.bone || COLORS.bone; };
   const boneColor = (id, i) => lit(id, (picked.kind === 'level' && picked.id === id) || (picked.kind === 'stretch' && (i === a || i === b)) ? COLORS.picked : picked.kind === 'stretch' && a >= 0 && b >= 0 && i > Math.min(a, b) && i < Math.max(a, b) ? COLORS.between : picked.kind === 'level' && picked.mates && picked.mates.includes(id) ? COLORS.between : locked.includes(id) ? dim(ownBone(id)) : stiff.includes(id) ? cool(ownBone(id)) : ownBone(id));
   // a vertebra is drawn once in its own axes and then placed, so bending the spine only moves it
-  levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail, level.fracture), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level), name: level.id, ...(level.wear ? { wear: level.wear } : {}), ...(level.fracture ? { crack: crackOf(level) } : {}), ...(level.arch ? archMarks(level) || {} : {}) }));
+  levels.forEach((level, i) => add('vertebrae', vertebraShape(level.id, level.size, detail, level.fracture, level.bone === 'spurs'), boneColor(level.id, i), sourceOpacity(level.source), { matrix: levelMatrix(level), name: level.id, ...(level.wear ? { wear: level.wear } : {}), ...(level.fracture ? { crack: crackOf(level) } : {}), ...(boneMarks(level) ? { bone: boneMarks(level) } : {}), ...(level.arch ? archMarks(level) || {} : {}) }));
   for (let i = 0; i < levels.length - 1; i++) {
     if (levels[i].id === 'C1') continue;          // the atlas sits on the axis without a disc
     const fused = isFused(spine, levels[i].id) && isFused(spine, levels[i + 1].id);
     // a disc is drawn as the file describes it (standard when it says nothing). The selected one glows,
     // and one that is gone shows as a ghost while it is selected, so there is something to see.
     const key = levels[i].id + '/' + levels[i + 1].id, base = fused ? COLORS.fusedDisc : look.disc || COLORS.disc, chosen = picked.kind === 'discs' && picked.id === key, name = 'disc_' + levels[i].id + '_' + levels[i + 1].id;
-    const parts = discParts(levels[i], levels[i + 1], (spine.discs || {})[key]);
-    for (const part of parts) add('discs', part.mesh, chosen ? mix(discTint(base, part.tint), COLORS.picked, 0.6) : discTint(base, part.tint), 1, { name });
+    // (plates on discs next to each other are drawn as one long plate, with the first of them)
+    const parts = discParts(levels[i], levels[i + 1], (spine.discs || {})[key], plateRun(levels, spine.discs, i));
+    // (an implant keeps its own colour, whatever colour the discs were given)
+    for (const part of parts) { const own = part.color || discTint(base, part.tint); add('discs', part.mesh, chosen ? mix(own, COLORS.picked, 0.6) : own, 1, { name, ...(part.metal ? { metal: true } : {}) }); }
     if (chosen && !parts.length) add('discs', discMesh(levels[i], levels[i + 1]), COLORS.picked, 0.3, { name });
   }
   const rodSize = (id) => ((hw.rods || []).find((r) => r.id === id) || {}).diameter || HARDWARE.rodDiameter;

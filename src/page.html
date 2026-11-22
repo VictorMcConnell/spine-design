@@ -63,6 +63,7 @@
   <symbol id="i-disc" viewBox="0 0 24 24"><path d="M6 5h12M6 19h12"/><rect x="4" y="9" width="16" height="6" rx="3"/></symbol>
   <symbol id="i-none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M6.5 17.5l11-11"/></symbol>
   <symbol id="i-select" viewBox="0 0 24 24"><path d="M6 4l11 7-5 1.5-2 5z"/></symbol>
+  <symbol id="i-size" viewBox="0 0 24 24"><rect x="4" y="10" width="10" height="10" rx="1.5"/><path d="M14 4h6v6M20 4l-7 7"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></symbol>
   <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6"/></symbol>
 </svg>
@@ -117,9 +118,13 @@
   <section id="stage">
     <canvas id="view" tabindex="0" role="application" aria-label="3D view of the spine. Arrow keys pick a vertebra and a side, Enter does what a tap does, plus and minus zoom." aria-describedby="sketchSays"></canvas>
     <p id="sketchSays" class="sr"></p>
-    <!-- the Hardware place: select with nothing in hand, and take off what is selected -->
-    <div id="fine" role="toolbar" aria-label="Select and remove" hidden>
+    <!-- the Hardware place: select with nothing in hand, move, rotate or resize a vertebra by handles on the model, and take off what is selected -->
+    <div id="fine" role="toolbar" aria-label="Select, move, rotate, size and remove" hidden>
       <button id="fineSelect" data-tip="Select" aria-label="Select: nothing in hand, a press selects a part" aria-pressed="false"><svg class="i"><use href="#i-select"/></svg></button>
+      <button data-fine="move" data-tip="Move" aria-label="Move the selected vertebra" aria-pressed="false"><svg class="i"><use href="#i-move"/></svg></button>
+      <button data-fine="turn" data-tip="Rotate" aria-label="Rotate the selected vertebra" aria-pressed="false"><svg class="i"><use href="#i-turn"/></svg></button>
+      <button data-fine="size" data-tip="Size" aria-label="Resize the selected vertebra" aria-pressed="false"><svg class="i"><use href="#i-size"/></svg></button>
+      <span class="rule" aria-hidden="true"></span>
       <button id="fineRemove" data-tip="Remove" aria-label="Remove what is selected"><svg class="i"><use href="#i-trash"/></svg></button>
     </div>
     <!-- a picture of an X-ray laid over the model to trace over. It is read by this browser and goes nowhere. -->
@@ -318,22 +323,36 @@
       <section data-card="piece" hidden>
         <header><svg class="i" id="pieceIcon"><use href="#i-screw"/></svg><h2 id="pieceName"></h2><button id="pieceRemove" class="quiet warn">Remove</button><button id="pieceDone" class="main">Done</button></header>
         <p class="small fine" id="pieceHow">Drag it over the bone to move it.</p>
+        <div class="swatches cardColors" id="pieceColors"></div>
+        <div id="hand" hidden>
+          <button class="quiet more" id="handOpen" aria-expanded="false" aria-controls="handBox">Adjust by hand</button>
+          <div id="handBox" hidden>
+            <p class="small"><b>By hand.</b> Fine tuning for this one part. Leave it as it is unless yours sits differently.</p>
+            <label class="dial" data-hand="screw">Points toward the middle<span><input type="range" id="handLean" step="1"><input type="number" id="handLeanN" step="1"><i>°</i></span></label>
+            <label class="dial" data-hand="screw">Points up or down<span><input type="range" id="handRise" step="1"><input type="number" id="handRiseN" step="1"><i>°</i></span></label>
+            <label class="dial">Up or down the bone<span><input type="range" id="handUp" step="0.5"><input type="number" id="handUpN" step="0.5"><i>mm</i></span></label>
+            <label class="dial">Out to the side<span><input type="range" id="handOut" step="0.5"><input type="number" id="handOutN" step="0.5"><i>mm</i></span></label>
+            <label class="dial"><b id="handProudLabel">Head off the bone</b><span><input type="range" id="handProud" step="0.5"><input type="number" id="handProudN" step="0.5"><i>mm</i></span></label>
+            <div class="row"><button id="handReset">Back to automatic</button></div>
+          </div>
+        </div>
         <button class="quiet more" data-more aria-expanded="false">More</button>
         <div class="extra">
           <label class="dial" id="pieceThickRow">Thickness<span><input type="range" id="pieceThick" min="3.5" max="8" step="0.5"><input type="number" id="pieceThickN" min="3.5" max="8" step="0.5"><i>mm</i></span></label>
           <label class="dial" id="pieceLongRow">Length<span><input type="range" id="pieceLong" min="10" max="65"><input type="number" id="pieceLongN" min="10" max="65"><i>mm</i></span></label>
           <label class="check" id="pieceLockedRow" hidden><input type="checkbox" id="pieceLocked">Frozen: nothing moves or removes it until this is unticked</label>
-          <div class="row"><button data-tocolor><svg class="i"><use href="#i-brush"/></svg>Color it under Look</button></div>
+          <div class="row"><button id="pieceColorAll">Give all of this kind that color</button></div>
         </div>
       </section>
 
       <section data-card="rod" hidden>
         <header><svg class="i"><use href="#i-rod"/></svg><h2 id="rodName"></h2><button class="main" data-done>Done</button></header>
         <p class="small fine">Drag the rod between two of its parts to bend it there.</p>
+        <div class="swatches cardColors" id="rodColors"></div>
         <button class="quiet more" data-more aria-expanded="false">More</button>
         <div class="extra">
           <label class="dial">Thickness<span><input type="range" id="rodThick" min="3.5" max="7" step="0.5"><input type="number" id="rodThickN" min="3.5" max="7" step="0.5"><i>mm</i></span></label>
-          <div class="row"><button id="rodUnbend">Take the bends out</button><button data-tocolor><svg class="i"><use href="#i-brush"/></svg>Color it under Look</button></div>
+          <div class="row"><button id="rodUnbend">Take the bends out</button><button id="rodColorAll">Give all rods that color</button></div>
         </div>
       </section>
 
@@ -341,13 +360,13 @@
         <header><svg class="i"><use href="#i-disc"/></svg><h2 id="discName"></h2><button id="discReset" class="quiet warn">Standard</button><button class="main" data-done>Done</button></header>
         <p class="small fine" id="discHow"></p>
         <label class="dial" id="discAmountRow">How much<span><input type="range" id="discAmount" min="10" max="100" step="5"><input type="number" id="discAmountN" min="10" max="100" step="5"><i>%</i></span></label>
-        <div class="seg" id="discSideRow" role="group" aria-label="Which way it pushes"><button data-discside="back-left">Back left</button><button data-discside="back">Back</button><button data-discside="back-right">Back right</button></div>
+        <div id="discSideRow" role="group" aria-label="Which way it pushes"><div class="seg"><button data-discside="back-left">Back left</button><button data-discside="back">Back</button><button data-discside="back-right">Back right</button></div><div class="seg"><button data-discside="left">Left</button><button data-discside="front">Front</button><button data-discside="right">Right</button></div><p class="small">Most often a disc pushes out to the back, where the nerves are. To the front or straight to a side happens too, and is felt less.</p></div>
       </section>
 
       <section data-card="frac" hidden>
         <header><svg class="i"><use href="#i-one"/></svg><h2 id="fracName"></h2><button id="fracReset" class="quiet warn">Healthy</button><button class="main" data-done>Done</button></header>
         <p class="small fine" id="fracHow"></p>
-        <label class="dial" id="fracAmountRow">How much it is broken<span><input type="range" id="fracAmount" min="10" max="100" step="5"><input type="number" id="fracAmountN" min="10" max="100" step="5"><i>%</i></span></label>
+        <label class="dial" id="fracAmountRow"><b id="fracAmountLabel">How much it is broken</b><span><input type="range" id="fracAmount" min="10" max="100" step="5"><input type="number" id="fracAmountN" min="10" max="100" step="5"><i>%</i></span></label>
         <label class="dial">Bone, from clean to porous<span><input type="range" id="fracWear" min="0" max="100" step="5"><input type="number" id="fracWearN" min="0" max="100" step="5"><i>%</i></span></label>
         <div class="row"><button id="fracWearAll">Give the whole spine this bone</button></div>
       </section>
@@ -485,6 +504,7 @@
 <dialog id="share" aria-labelledby="shareTitle">
   <div class="grab" aria-hidden="true"></div>
   <header><h2 id="shareTitle">Share your sketch</h2><button id="shareClose" class="icon" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></header>
+  <div class="shName"><label>Its name<input type="text" id="shName" maxlength="60" placeholder="My spine"></label><label>A line about it<input type="text" id="shAbout" maxlength="200" placeholder="Optional. It heads the printed page."></label></div>
   <button id="pictureBtn" class="big main"><svg class="i"><use href="#i-camera"/></svg><span><strong>Save a picture</strong><em>The view as it is now</em></span></button>
   <button id="linkBtn" class="big"><svg class="i"><use href="#i-chain"/></svg><span><strong>Copy a link</strong><em>The link itself holds the whole sketch</em></span></button>
   <input id="linkText" type="text" readonly hidden aria-label="The link to this sketch">

@@ -71,7 +71,7 @@ export function createRenderer(canvas) {
     for (const name of names) at[name] = gl.getUniformLocation(made, name);
     return at;
   }
-  const loc = { pos: 0, nor: 1, ...programOf(VERTEX, FRAGMENT, ['uView', 'uProj', 'uModel', 'uColor', 'uAlpha', 'uMode', 'uKind', 'uWear', 'uCrack', 'uCut', 'uSnap']) }, program = loc.program;
+  const loc = { pos: 0, nor: 1, ...programOf(VERTEX, FRAGMENT, ['uView', 'uProj', 'uModel', 'uColor', 'uAlpha', 'uMode', 'uKind', 'uWear', 'uCrack', 'uCut', 'uSnap', 'uBone']) }, program = loc.program;
 
   // The second pass needs two pictures to draw into: the depth of the scene and the shading
   // worked out from it. If this device cannot provide them, the second pass is left out.
@@ -159,7 +159,8 @@ export function createRenderer(canvas) {
     gl.enable(gl.DEPTH_TEST); gl.useProgram(program);
     gl.uniformMatrix4fv(loc.uView, false, view); gl.uniformMatrix4fv(loc.uProj, false, proj); gl.uniform1i(loc.uMode, shading.mode);
     const shown = items.filter((it) => it.visible !== false && it.opacity > 0.01 && !(bare && it.hint));
-    const kind = (it) => (it.group in MADE_OF ? MADE_OF[it.group] : 3);
+    // (a thing can say it is metal whatever group it is in: an implant among the discs)
+    const kind = (it) => (it.metal ? 2 : it.group in MADE_OF ? MADE_OF[it.group] : 3);
     // on an X-ray, bone and disc are a glow that adds up; everywhere else they are solid unless made see-through
     const glows = (it) => xray && kind(it) < 2, solid = (it) => !it.overlay && !glows(it) && it.opacity >= 0.995;
     // solid things first, see-through things after them without writing depth
@@ -171,7 +172,7 @@ export function createRenderer(canvas) {
         if (it.overlay || solid(it) === clear) continue;
         if (clear) gl.blendFunc(glows(it) ? gl.ONE : gl.SRC_ALPHA, glows(it) ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
         gl.uniform3fv(loc.uColor, it.color); gl.uniform1f(loc.uAlpha, it.opacity); gl.uniform1i(loc.uKind, kind(it)); gl.uniformMatrix4fv(loc.uModel, false, it.matrix || IDENTITY);
-        gl.uniform1f(loc.uWear, it.wear || 0); gl.uniform4fv(loc.uCrack, it.crack || NO_CRACK); gl.uniform4fv(loc.uCut, it.cut || NO_CRACK); gl.uniform4fv(loc.uSnap, it.snap || NO_CRACK);
+        gl.uniform1f(loc.uWear, it.wear || 0); gl.uniform4fv(loc.uCrack, it.crack || NO_CRACK); gl.uniform4fv(loc.uBone, it.bone || NO_CRACK); gl.uniform4fv(loc.uCut, it.cut || NO_CRACK); gl.uniform4fv(loc.uSnap, it.snap || NO_CRACK);
         gl.bindVertexArray(it.vao); gl.drawElements(gl.TRIANGLES, it.count, gl.UNSIGNED_INT, 0);
       }
     }

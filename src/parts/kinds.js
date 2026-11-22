@@ -43,12 +43,15 @@ export const PART_TYPES = [
   { group: 'side', id: 'screw', kind: 'screws', set: { look: 'standard' }, name: 'Screw', say: 'goes into the bone', icon: 'i-screw' },
   { group: 'side', id: 'screw-tall', kind: 'screws', set: { look: 'tall' }, name: 'Tall head screw', say: 'its head stands well above the rod', icon: 'i-screw' },
   { group: 'side', id: 'screw-low', kind: 'screws', set: { look: 'low' }, name: 'Low head screw', say: 'a smaller head, closer to the bone', icon: 'i-screw' },
+  { group: 'cross', id: 'link', kind: 'crosslinks', set: { style: 'arch' }, name: 'Cross-link', say: 'an arched bar', icon: 'i-link' },
+  { group: 'cross', id: 'link-plate', kind: 'crosslinks', set: { style: 'plate' }, name: 'Flat cross-link', say: 'a flat strap', icon: 'i-link' },
+  { group: 'cross', id: 'link-straight', kind: 'crosslinks', set: { style: 'straight' }, name: 'Straight cross-link', say: 'a straight bar', icon: 'i-link' },
   { group: 'side', id: 'hook-down', kind: 'hooks', set: { faces: 'down' }, name: 'Hook down', say: 'grips the bone from above', icon: 'i-hook' },
   { group: 'side', id: 'hook-up', kind: 'hooks', set: { faces: 'up' }, name: 'Hook up', say: 'grips the bone from below', icon: 'i-hook', flip: true },
 ];
 // (what a piece is when its file does not say: a hook points down, a screw has the usual head)
-const USUAL = { faces: 'down', look: 'standard' };
-// The type of a piece of a kind, or undefined for a kind that has no types (a rod, a cross-link).
+const USUAL = { faces: 'down', look: 'standard', style: 'arch' };
+// The type of a piece of a kind, or undefined for a kind that has no types (a rod).
 export function typeOf(kind, piece) {
   return PART_TYPES.find((t) => t.kind === kind && Object.entries(t.set).every(([key, value]) => (piece[key] || USUAL[key]) === value));
 }
@@ -78,21 +81,36 @@ export const CATEGORIES = [
       { id: 'hook-up', tool: 'hook', face: 'up', name: 'Hook up', say: 'grips the bone from below', icon: 'i-hook', flip: true, shot: true }] },
   ] },
   { id: 'links', name: 'Cross-links', icon: 'i-link', kinds: ['crosslinks'], tool: 'link', groups: [
-    { name: 'Cross-links', tiles: [NONE, { id: 'link', tool: 'link', name: 'Cross-link', say: 'joins the two rods, between two vertebrae', icon: 'i-link', shot: true }] },
+    { name: 'Cross-links', tiles: [NONE,
+      { id: 'link', tool: 'link', style: 'arch', name: 'Cross-link', say: 'joins the two rods with an arched bar, between two vertebrae', icon: 'i-link', shot: true },
+      { id: 'link-plate', tool: 'link', style: 'plate', name: 'Flat cross-link', say: 'joins the two rods with a flat strap', icon: 'i-link', shot: true },
+      { id: 'link-straight', tool: 'link', style: 'straight', name: 'Straight cross-link', say: 'joins the two rods with a straight bar', icon: 'i-link', shot: true }] },
   ] },
   { id: 'rods', name: 'Rods', icon: 'i-rod', kinds: ['rods'], tool: 'rod', groups: [
-    { name: 'Rods', tiles: [{ id: 'rod', tool: 'rod', name: 'Rod', say: 'runs through the parts of one side', icon: 'i-rod', shot: true }] },
+    // ("diameter" is the thickness in millimetres: of the selected rod, or with none selected of every rod and of new ones)
+    { name: 'Rods', tiles: [
+      { id: 'rod', tool: 'rod', diameter: 5.5, name: 'Rod', say: 'the usual thickness, runs through the parts of one side', icon: 'i-rod', shot: true },
+      { id: 'rod-thick', tool: 'rod', diameter: 6.35, name: 'Thick rod', say: 'a stiffer rod', icon: 'i-rod', shot: true },
+      { id: 'rod-thin', tool: 'rod', diameter: 4.5, name: 'Thin rod', say: 'a lighter rod', icon: 'i-rod', shot: true }] },
   ] },
   // (a disc is not put on: every space has one. Its tiles say what a disc is, and "state" is what the file keeps.
   // Opening this category puts everything down, since a disc is selected first and then changed.)
   { id: 'discs', name: 'Discs', icon: 'i-disc', kinds: ['discs'], tool: 'turn', groups: [
-    { name: 'Discs', tiles: [
+    { name: 'Natural', tiles: [
       { id: 'disc-standard', tool: 'disc', state: 'standard', name: 'Standard', say: 'a healthy disc', icon: 'i-disc', shot: true },
       { id: 'disc-thin', tool: 'disc', state: 'thin', name: 'Thin', say: 'it has lost height, and the spine above comes down with it', icon: 'i-disc', shot: true },
       { id: 'disc-bulging', tool: 'disc', state: 'bulging', name: 'Bulging', say: 'it pushes out past the edges of the bones', icon: 'i-disc', shot: true },
       { id: 'disc-herniated', tool: 'disc', state: 'herniated', name: 'Herniated', say: 'its soft middle has pushed out at one spot', icon: 'i-disc', shot: true },
       { id: 'disc-dried', tool: 'disc', state: 'dried', name: 'Dried out', say: 'it has dried and darkened', icon: 'i-disc', shot: true },
       { id: 'disc-none', tool: 'disc', state: 'none', name: 'None', say: 'the disc is gone', icon: 'i-none' }] },
+    // (implants: two stand in the place of the disc and are states of it. The spacer sits at the back, between the
+    // two back processes, and goes with any disc: its tile puts it there or takes it away.)
+    { name: 'Implants', tiles: [
+      { id: 'disc-replacement', tool: 'disc', state: 'replacement', name: 'Artificial disc', say: 'a disc replacement: a plate on each bone and a core that lets them move', icon: 'i-disc', shot: true },
+      { id: 'disc-cage', tool: 'disc', state: 'cage', name: 'Fusion cage', say: 'a block in the place of the disc, holding the bones apart while they grow together', icon: 'i-disc', shot: true },
+      { id: 'disc-cage-screws', tool: 'disc', state: 'cage-screws', name: 'Cage with screws', say: 'a fusion cage held by its own screws, two into each bone', icon: 'i-disc', shot: true },
+      { id: 'disc-plate', tool: 'disc', plate: true, name: 'Plate on the front', say: 'a plate screwed to the front of the two bones, across the disc. In the neck or the low back. Plates on discs next to each other join into one long plate', icon: 'i-disc', shot: true },
+      { id: 'disc-spacer', tool: 'disc', spacer: true, name: 'Spacer at the back', say: 'a block between the two back processes that holds them apart. In the low back', icon: 'i-disc', shot: true }] },
   ] },
   // (the vertebrae work the way the discs do: one is selected and then changed, or a tile is taken in hand.
   // "state" is the kind of fracture the file keeps, or 'healthy'. A vertebra is selected in other categories
@@ -102,12 +120,23 @@ export const CATEGORIES = [
       { id: 'bone-healthy', tool: 'bone', state: 'healthy', name: 'Healthy', say: 'a whole vertebra', icon: 'i-one', shot: true },
       { id: 'bone-wedge', tool: 'bone', state: 'wedge', name: 'Wedge fracture', say: 'the front of the body is squashed, and the spine above tips forward', icon: 'i-one', shot: true },
       { id: 'bone-crush', tool: 'bone', state: 'crush', name: 'Crush fracture', say: 'the whole body is squashed', icon: 'i-one', shot: true },
-      { id: 'bone-burst', tool: 'bone', state: 'burst', name: 'Burst fracture', say: 'the body is squashed and has spread outward', icon: 'i-one', shot: true }] },
+      { id: 'bone-burst', tool: 'bone', state: 'burst', name: 'Burst fracture', say: 'the body is squashed and has spread outward', icon: 'i-one', shot: true },
+      { id: 'bone-wedge-left', tool: 'bone', state: 'wedge-left', name: 'Squashed on the left', say: 'the left side of the body is squashed, and the spine above tips to the left', icon: 'i-one', shot: true },
+      { id: 'bone-wedge-right', tool: 'bone', state: 'wedge-right', name: 'Squashed on the right', say: 'the right side of the body is squashed, and the spine above tips to the right', icon: 'i-one', shot: true },
+      { id: 'bone-hairline', tool: 'bone', state: 'hairline', name: 'Hairline crack', say: 'a fine crack in the body, nothing has moved', icon: 'i-one', shot: true },
+      { id: 'bone-split', tool: 'bone', state: 'split', name: 'Split across', say: 'a break straight across the body and the back of the bone', icon: 'i-one', shot: true },
+      { id: 'bone-chip', tool: 'bone', state: 'chip', name: 'Chipped corner', say: 'a corner is broken off the front of the body', icon: 'i-one', shot: true }] },
     // (how the bone itself looks: "wear" from 0, clean, to 1, aged and porous. A vertebra has one tile of each group.)
     { name: 'Bone', tiles: [
       { id: 'bone-clean', tool: 'bone', wear: 0, name: 'Clean bone', say: 'smooth, even bone', icon: 'i-one', shot: true },
       { id: 'bone-aged', tool: 'bone', wear: 0.5, name: 'Aged bone', say: 'duller, with small pits', icon: 'i-one', shot: true },
       { id: 'bone-porous', tool: 'bone', wear: 1, name: 'Porous bone', say: 'aged and full of pits', icon: 'i-one', shot: true }] },
+    // (what else the bone shows: "bone" is what the file keeps, '' for nothing)
+    { name: 'Bone changes', tiles: [
+      { id: 'look-plain', tool: 'bone', bone: '', name: 'None', say: 'no other changes', icon: 'i-one', shot: true },
+      { id: 'look-spurs', tool: 'bone', bone: 'spurs', name: 'Bone spurs', say: 'bony lips have grown at the rims of the body', icon: 'i-one', shot: true },
+      { id: 'look-dense', tool: 'bone', bone: 'dense', name: 'Hardened bone', say: 'paler, chalky bone, most next to the discs', icon: 'i-one', shot: true },
+      { id: 'look-sore', tool: 'bone', bone: 'sore', name: 'Sore end plates', say: 'the bone next to the discs is inflamed', icon: 'i-one', shot: true }] },
     // (the back of the vertebra: "arch" is what the file keeps, '' for a whole back)
     { name: 'Back of the bone', tiles: [
       { id: 'arch-whole', tool: 'bone', arch: '', name: 'Whole back', say: 'nothing taken away, nothing broken', icon: 'i-one', shot: true },
