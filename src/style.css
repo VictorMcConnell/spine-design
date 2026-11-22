@@ -70,8 +70,7 @@ h3 { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: 
 #catName { margin: 0 0 8px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
 #catKind { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--soft); }
 #catNow { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.3; }
-/* (on a small screen the pictures take two rows and a bit, and scroll when there are more, so the model keeps its room) */
-#catTiles { display: grid; grid-template-columns: repeat(6, minmax(0, 68px)); gap: 7px; max-height: 158px; overflow-y: auto; overscroll-behavior: contain; padding: 2px; margin: -2px; }
+#catTiles { display: grid; grid-template-columns: repeat(6, minmax(0, 68px)); gap: 7px; }
 .catGroup, .catGrid { display: contents; }
 .catHead { display: none; }
 .pic { position: relative; aspect-ratio: 1; min-height: 0; padding: 0; border: 1.5px solid var(--line); border-radius: 12px; background: #20222d; }
@@ -93,7 +92,6 @@ body.carded #catName { display: none; }
 #fine button { width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 10px; background: none; color: var(--soft); }
 #fine button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
 #fineRemove { color: var(--remove); }
-#fine .rule { height: 1px; margin: 2px 6px; background: var(--line); }
 #fineRemove.idle { opacity: 0.45; }
 body[data-at="parts"] #tray { display: none; }
 /* a grid of picture tiles to choose one from (ui/grid.js) */
@@ -504,7 +502,7 @@ body.clean #stage { grid-column: 1 / -1; grid-row: 1 / -1; }
   #cats.named #catsOpen { width: 46px; align-self: flex-end; justify-content: center; padding: 0; }
   #cats.named #catsOpen .i { transform: scaleX(-1); }
   body.carded #catName { display: block; }
-  #catTiles { display: block; max-height: none; overflow: visible; padding: 0; margin: 0; }
+  #catTiles { display: block; }
   .catGroup { display: block; margin-bottom: 10px; }
   .catHead { display: flex; justify-content: space-between; width: 100%; min-height: 0; margin: 0 0 6px; padding: 2px 0; border: 0; background: none; color: var(--soft); font-size: 11.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; }
   .catHead::after { content: "\2013"; }
@@ -652,12 +650,3 @@ body.viewer #storyBar { bottom: 46px; }
 
 /* the mark beside the name */
 h1 .mark { width: auto; height: 1.35em; margin-right: 0.45em; vertical-align: -0.3em; flex: none; }
-#discSideRow .seg + .seg { margin-top: 4px; }
-#fracAmountLabel { color: inherit; font-weight: inherit; }
-/* the manual area of a screw or a hook: set apart, so it reads as the advanced way */
-#hand { margin: 4px 0 8px; }
-#handBox { margin-top: 6px; padding: 8px 10px 4px; border: 1px dashed var(--line); border-radius: 10px; }
-#handBox .small b { color: var(--ink); }
-#handProudLabel { color: inherit; font-weight: inherit; }
-#handOpen[aria-expanded="true"]::after { transform: translateY(2px) rotate(-135deg); }
-#handOpen { display: inline-flex; }

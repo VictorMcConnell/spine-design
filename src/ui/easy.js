@@ -144,7 +144,7 @@ export function setupEasy(app, kit) {
     const id = app.picked && app.picked.id;
     if (!id) return;
     let fits = true;
-    app.change(() => { fits = setLinkBelow(app.spine, id, $('gLink').checked, kit.linkLook()); }, { ride: false });
+    app.change(() => { fits = setLinkBelow(app.spine, id, $('gLink').checked); }, { ride: false });
     app.say(fits ? '' : NEEDS_RODS);
   });
   const step = (by) => () => { const list = ids(), i = list.indexOf(app.picked && app.picked.id) + by; if (i >= 0 && i < list.length) app.pick({ kind: 'level', id: list[i] }); };
@@ -319,7 +319,7 @@ export function setupEasy(app, kit) {
       if (run.on === undefined) run.on = mapTool === 'link' && !linkBelow(app.spine, id);
       if (linkBelow(app.spine, id) === run.on) return false;
       let fits = true;
-      live(() => { fits = setLinkBelow(app.spine, id, run.on, kit.linkLook()); });
+      live(() => { fits = setLinkBelow(app.spine, id, run.on); });
       if (!fits) tell(NEEDS_RODS);
       return fits;
     }

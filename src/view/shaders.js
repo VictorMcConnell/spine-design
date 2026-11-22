@@ -8,7 +8,7 @@ out vec3 vNor; out vec3 vPos; out vec3 vLocal;
 void main() { vec4 p = uView * uModel * vec4(aPos, 1.0); vPos = p.xyz; vLocal = aPos; vNor = mat3(uView) * mat3(uModel) * aNor; gl_Position = uProj * p; }`;
 
 // How a surface is lit. Bone can also be worn (uWear, 0 to 1) and broken (uCrack: the kind of break, 1 wedge,
-// 2 crush, 3 burst and so on down the list in spinefile.js, with how much behind the point, then half the depth, half the width and half the height of its body, in millimetres). Both
+// 2 crush, 3 burst, then half the depth, half the width and half the height of its body, in millimetres). Both
 // are drawn from where a point sits in the bone itself (vLocal), so they stay put when the spine is bent.
 // A part of a bone can be left out (uCut: 1, then half the width of a slot down the middle of the back and how
 // far back it starts: everything in it is not drawn, and the inside of the bone shows as a flat cut face). And a
@@ -20,7 +20,7 @@ export const FRAGMENT = `#version 300 es
 precision highp float;
 in vec3 vNor; in vec3 vPos; in vec3 vLocal;
 uniform vec3 uColor; uniform float uAlpha; uniform int uMode, uKind;
-uniform float uWear; uniform vec4 uCrack, uCut, uSnap, uBone;
+uniform float uWear; uniform vec4 uCrack, uCut, uSnap;
 // a number between 0 and 1 for a point of a grid, and the same smoothed between the points
 float hash(vec3 p) { p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float noise(vec3 x) {
@@ -52,20 +52,8 @@ void main() {
   vec3 n = normalize(vNor); if (!gl_FrontFacing) n = -n;
   // "col" is the colour of the thing, and "mark" how much of it is left where bone is pitted or cracked (1 = untouched)
   vec3 col = uColor; float mark = 1.0;
-  if (uKind == 0 && (uWear > 0.01 || uCrack.x > 0.5 || uSnap.x > 0.5 || uBone.x > 0.5)) {
+  if (uKind == 0 && (uWear > 0.01 || uCrack.x > 0.5 || uSnap.x > 0.5)) {
     vec3 p = vLocal;
-    if (uBone.x > 0.5) {
-      float inBody = (1.0 - smoothstep(uBone.y + 1.0, uBone.y + 5.0, p.y)) * (1.0 - smoothstep(uBone.z + 1.0, uBone.z + 5.0, abs(p.x))), high = abs(p.z) / uBone.w;
-      if (uBone.x < 1.5) {
-        // hardened bone: paler and chalky, in patches, most next to the discs
-        float chalk = smoothstep(0.25, 0.8, noise(p * 0.16 + 9.0)) * 0.5 + 0.45 * smoothstep(0.45, 1.0, high) * inBody;
-        col = mix(col, vec3(0.96, 0.95, 0.9), clamp(chalk, 0.0, 0.8) * 0.7);
-      } else {
-        // sore end plates: the bone next to the discs is flushed, fading toward the middle of the body
-        float flush = smoothstep(0.35, 0.95, high + (noise(p * 0.3 + 4.0) - 0.5) * 0.35) * inBody;
-        col = mix(col, vec3(0.82, 0.32, 0.27), flush * 0.5);
-      }
-    }
     if (uWear > 0.01) {
       // worn bone: duller and patchy, with pits that grow in number and size
       float blotch = noise(p * 0.17), fine = noise(p * 0.9);
@@ -76,23 +64,10 @@ void main() {
     }
     if (uCrack.x > 0.5) {
       // a break in the body: a dark, ragged line through it (and on a burst a second one, upright)
-      float what = floor(uCrack.x + 0.01), much = fract(uCrack.x + 0.01) / 0.4;
       float body = 1.0 - smoothstep(uCrack.y + 1.0, uCrack.y + 4.0, p.y);
-      float slope = what < 1.5 ? -0.3 * uCrack.w * p.y / uCrack.y : what > 3.5 && what < 5.5 ? (what < 4.5 ? -0.3 : 0.3) * uCrack.w * p.x / uCrack.z : 0.0;
-      float across = slope + (noise(vec3(p.x * 0.28, p.y * 0.28, 3.0)) - 0.5) * 0.36 * uCrack.w + (noise(vec3(p.x * 1.1, p.y * 1.1, 8.0)) - 0.5) * 0.9;
+      float across = (uCrack.x < 1.5 ? -0.3 * uCrack.w * p.y / uCrack.y : 0.0) + (noise(vec3(p.x * 0.28, p.y * 0.28, 3.0)) - 0.5) * 0.36 * uCrack.w + (noise(vec3(p.x * 1.1, p.y * 1.1, 8.0)) - 0.5) * 0.9;
       float line = 1.0 - smoothstep(0.35, 0.95, abs(p.z - across));
-      if (what > 5.5 && what < 6.5) {
-        // a hairline crack: fine and faint, from the front part of the way to the back
-        line = (1.0 - smoothstep(0.15, 0.6, abs(p.z - across))) * (1.0 - smoothstep(2.3 * much - 1.3, 2.3 * much - 0.9, p.y / uCrack.y)) * (0.62 + 0.3 * much);
-      } else if (what > 6.5 && what < 7.5) {
-        // a split across: one line through the body and on through the back of the bone
-        line = 1.0 - smoothstep(0.3 + 0.3 * much, 0.9 + 0.6 * much, abs(p.z - across)); body = 1.0;
-      } else if (what > 7.5) {
-        // a chip: a line that cuts the top front corner off the body
-        float corner = (-p.y / uCrack.y + p.z / uCrack.w - (1.65 - 0.5 * much)) * min(uCrack.y, uCrack.w) * 0.7 + (noise(vec3(p.x * 0.4, p.z * 0.4, 5.0)) - 0.5) * 1.4;
-        line = (1.0 - smoothstep(0.3, 0.9, abs(corner))) * step(0.0, p.z) * step(p.y, 0.0);
-      }
-      if (what > 2.5 && what < 3.5) { float upright = (noise(vec3(p.z * 0.3, p.y * 0.3, 15.0)) - 0.5) * 0.5 * uCrack.z; line = max(line, 1.0 - smoothstep(0.3, 0.85, abs(p.x - upright))); }
+      if (uCrack.x > 2.5) { float upright = (noise(vec3(p.z * 0.3, p.y * 0.3, 15.0)) - 0.5) * 0.5 * uCrack.z; line = max(line, 1.0 - smoothstep(0.3, 0.85, abs(p.x - upright))); }
       mark *= 1.0 - 0.78 * line * body;
     }
     if (uSnap.x > 0.5) {

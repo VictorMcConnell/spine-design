@@ -93,7 +93,6 @@ export function retypePiece(spine, kind, piece, to) {
   if (type === now) return { kind, piece };
   // (a hook turns round where it is, and a screw only gets another head)
   if (type.kind === kind && kind === 'hooks') { faceHook(spine, piece, type.set.faces); fitRods(spine); return { kind, piece }; }
-  if (type.kind === kind && kind === 'crosslinks') { if (type.set.style !== 'arch') piece.style = type.set.style; else delete piece.style; return { kind, piece }; }
   if (type.kind === kind) { lookOf(piece, type.set.look); return { kind, piece }; }
   const spot = slot(level, piece.side, type.set.faces || 'down');
   const next = { level: piece.level, side: piece.side, rod: piece.rod || piece.side, ...(type.kind === 'screws' ? lookOf(spot.screw, type.set.look) : spot.hook), source: 'typical', ...(piece.color ? { color: piece.color } : {}) };
@@ -119,86 +118,6 @@ export function resizeScrew(screw, diameter, length) {
   if (length) screw.tip = vAdd(start, vScale(dir, length)).map(round1);
 }
 export const screwLength = (screw) => Math.round(vLen(vSub(screw.tip, screw.entry || screw.head)));
-
-// ---- by hand
-// A screw or a hook goes on at the usual spot of its vertebra. These read how one sits compared
-// with that spot and set it by numbers, for someone whose own part sits differently. Nothing is
-// written down beyond the points the part already has: the numbers are read back from those.
-//   screw: { lean, rise, proud, up, out }
-//     lean   degrees it points toward the middle of the spine (0 is straight forward)
-//     rise   degrees it points up (down, if negative)
-//     proud  how far its head stands off the bone, in millimetres
-//     up     how far up the bone it goes in, from the usual spot (down, if negative)
-//     out    how far out to the side it goes in, from the usual spot (toward the middle, if negative)
-//   hook: { up, out, proud }   the same, proud from where it usually sits
-export const HAND_LIMITS = { screw: { lean: [-15, 45], rise: [-30, 30], proud: [4, 20], up: [-10, 10], out: [-8, 8] }, hook: { up: [-12, 12], out: [-8, 8], proud: [-3, 6] } };
-const clampTo = (v, [lo, hi]) => Math.max(lo, Math.min(hi, v));
-const DEG = 180 / Math.PI;
-// (how much further back the bone is at one spot of a vertebra than at another, both on its back. 0 where it cannot be told.)
-function boneStep(level, from, to) {
-  const a = boneSurface(level.id, level.size, from[0], from[2]), b = boneSurface(level.id, level.size, to[0], to[2]);
-  return a === null || b === null ? 0 : clampTo(b - a, [-8, 8]);
-}
-function handOf(spine, kind, piece) {
-  const level = (spine.levels || []).find((l) => l.id === piece.level);
-  if (!level || !piece.side || !['screws', 'hooks'].includes(kind)) return null;
-  const frame = levelFrame(level), sg = sign(piece.side), usual = slot(level, piece.side, piece.faces || 'down'), local = (p) => toLocal(p, level.centre, frame);
-  return { level, frame, sg, usual, local };
-}
-//   exact: leave the numbers unrounded (for setting some of them and keeping the others just as they are)
-export function handSet(spine, kind, piece, exact = false) {
-  const h = handOf(spine, kind, piece);
-  if (!h) return null;
-  const r1 = (v) => (exact ? v : Math.round(v * 10) / 10), whole = (v) => (exact ? v : Math.round(v));
-  if (kind === 'screws') {
-    const entry = h.local(piece.entry || piece.head), tip = h.local(piece.tip), dir = vUnit(vSub(tip, entry)), was = h.local(h.usual.screw.entry);
-    return { lean: whole(Math.atan2(-h.sg * dir[0], -dir[1]) * DEG), rise: whole(Math.asin(Math.max(-1, Math.min(1, dir[2]))) * DEG), proud: r1(vDist(h.local(piece.head), entry)), up: r1(entry[2] - was[2]), out: r1(h.sg * (entry[0] - was[0])),
-      // (how much deeper or shallower than usual it goes in. It is kept as it is, and has no slider.)
-      ...(exact ? { deep: entry[1] - was[1] - boneStep(h.level, was, entry) } : {}) };
-  }
-  const at = h.local(piece.at), was = h.local(h.usual.hook.at);
-  return { up: r1(at[2] - was[2]), out: r1(h.sg * (at[0] - was[0])), proud: r1(at[1] - was[1] - boneStep(h.level, was, at)) };
-}
-// Set some of those numbers (the others stay as they are). The rods are run through it again.
-// Returns the numbers as they are now, or null for a part that cannot be set this way.
-export function setByHand(spine, kind, piece, change) {
-  const h = handOf(spine, kind, piece), now = h && handSet(spine, kind, piece, true);
-  if (!now || piece.locked) return null;
-  const lim = HAND_LIMITS[kind === 'screws' ? 'screw' : 'hook'], set = {};
-  // (a number that is not being set stays as it is, also when it is outside what the sliders reach)
-  for (const k in lim) set[k] = typeof change[k] === 'number' ? clampTo(change[k], lim[k]) : now[k];
-  const world = (p) => toWorld(p, h.level.centre, h.frame).map(round1);
-  if (kind === 'screws') {
-    const was = h.local(h.usual.screw.entry), length = vDist(piece.tip, piece.entry || piece.head), a = set.lean / DEG, b = set.rise / DEG;
-    const entry = [was[0] + h.sg * set.out, was[1], was[2] + set.up]; entry[1] += boneStep(h.level, was, entry) + now.deep;
-    const dir = [-h.sg * Math.sin(a) * Math.cos(b), -Math.cos(a) * Math.cos(b), Math.sin(b)];
-    piece.entry = world(entry); piece.head = world(vAdd(entry, vScale(dir, -set.proud))); piece.tip = world(vAdd(entry, vScale(dir, length)));
-  } else {
-    const was = h.local(h.usual.hook.at), at = [was[0] + h.sg * set.out, was[1], was[2] + set.up]; at[1] += boneStep(h.level, was, at) + set.proud;
-    piece.at = world(at); Object.assign(piece, bladeFrom(h.level, piece.at, h.sg, piece.faces || 'down'));
-  }
-  fitRods(spine);
-  return handSet(spine, kind, piece);
-}
-// Whether a screw or a hook sits where the app would put it (true), or was moved by hand.
-export function isUsual(spine, kind, piece) {
-  const h = handOf(spine, kind, piece);
-  if (!h) return true;
-  const u = kind === 'screws' ? h.usual.screw : h.usual.hook, keys = kind === 'screws' ? ['head', 'entry'] : ['at'];
-  if (kind === 'screws' && vDot(vUnit(vSub(piece.tip, piece.entry || piece.head)), vUnit(vSub(u.tip, u.entry))) < 0.9995) return false;
-  return keys.every((k) => vDist(piece[k] || piece.head, u[k]) < 0.6);
-}
-// Put it back where the app would put it. A screw keeps its length, its thickness and its head.
-export function backToUsual(spine, kind, piece) {
-  const h = handOf(spine, kind, piece);
-  if (!h || piece.locked) return false;
-  if (kind === 'screws') {
-    const u = h.usual.screw, length = vDist(piece.tip, piece.entry || piece.head), dir = vUnit(vSub(u.tip, u.entry));
-    piece.head = u.head; piece.entry = u.entry; piece.tip = vAdd(u.entry, vScale(dir, length)).map(round1);
-  } else Object.assign(piece, h.usual.hook);
-  fitRods(spine);
-  return true;
-}
 
 // A smooth path through a list of points, with a point about every 6 mm, running a little
 // past both ends. The curve passes through every point and does not swing out beyond them
@@ -350,7 +269,7 @@ export function fitRods(spine, all = false) {
       const id = side + (k ? '-' + (k + 1) : ''), was = old.find((r) => r.id === id) || old[0] || {}, via = list.filter((g) => g.via).map((g) => g.at);
       for (const g of list) if (g.piece) g.piece.rod = id;
       if (list.length - via.length < 2) return;
-      hw.rods.push({ id, side, diameter: was.diameter || hw.rodSize || HARDWARE.rodDiameter, points: pathThrough(list.map((g) => g.at)), auto: true, source: 'typical', ...(was.color ? { color: was.color } : {}), ...(via.length ? { via } : {}) });
+      hw.rods.push({ id, side, diameter: was.diameter || HARDWARE.rodDiameter, points: pathThrough(list.map((g) => g.at)), auto: true, source: 'typical', ...(was.color ? { color: was.color } : {}), ...(via.length ? { via } : {}) });
     });
   }
   hw.rods.sort((p, q) => (p.side === 'right' ? 0 : 1) - (q.side === 'right' ? 0 : 1));
@@ -647,14 +566,13 @@ export const linkBelow = (spine, id) => linksBelow(spine, id).length > 0;
 
 // Add or remove the cross-link in the gap below a vertebra. False if it cannot be added, or
 // if the one that is there is frozen and cannot be taken off.
-//   style: the look of a new one ('plate' or 'straight'. Without it, the arched bar)
-export function setLinkBelow(spine, id, on, style) {
+export function setLinkBelow(spine, id, on) {
   const hw = spine.hardware, there = linksBelow(spine, id);
   if (there.some((c) => c.locked)) return !!on;
   hw.crosslinks = hw.crosslinks.filter((c) => !there.includes(c));
   if (!on) return true;
   const link = linkUnder(spine, id);
-  if (link) hw.crosslinks.push(style && style !== 'arch' ? { ...link, style } : link);
+  if (link) hw.crosslinks.push(link);
   return !!link;
 }
 // Could a cross-link sit in the gap below a vertebra? It needs a rod on both sides there.

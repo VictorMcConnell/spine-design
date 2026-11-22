@@ -148,7 +148,7 @@ const stretchWhole = (id, size, fracture) => { const k = stretchOf(id, size); re
 // middle of the body at 0, 0, 0). The arch and the processes behind the body stay as they are.
 //   size: of the body as it is now (the height in it is the height left)
 function warpOf(size, fracture) {
-  const w = size[0], d = size[1], left = size[2] / fracture.was, a = fracture.amount;
+  const d = size[1], left = size[2] / fracture.was, a = fracture.amount;
   // 1 inside the body, fading to 0 behind its back wall, where the pedicles start
   const body = (y) => { const t = Math.max(0, Math.min(1, (y - (d / 2 + 2.5)) / 7)); return 1 - t * t * (3 - 2 * t); };
   if (fracture.kind === 'wedge') {
@@ -156,26 +156,8 @@ function warpOf(size, fracture) {
     const front = 2 * (1 - left);
     return (x, y, z) => [x, y, z * (1 - front * (1 - Math.max(0, Math.min(1, (y + d / 2) / d))))];
   }
-  if (fracture.kind === 'wedge-left' || fracture.kind === 'wedge-right') {
-    // that side has lost twice what the middle has, the other side nothing
-    const side = 2 * (1 - left), sign = fracture.kind === 'wedge-left' ? 1 : -1;
-    return (x, y, z) => [x, y, z * (1 - side * Math.max(0, Math.min(1, (sign * x + w / 2) / w)) * body(y))];
-  }
-  if (left > 0.999) return (x, y, z) => [x, y, z];          // (a crack, a split or a chip: nothing is squashed)
   if (fracture.kind === 'burst') return (x, y, z) => { const b = body(y); return [x * (1 + 0.2 * a * b), y * (1 + 0.12 * a * b), z * (1 + (left - 1) * b)]; };
   return (x, y, z) => [x, y, z * (1 + (left - 1) * body(y))];
-}
-// Bone spurs: the rims of the body, top and bottom, grow outward in uneven lips, most at the front and the sides.
-//   size: of the whole body [wide, deep, tall]
-function spurOf(size) {
-  const [w, d, h] = size, step = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
-  return (x, y, z) => {
-    const r = Math.hypot(x / (w / 2), y / (d / 2)), high = Math.abs(z) / (h / 2), back = step(d / 2 - 4, d / 2 + 1, y);
-    const much = step(0.6, 0.93, high) * (1 - step(1.02, 1.25, high)) * step(0.55, 0.9, r) * (1 - step(1.05, 1.3, r)) * (1 - back);
-    if (much < 0.001) return [x, y, z];
-    const a = Math.atan2(y, x), lip = 0.55 + 0.45 * Math.sin(3 * a + 1.3 + (z > 0 ? 0 : 2.1)) * Math.sin(5 * a + 0.4), k = 1 + 0.2 * much * lip;
-    return [x * k, y * k, z];
-  };
 }
 const hasReal = (id) => style === 'real' && !!SHAPES[id];
 
@@ -183,15 +165,12 @@ const hasReal = (id) => style === 'real' && !!SHAPES[id];
 //   detail: for the drawn bones, the size of the sampling grid in millimetres. Smaller is
 //           smoother and slower.
 //   fracture: how its body is broken, if it is (the "fracture" of its level in a spine file)
-//   spurs: true for bone spurs at the rims of its body
-export function vertebraShape(id, size, detail = 1.4, fracture = null, spurs = false) {
-  if (hasReal(id) && (fracture || spurs) && size) {
-    const key = id + '|real|' + size.join(',') + '|' + (fracture ? fracture.kind + fracture.amount + '|' + fracture.was : '') + (spurs ? '|spurs' : '');
+export function vertebraShape(id, size, detail = 1.4, fracture = null) {
+  if (hasReal(id) && fracture && size) {
+    const key = id + '|real|' + size.join(',') + '|' + fracture.kind + fracture.amount + '|' + fracture.was;
     if (!cache.has(key)) {
-      const base = storedShape(id), k = stretchWhole(id, size, fracture), same = (x, y, z) => [x, y, z], warp = fracture ? warpOf(size, fracture) : same, p = base.positions, positions = new Float32Array(p.length);
-      // (the spurs grow on the body as it was, and then break with it)
-      const spur = spurs ? spurOf([size[0], size[1], fracture ? fracture.was : size[2]]) : same;
-      for (let i = 0; i < p.length; i += 3) { const s = spur(p[i] * k[0], p[i + 1] * k[1], p[i + 2] * k[2]), q = warp(s[0], s[1], s[2]); positions[i] = q[0]; positions[i + 1] = q[1]; positions[i + 2] = q[2]; }
+      const base = storedShape(id), k = stretchWhole(id, size, fracture), warp = warpOf(size, fracture), p = base.positions, positions = new Float32Array(p.length);
+      for (let i = 0; i < p.length; i += 3) { const q = warp(p[i] * k[0], p[i + 1] * k[1], p[i + 2] * k[2]); positions[i] = q[0]; positions[i + 1] = q[1]; positions[i + 2] = q[2]; }
       cache.set(key, { positions, indices: base.indices });
       if (cache.size > 150) cache.delete(cache.keys().next().value);
     }
@@ -293,15 +272,14 @@ export function discMesh(upper, lower) {
 //   dried      no fullness at the rim, and drawn darker (tint 'dried')
 //   none       nothing at all
 // "tint" tells the scene to shade a part away from the colour of the discs: 'dried' or 'sore'.
-// (discParts, below, is what the rest of the app calls: it adds the implants.)
-function naturalDisc(upper, lower, disc) {
+export function discParts(upper, lower, disc) {
   const state = (disc && disc.state) || 'standard';
   if (state === 'standard') return [{ mesh: discMesh(upper, lower) }];
   if (state === 'none') return [];
   const a = endplateRing(upper, false), b = endplateRing(lower, true), n = a.length;
   const centre = a.concat(b).reduce((s, q) => vAdd(s, q), [0, 0, 0]).map((v) => v / (2 * n));
   const amount = Math.max(0.1, Math.min(1, typeof disc.amount === 'number' ? disc.amount : 0.5)), f = levelFrame(lower);
-  const toward = vUnit(disc.toward === 'back-left' ? vAdd(f.back, vScale(f.left, 0.85)) : disc.toward === 'back-right' ? vSub(f.back, vScale(f.left, 0.85)) : disc.toward === 'left' ? f.left : disc.toward === 'right' ? vScale(f.left, -1) : disc.toward === 'front' ? vScale(f.back, -1) : f.back);
+  const toward = vUnit(disc.toward === 'back-left' ? vAdd(f.back, vScale(f.left, 0.85)) : disc.toward === 'back-right' ? vSub(f.back, vScale(f.left, 0.85)) : f.back);
   const rim = a.map((q, i) => vLerp(q, b[i], 0.5)), facing = rim.map((p) => Math.max(0, vDot(vUnit(vSub(p, centre)), toward)));
   const swell = facing.map((w) => (state === 'thin' ? 0.1 : state === 'dried' ? 0 : state === 'bulging' ? 0.06 + amount * (0.08 + 0.3 * w * w) : 0.06 + amount * 0.5 * w ** 10));
   const ring = (t, full) => a.map((q, i) => vLerp(centre, vLerp(b[i], q, t), 1 + swell[i] * full));
@@ -310,7 +288,8 @@ function naturalDisc(upper, lower, disc) {
     // the lump: a ball pressed flat between the two bones, half out of the rim where it faces that side most
     const k = facing.indexOf(Math.max(...facing)), out = vSub(rim[k], centre), up = vUnit(vSub(a[k], b[k])), across = vUnit(vCross(up, toward));
     const at = vAdd(centre, vScale(out, 1 + 0.12 + 0.3 * amount)), r = [3 + 4 * amount, 4 + 3.5 * amount, Math.max(2.2, Math.min(5.5, vLen(vSub(a[k], b[k])) * 0.6))];
-    const lump = oval(at, [vUnit(out), across, up], r);
+    const lump = ball([0, 0, 0], 1), p = lump.positions, dirs = [vUnit(out), across, up];
+    for (let i = 0; i < p.length; i += 3) { const q = [p[i], p[i + 1], p[i + 2]]; for (let j = 0; j < 3; j++) p[i + j] = at[j] + dirs[0][j] * q[0] * r[0] + dirs[1][j] * q[1] * r[1] + dirs[2][j] * q[2] * r[2]; }
     parts.push({ mesh: lump, tint: 'sore' });
   }
   return parts;
@@ -338,135 +317,4 @@ export function archMarks(level) {
   // (in the neck the side processes stand beside the body, lower down they stand behind it)
   const neck = level.id[0] === 'C';
   return { snap: [level.arch === 'tp-left' ? 2 : 3, a.cw / 2 + (side - a.cw / 2) * 0.45, neck ? -a.d / 2 : a.d / 2 + 2, neck ? a.d / 2 + 10 : canal + 8] };
-}
-
-// A ball pulled into an oval and put somewhere: its three axes and how far it reaches along each.
-function oval(at, axes, radii) {
-  const mesh = ball([0, 0, 0], 1), p = mesh.positions;
-  for (let i = 0; i < p.length; i += 3) { const q = [p[i], p[i + 1], p[i + 2]]; for (let j = 0; j < 3; j++) p[i + j] = at[j] + axes[0][j] * q[0] * radii[0] + axes[1][j] * q[1] * radii[1] + axes[2][j] * q[2] * radii[2]; }
-  return mesh;
-}
-const middleOf = (ring) => ring.reduce((s, q) => vAdd(s, q), [0, 0, 0]).map((v) => v / ring.length);
-// The colours of the implants. They are general shapes of their kind, not products.
-const PLATE = [0.72, 0.74, 0.78], CORE = [0.9, 0.92, 0.95], CAGE = [0.62, 0.65, 0.7], SPACER = [0.74, 0.7, 0.58];
-
-// An implant in the place of a disc: a list of { mesh, color, metal }.
-//   replacement  an artificial disc: a plate on each bone and a smooth core between them
-//   cage         a fusion cage: one block, smaller than the bones it holds apart
-function implantParts(upper, lower, state) {
-  const a = endplateRing(upper, false), b = endplateRing(lower, true), ca = middleOf(a), cb = middleOf(b), up = vUnit(vSub(ca, cb)), gap = vLen(vSub(ca, cb));
-  const inward = (ring, c, k) => ring.map((p) => vLerp(c, p, k)), lifted = (ring, by) => ring.map((p) => vAdd(p, vScale(up, by)));
-  if (state === 'cage' || state === 'cage-screws') return [{ mesh: loft([inward(b, cb, 0.6), inward(a, ca, 0.6)], true), color: CAGE, metal: true }, ...(state === 'cage-screws' ? cageFace(upper, lower) : [])];
-  const thick = Math.min(2, gap / 3.5), top = inward(a, ca, 0.86), bottom = inward(b, cb, 0.86), f = levelFrame(lower);
-  const reach = (axis) => Math.max(...bottom.map((p) => Math.abs(vDot(vSub(p, cb), axis))));
-  return [
-    { mesh: loft([bottom, lifted(bottom, thick)], true), color: PLATE, metal: true },
-    { mesh: loft([lifted(top, -thick), top], true), color: PLATE, metal: true },
-    { mesh: oval(vLerp(ca, cb, 0.5), [f.left, f.back, up], [reach(f.left) * 0.55, reach(f.back) * 0.55, Math.max(1, gap / 2 - thick * 0.6)]), color: CORE },
-  ];
-}
-
-// A spot on the process at the back of a vertebra, in the world: on its middle line, about half
-// way out. Null with the drawn bones and for the atlas and the sacrum, which have no such process.
-const spots = new Map();
-function backProcess(level) {
-  if (!hasReal(level.id) || level.id === 'C1' || level.id === 'S1') return null;
-  const size = level.fracture ? [level.size[0], level.size[1], level.fracture.was] : level.size, key = level.id + '|' + size.join(',');
-  if (!spots.has(key)) {
-    const a = anatomyFor(level.id, size), p = vertebraShape(level.id, size).positions; let back = 0;
-    for (let i = 0; i < p.length; i += 3) back = Math.max(back, p[i + 1]);
-    // (how high the process is there: the middle of the bone that lies near that spot)
-    const y = a.d / 2 + a.cd + 0.5 * (back - a.d / 2 - a.cd); let z = 0, n = 0;
-    for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i]) < 5 && Math.abs(p[i + 1] - y) < 4) { z += p[i + 2]; n++; }
-    spots.set(key, [0, y, n ? z / n : 0]); if (spots.size > 200) spots.delete(spots.keys().next().value);
-  }
-  return toWorld(spots.get(key), level.centre, levelFrame(level));
-}
-// A spacer between the back processes of two neighbouring vertebrae: a block that sits in the
-// gap, with a wing on each side to keep it there. An empty list where there is no such gap.
-function spacerParts(upper, lower) {
-  const pu = backProcess(upper), pl = backProcess(lower);
-  if (!pu || !pl) return [];
-  const along = vUnit(vSub(pu, pl)), left = levelFrame(lower).left, deep = vUnit(vCross(left, along)), mid = vLerp(pu, pl, 0.5), tall = Math.max(3.5, Math.min(7, vLen(vSub(pu, pl)) / 2 - 8));
-  return [
-    // (the two spots are on the processes themselves, so the gap between the processes is a good deal shorter
-    // than the way from one spot to the other)
-    { mesh: oval(mid, [left, deep, along], [4.2, 6, tall]), color: SPACER, metal: true },
-    ...[-1, 1].map((s) => ({ mesh: oval(vAdd(mid, vScale(left, s * 5.4)), [left, deep, along], [1.4, 6.5, tall + 5]), color: SPACER, metal: true })),
-  ];
-}
-
-// A plate on the front of the spine, across one disc or several in a row: a strap with rounded
-// ends that follows the front of the bones, held by two screws in each bone (only their heads show).
-//   levels: the vertebrae it lies on, from the top one down (two for one disc)
-const DARK = [0.3, 0.31, 0.35];
-function plateParts(levels) {
-  const last = levels.length - 1, fl = levelFrame(levels[last]), left = fl.left;
-  // its line: down the front of each body. It starts a little above the middle of the top one and ends a little below the middle of the bottom one
-  const front = (level, s) => { const f = levelFrame(level); return vAdd(level.centre, vAdd(vScale(f.back, -(level.size[1] / 2 + 0.8)), vScale(f.up, s * level.size[2]))); };
-  // (the sacrum slopes away under its top, so there the plate stops short)
-  const stops = levels.flatMap((l, k) => [front(l, k === 0 ? 0.16 : 0.5), front(l, k === last ? (l.id === 'S1' ? 0.22 : -0.16) : -0.5)]), line = [], own = [];
-  for (let i = 0; i < stops.length - 1; i++) for (let k = i ? 1 : 0; k <= 6; k++) { line.push(vLerp(stops[i], stops[i + 1], k / 6)); own.push(i % 2 === 0 ? i / 2 : -1); }
-  const lengths = [0]; for (let i = 1; i < line.length; i++) lengths.push(lengths[i - 1] + vLen(vSub(line[i], line[i - 1])));
-  const total = lengths[lengths.length - 1], wide = Math.max(6, Math.min(12, Math.min(...levels.map((l) => l.size[0])) * 0.27)), round = Math.min(wide * 0.7, total * 0.3);
-  const frames = line.map((p, i) => { const along = vUnit(vSub(line[Math.min(i + 1, line.length - 1)], line[Math.max(i - 1, 0)])); let out = vUnit(vCross(left, along)); if (vDot(out, fl.back) > 0) out = vScale(out, -1); return { p, out }; });
-  // a flat strap with rounded edges, its two ends rounded off
-  const rings = frames.map(({ p, out }, i) => {
-    const end = Math.min(lengths[i], total - lengths[i]), w = wide * (end >= round ? 1 : Math.sqrt(Math.max(0.02, 1 - (1 - end / round) ** 2))), ring = [];
-    for (let k = 0; k < 20; k++) { const a = (k / 20) * 2 * Math.PI, c = Math.cos(a), sn = Math.sin(a); ring.push(vAdd(p, vAdd(vScale(left, w * Math.sign(c) * Math.abs(c) ** 0.35), vScale(out, 1.5 + 1.2 * Math.sign(sn) * Math.abs(sn) ** 0.5)))); }
-    return ring;
-  });
-  // two screws in each bone, over the middle of that bone's share of the plate (at the two ends a little in from the end)
-  const heads = levels.flatMap((l, k) => {
-    const mine = own.map((o, i) => (o === k ? i : -1)).filter((i) => i >= 0), t = k === 0 ? 0.6 : k === last ? 0.4 : 0.5, { p, out } = frames[mine[Math.round((mine.length - 1) * t)]];
-    return [1, -1].map((side) => ({ mesh: oval(vAdd(p, vAdd(vScale(left, side * wide * 0.5), vScale(out, 2.9))), [left, vUnit(vCross(left, out)), out], [Math.min(2.5, wide * 0.32), Math.min(2.5, wide * 0.32), 0.9]), color: PLATE, metal: true }));
-  });
-  return [{ mesh: loft(rings, true), color: DARK, metal: true }, ...heads];
-}
-// Where a mark for a plate goes: on the front of the disc between two vertebrae. And for a spacer:
-// between their two back processes (null where there are none).
-export function plateSpot(upper, lower) {
-  const a = endplateRing(upper, false), b = endplateRing(lower, true), back = levelFrame(lower).back, front = (ring) => ring.reduce((best, p) => (vDot(p, back) < vDot(best, back) ? p : best));
-  return vAdd(vLerp(front(a), front(b), 0.5), vScale(back, -2.5));
-}
-export function spacerSpot(upper, lower) {
-  const pu = backProcess(upper), pl = backProcess(lower);
-  return pu && pl ? vLerp(pu, pl, 0.5) : null;
-}
-// Plates on discs next to each other are one long plate. For the disc under the vertebra at place "i" in a
-// list of vertebrae (top first): the vertebrae its plate lies on if a plate starts here, false if the disc is
-// under a plate that started higher up, and nothing if it has no plate.
-//   discs: the "discs" of a spine file
-export function plateRun(levels, discs, i) {
-  const plated = (k) => k >= 0 && k < levels.length - 1 && !!((discs || {})[levels[k].id + '/' + levels[k + 1].id] || {}).plate;
-  if (!plated(i)) return undefined;
-  if (plated(i - 1)) return false;
-  let j = i; while (plated(j + 1)) j++;
-  return levels.slice(i, j + 2);
-}
-
-// A fusion cage that is held by its own screws: the cage, a small face plate on its front that
-// laps over the rims of the two bones, and four screws through it, two up into the bone above and
-// two down into the bone below. Only the heads of the screws show, tipped the way they go.
-function cageFace(upper, lower) {
-  const a = endplateRing(upper, false), b = endplateRing(lower, true), ca = middleOf(a), cb = middleOf(b), f = levelFrame(lower), up = vUnit(vSub(ca, cb));
-  const front = (ring) => ring.reduce((best, p) => (vDot(p, f.back) < vDot(best, f.back) ? p : best)), fa = front(a), fb = front(b);
-  const mid = vAdd(vLerp(fa, fb, 0.5), vScale(f.back, -0.4)), gap = Math.max(4, vDot(vSub(fa, fb), up)), tall = gap / 2 + Math.max(2.5, Math.min(5, lower.size[2] * 0.16)), wide = Math.max(5.5, Math.min(13, Math.min(upper.size[0], lower.size[0]) * 0.3));
-  let out = vUnit(vCross(f.left, up)); if (vDot(out, f.back) > 0) out = vScale(out, -1);
-  const ring = (lift) => { const pts = []; for (let k = 0; k < 24; k++) { const t = (k / 24) * 2 * Math.PI, c = Math.cos(t), s = Math.sin(t); pts.push(vAdd(mid, vAdd(vAdd(vScale(f.left, wide * Math.sign(c) * Math.abs(c) ** 0.4), vScale(up, tall * Math.sign(s) * Math.abs(s) ** 0.4)), vScale(out, lift)))); } return pts; };
-  const heads = [[1, 1], [-1, 1], [1, -1], [-1, -1]].map(([side, high]) => {
-    // (a head lies over the rim of its bone and is tipped toward it)
-    const at = vAdd(mid, vAdd(vAdd(vScale(f.left, side * wide * 0.5), vScale(up, high * (tall - 2.2))), vScale(out, 2.6))), lean = vUnit(vAdd(out, vScale(up, -high * 0.55)));
-    return { mesh: oval(at, [f.left, vUnit(vCross(f.left, lean)), lean], [Math.min(2.3, wide * 0.3), Math.min(2.3, wide * 0.3), 0.9]), color: PLATE, metal: true };
-  });
-  return [{ mesh: loft([ring(0.2), ring(2.4)], true), color: CAGE.map((v) => v * 0.8), metal: true }, ...heads];
-}
-
-// Everything that is drawn for the disc between two vertebrae, as the file describes it (see
-// discs.js): a list of { mesh, tint, color, metal }. A part with a "color" is an implant and
-// keeps that colour. "metal" asks the renderer to light it as metal.
-//   run: for a plate, what plateRun gives for this disc. Left out, the plate lies on these two vertebrae.
-export function discParts(upper, lower, disc, run) {
-  const state = (disc && disc.state) || 'standard', plate = disc && disc.plate && run !== false ? plateParts(run || [upper, lower]) : [];
-  return [...(['replacement', 'cage', 'cage-screws'].includes(state) ? implantParts(upper, lower, state) : naturalDisc(upper, lower, disc)), ...plate, ...(disc && disc.spacer ? spacerParts(upper, lower) : [])];
 }
