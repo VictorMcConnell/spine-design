@@ -171,7 +171,7 @@ export function setupXray(app, kit) {
   // The trace is new or longer: after a fit the spine follows it at once.
   function traced() {
     const s = shot();
-    if (s.fitted && s.points.length > 1) { follow(true); rename(); } else redraw();
+    if (s.fitted && s.points.length > 1) { follow(true); rename(); say('The spine follows your trace from ' + s.bottom + ' up to ' + s.top + '.'); } else redraw();
     kit.changed();
   }
   // After a fit the two ends of the trace are named by the vertebrae they lie on now. A trace that was made longer,
@@ -292,13 +292,14 @@ export function setupXray(app, kit) {
     } else if (busy && beside()) drag(e);
   });
   const letGo = () => {
-    if (grabbed) { const moved = grabbed.moved; grabbed = null; if (moved && shot() && shot().fitted) { rename(); app.settle(); } redraw(); kit.changed(); }
+    if (grabbed) { const moved = grabbed.moved; grabbed = null; if (moved && shot() && shot().fitted) { rename(); app.settle(); say('The spine follows your trace from ' + shot().bottom + ' up to ' + shot().top + '.'); } redraw(); kit.changed(); }
     else if (busy && beside()) end();
   };
   window.addEventListener('pointerup', letGo); window.addEventListener('pointercancel', () => { if (grabbed) letGo(); else if (busy && beside()) cancel(); });
 
   // ---------------------------------------------------------------- the card
-  function say(text) { told = text || ''; $('xraySay').textContent = told; hint(); }
+  // (the line under the buttons is only there while a picture is open: with none, the words go to the line over the model)
+  function say(text) { told = text || ''; $('xraySay').textContent = told; if (told && !shot()) app.say(told); hint(); }
   $('xrayPick').addEventListener('click', () => $('xrayFile').click());
   $('xrayFile').addEventListener('change', () => { open($('xrayFile').files[0]); $('xrayFile').value = ''; });
   each('[data-xplane]', (b) => b.addEventListener('click', () => { plane = Number(b.dataset.xplane); picked = -1; renderer.look(plane === 0 ? 0 : Math.PI / 2); say(''); kit.changed(); }));
@@ -360,7 +361,7 @@ export function setupXray(app, kit) {
     renderer.look(plane === 0 ? 0 : Math.PI / 2);
     sync(); redraw();
   });
-  $('xrayRemove').addEventListener('click', () => { const s = shot(); if (!s) return; if (s.canvas.parentElement) s.canvas.remove(); shots[plane] = null; picked = -1; say(''); kit.changed(); redraw(); });
+  $('xrayRemove').addEventListener('click', () => { const s = shot(); if (!s) return; if (s.canvas.parentElement) s.canvas.remove(); shots[plane] = null; picked = -1; say(''); app.say('The picture and its trace are gone. The spine keeps the shape it has.'); kit.changed(); redraw(); });
   function placeSays() {
     const s = shot();
     if (!s) return;
@@ -405,6 +406,7 @@ export function setupXray(app, kit) {
       s.rule = null;
     });
     picked = -1; stroke = null; moving = null; grabbed = null; busy = false; if (mode === 'rule') mode = 'trace';
+    told = ''; $('xraySay').textContent = '';      // (what was said about the step that was left would be stale)
   }
 
   function sync() {

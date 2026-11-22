@@ -549,7 +549,10 @@ function pictureOf() {
   }
   g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = 11 * k + 'px system-ui, sans-serif'; g.fillStyle = pale ? 'rgba(30, 31, 36, 0.75)' : 'rgba(236, 234, 229, 0.7)';
   const lines = ['A sketch made with Spine-Design. Not a medical image.'].concat(look.simple ? [] : ['Bone shapes: ' + SHAPE_CREDIT]);
-  lines.forEach((text, i) => g.fillText(text, 10 * k, out.height - (10 + (lines.length - 1 - i) * 15) * k));
+  // (a narrow picture, as from a phone held upright: the words go on as many lines as they need)
+  const room = out.width - 20 * k, rows = [];
+  for (const text of lines) { let row = ''; for (const word of text.split(' ')) { const more = row ? row + ' ' + word : word; if (row && g.measureText(more).width > room) { rows.push(row); row = word; } else row = more; } rows.push(row); }
+  rows.forEach((text, i) => g.fillText(text, 10 * k, out.height - (10 + (rows.length - 1 - i) * 15) * k));
   return out;
 }
 

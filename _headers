@@ -5,7 +5,7 @@
 # not to pass on where a visitor came from and not to offer camera, microphone or location.
 # The last one tells the browser to come back over HTTPS only, for the next year.
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-vbyWct2VT0zgNDs8gbRqAzwnRwiSw4+EcROq8JoMT/I=' 'sha256-XaNHeEuuYvV923WU/hcyAuYrGQxtlix0DIpl55kQGHA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-Mb3IPzQjofsVMR8ZQtszIciqZN+OUHdJKEPDXesUJnc=' 'sha256-LsCGoMitt/SecJAq0fC2bFj02TabQoUPHpfWUYoTp8A='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer
@@ -21,9 +21,9 @@
   ! Content-Security-Policy
   ! X-Frame-Options
   ! Cross-Origin-Opener-Policy
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-vbyWct2VT0zgNDs8gbRqAzwnRwiSw4+EcROq8JoMT/I=' 'sha256-XaNHeEuuYvV923WU/hcyAuYrGQxtlix0DIpl55kQGHA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors *
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-Mb3IPzQjofsVMR8ZQtszIciqZN+OUHdJKEPDXesUJnc=' 'sha256-LsCGoMitt/SecJAq0fC2bFj02TabQoUPHpfWUYoTp8A='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors *
 /view.html
   ! Content-Security-Policy
   ! X-Frame-Options
   ! Cross-Origin-Opener-Policy
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-vbyWct2VT0zgNDs8gbRqAzwnRwiSw4+EcROq8JoMT/I=' 'sha256-XaNHeEuuYvV923WU/hcyAuYrGQxtlix0DIpl55kQGHA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors *
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-Mb3IPzQjofsVMR8ZQtszIciqZN+OUHdJKEPDXesUJnc=' 'sha256-LsCGoMitt/SecJAq0fC2bFj02TabQoUPHpfWUYoTp8A='; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors *
